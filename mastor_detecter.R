@@ -190,10 +190,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "whitentestBband1x_100"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -201,7 +201,7 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-#detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
 #detectorsspr[[2]] <- dir(BLEDpath)[11:20]
 detectorssprshort<- detectorsspr
 }
@@ -221,7 +221,7 @@ timediff<-0.5
 #Pre whiten data?(y or no)
 whiten<-"n"
 FO<-200 #filter order
-LMS<-.15 #LMS step size
+LMS<-.20 #LMS step size
 
 ############################Spread parameters. must be same length as number of spread detectors you are running
 
@@ -362,9 +362,33 @@ ParamSum2[5,3]<- " "
   ParamSum<-rbind(ParamSum,ParamSum2)
 }
 
+
+if(whiten=="y"){
+
+colClasses = c("numeric", "character","character")
+ParamSum3 <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
+colnames(ParamSum3)<-c("Parameter","Value","Description")
+
+ParamSum3[1,1]<-"Whiten Filter Order (FO)"
+ParamSum3[1,2]<- FO
+ParamSum3[1,3]<-" "
+ParamSum3[2,1]<-"Whiten LMS step size (x10^-9)" 
+ParamSum3[2,2]<- LMS
+ParamSum3[2,3]<-" " 
+
+ParamSum<-rbind(ParamSum,ParamSum3)
+
+}
+
+
 write.table(ParamSum,paste(outputpath,runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
 
 ######################################
+#set FO and LMS to NA if no whiten
+if(whiten=="n"){
+  FO<-NA
+  LMS<-NA
+}
 
 #path to ground truth table
 GT<-list()
@@ -394,7 +418,7 @@ for(m in moorings){
   sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
   sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
-  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
@@ -405,7 +429,7 @@ for(m in moorings){
   whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
   }
 
-  combname<- paste(m,MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   
 
 #run detector(s)
@@ -673,8 +697,8 @@ DetecTab2$remove<-NULL
 
 ##Compare tables and print results. 
 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPpercOg, TPpercOu, FNpercOu, FPpercOu,TP_FPrat, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,Notes", colClasses = colClasses)
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPpercOg, TPpercOu, FNpercOu, FPpercOu,TP_FPrat, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 colClasses = c("character","numeric","numeric","numeric","numeric","numeric")
 MooringSumz<-read.csv(text="Moorings,numTP,numFN,numFP,numTPtruth,sumOu",colClasses = colClasses)
@@ -782,7 +806,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   MooringSumz<-rbind(MooringSumz,MooringSumz2)
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(length(detlist),paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=" "),paste(grpsize,collapse=" "),paste(detskip,collapse=" "),paste(groupInt,collapse=" "),as.character(paste(detnum,sum(detlist),sep=";"))," ")
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(length(detlist),paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=" "),paste(grpsize,collapse=" "),paste(detskip,collapse=" "),paste(groupInt,collapse=" "),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
   
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
@@ -810,9 +834,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=","))," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=",")),FO,LMS," ")
   }else{
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=","))," ")   
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=",")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
