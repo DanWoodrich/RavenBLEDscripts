@@ -1,0 +1,786 @@
+#Evaluate and score custom BLED detector(s) in R. Sox must be installed and pathed to accordingly
+
+library(Rraven)
+library(seewave)
+library(beepr)
+library(stringr)
+
+
+raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, preset="Default",vpreset="RW_Upcalls")
+{
+  
+  #check path to working directory
+  if (is.null(path)) path <- getwd() else if (!dir.exists(path)) stop("'path' provided does not exist") 
+  
+  # reset working directory 
+  wd <- getwd()
+  on.exit(setwd(wd), add = TRUE)
+  on.exit(file.remove(file.path(raven.path, "temp.bcv.txt")), add = TRUE)
+  
+  if (is.null(raven.path))
+    stop("Path to 'Raven' folder must be provided")  else
+      if (!dir.exists(raven.path)) stop("'raven.path' provided does not exist")
+  
+  setwd(raven.path)
+  
+  sf <- sound.files <- as.character(sound.files)
+  
+  #return warning if not all sound files were found
+  recs.wd <- list.files(path = path, pattern = "\\.wav$|\\.aif$|\\.flac$|\\.mp3$", ignore.case = TRUE)
+  
+  #count number of sound files in working directory and if 0 stop
+  sound.files <- sound.files[sound.files %in% recs.wd]
+  if (length(sound.files) == 0)
+    stop("The sound files are not in the working directory")
+  
+  # remove sound files not found
+  if (length(sound.files) != length(sf)) 
+    cat(paste(length(sf) - length(sound.files), ".wav file(s) not found"))
+  
+  
+  # check if sound file names contains directory and fix
+  if (basename(sound.files[1]) == sound.files[1])
+    sound.files <- file.path(path, sound.files)
+  
+  if (pb) lply <- pbapply::pblapply else lply <- lapply
+  
+  out <- lply(sound.files, function(x) {
+    
+    if (Sys.info()[1] == "Windows")
+    {  
+      comnd <- paste(shQuote(file.path(raven.path, "Raven.exe"), type = "cmd"), paste0("-detPreset:",preset), paste0("-viewPreset:",vpreset), paste0("-detType:", detector), shQuote(x), "-detTable:temp.bcv.txt -x")
+    } else
+    {
+      if (Sys.info()[1] == "Linux")
+        comnd <- paste(file.path(raven.path, "Raven"), paste0("-detType:", detector), x, "-detTable:temp.bcv.txt -x") else
+          comnd <- paste("open Raven.app --args", x, paste0("-detType:", detector), "-detTable:temp.bcv.txt -x") # OSX
+    }
+    
+    # run raven
+    system(command = comnd, ignore.stderr = TRUE, intern = TRUE)
+    
+    output <- utils::read.table("temp.bcv.txt", sep = "\t",  header = TRUE)
+    
+    if (nrow(output) > 1)
+      output$sound.files <- basename(x) else output <- vector(length = 0)
+    
+    return(output)
+  })
+  
+  out <- out[sapply(out, is.data.frame)]
+  
+  if (length(out) > 0)
+  {
+    output <- do.call(rbind, out)
+    
+    if (relabel_colms)
+      output <- relabel_colms(output, waveform = !any(grepl("Spectrogram", output$View)))
+    
+    output <- output[, c(ncol(output), 2:(ncol(output) - 1))]  
+    
+    return(output)} else return(NULL)
+  
+  
+}
+
+sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
+{
+  
+  if (is.null(exename)) {
+    exename <- "sox"
+  } else {
+    exename = exename
+  }
+  
+  if (is.null(path2exe)) {
+    exe <- exename
+  } else {
+    path2exe <- normalizePath(path = path2exe, winslash = "/", mustWork = TRUE)
+    exe <- paste(path2exe, exename, sep = "/")
+  }
+  
+  if (.Platform$OS.type == "windows") {
+    
+    if(is.null(shQuote_type)) {
+      shQuote_type = "cmd"
+    } else {
+      shQuote_type = "cmd2"
+    }
+    
+  } else {  # .Platform$OS.type == "unix" # + Apple OS X + other
+    
+    if(is.null(shQuote_type)) {
+      shQuote_type = "sh"
+    } else {
+      shQuote_type = "csh"
+    }
+    
+  }
+  
+  exe <- shQuote(exe, type = shQuote_type)
+  system(paste(exe, command, argus, sep = " "), ignore.stderr = TRUE)
+  
+}
+
+#moorings completed 
+allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
+allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
+allmooringsSF[[1]]<-c(1,104)
+allmooringsSF[[2]]<-c(1,96)
+allmooringsSF[[3]]<-c(1,217)
+allmooringsSF[[4]]<-c(1,204)
+allmooringsSF[[5]]<-c(1,175)
+allmooringsSF[[6]]<-c(1,62)
+allmooringsSF[[7]]<-c(1,160)
+
+#############################
+
+MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
+colnames(MooringsDat)<-c(allmooringsGT)
+MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
+
+################Script function
+
+#enter the run name:
+runname<- "whitentestBband1x_100"
+
+#Run type: all (all) or specific (spf) moorings to run
+runtype<-"spf"
+
+#Pre whiten data?(y or no)
+whiten<-"n"
+
+#enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
+dettype<- "single" 
+
+#Enter the name of the species you'd like to evaluate (RW,GS):
+spec <- "RW"
+
+if(dettype=="spread"|dettype=="combined"){
+#make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
+detectorsspr<-list()
+#detectorsspr[[1]] <- dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[23:34] #add more spreads with notation detectorspr[[x]]<-...
+#detectorsspr[[2]] <- dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[11:20]
+detectorssprshort<- detectorsspr
+}
+
+if(dettype=="single"|dettype=="combined"){
+detectorssin <- c(dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[6]
+                  ) #list single detectors to run 
+detectorssinshort<- detectorssin
+}
+
+############################Combine detector (multiple detectors) parameters
+freqdiff<-100
+timediff<-0.5
+
+############################Whiten parameters (need to have done this in Raven previously)
+FO<-200 #filter order
+LMS<-.15 #LMS step size
+
+############################Spread parameters. must be same length as number of spread detectors you are running
+
+#(SPREAD) enter the desired smallest group size for detection. Will be ignored for single detector
+grpsize<-c(2)
+
+#(SPREAD) patterns of detectors to mark detection, where 1 = increasing (sequentially) and 0 = decreasing (or increasing past what is sequential)
+#enter as many patterns as you like. Add new row for each new pattern below. Need at least 1. 
+#Will be ignored for single detector
+
+patterns1<-list()
+#patterns[[1]] <- c(1,1)
+#patterns[[2]] <- c(1,0,1) 
+patterns1[[1]] <- c(1) 
+patterns2<-list()
+patterns2[[1]] <- c(1,1)
+patterns2[[2]] <- c(1,0,1) 
+
+patterns<-list(patterns1)
+
+
+#(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
+detskip<-c(4)
+
+#(SPREAD) max time distance for detectors to be considered in like group 
+groupInt<-c(.5)
+
+############################
+runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
+dir.create(paste('E:/DetectorRunOutput/',runname,sep=""))
+
+if(runtype=="all"){
+moorings<- colnames(MooringsDat)
+#SF<-allmooringsSF
+}else{
+  allmooringsGT<- c("AW12_AU_BS3") #add as complete GTs 
+  allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
+  allmooringsSF[[1]]<-c(1,217)
+ # allmooringsSF[[2]]<-c(1,96)
+  
+  MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
+  colnames(MooringsDat)<-c(allmooringsGT)
+  if(ncol(MooringsDat)>1){
+  MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
+  }else{
+  }
+  moorings<-colnames(MooringsDat)
+}
+
+patlist<-NULL
+for(n in 1:length(patterns)){
+  patlist<-c(patlist,paste(patterns[[n]],collapse = " "))
+}
+
+detlist<-NULL
+detlist2<-NULL
+if(dettype=="spread"|dettype=="combined"){
+  for(n in 1:length(detectorsspr)){
+    detlist<-c(detlist,length(detectorsspr[[n]]))
+    sonlydetlist<-detlist
+    detlist2<-c(detlist2,substr(detectorssprshort[[n]][1],1,2))
+    sonlydetlist2<-detlist2
+  }
+}
+
+if(dettype=="single"|dettype=="combined"){
+    detlist<- c(detlist,length(detectorssin))
+    detlist2<-c(detlist2,detectorssinshort)
+}
+
+if(dettype=="single"){
+  sonlydetlist<-0
+  sonlydetlist2<-NA
+}
+
+detnum<-if(dettype=="spread"){
+    length(detectorsspr)
+  }else if(dettype=="single"){
+      length(detectorssin)
+    }else if(dettype=="combined"){
+        length(detectorssin)+length(detectorsspr)
+    }
+
+###########################make txt file of params for run:
+colClasses = c("numeric", "character","character")
+ParamSum <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
+colnames(ParamSum)<-c("Parameter","Value","Description")
+
+ParamSum[1,1]<-"Run name:"
+ParamSum[1,2]<- runname
+ParamSum[1,3]<-""
+ParamSum[2,1]<-"Run type:"
+ParamSum[2,2]<- runtype
+ParamSum[2,3]<-"All available moorings ('all') or specific moorings ('spf')"
+ParamSum[3,1]<-"Detector type:"
+ParamSum[3,2]<- dettype
+ParamSum[3,3]<-"Type of detector(s) used in run. spread, single, or combined (both)"
+ParamSum[3,1]<-"Number/name of detectors ran:"
+ParamSum[3,2]<- paste(detnum,paste(detlist2,collapse=" "))
+ParamSum[3,3]<-"Number of detectors used in run"
+ParamSum[4,1]<-"Species:"
+ParamSum[4,2]<- spec
+ParamSum[4,3]<-"Call type that detector(s) will look for (RW=right whale,GS=gunshot etc.)"
+ParamSum[5,1]<-"Time threshold for combination:"
+ParamSum[5,2]<- paste(timediff,"s",sep="")
+ParamSum[5,3]<-"Maximum second difference between detection mean time to be considered a combined detection"
+ParamSum[6,1]<-"Frequency threshold for combination:"
+ParamSum[6,2]<- paste(freqdiff,"Hz",sep="")
+ParamSum[6,3]<-"Maximum Hz difference between detection mean freq to be considered a combined detection"
+ParamSum[7,1]<-"Number/name spread detectors ran:"
+ParamSum[7,2]<- paste(length(sonlydetlist),paste(sonlydetlist2,collapse="/"))
+ParamSum[7,3]<- " "
+
+
+if(dettype=="spread"|dettype=="combined"){
+  
+#different table for spread parameters
+colClasses = c("numeric", "character","character")
+ParamSum2 <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
+colnames(ParamSum2)<-c("Parameter","Value","Description")
+
+ParamSum2[1,1]<-"Spread group size:"
+ParamSum2[1,2]<- paste(grpsize,collapse = ",")
+ParamSum2[1,3]<-"Minimum amount of detections needed to be considered a detection group"
+ParamSum2[2,1]<-"Patterns:"
+ParamSum2[2,2]<- paste(patlist,collapse=",")
+ParamSum2[2,3]<-"Patterns of consecutive direction of detections in group to be considered a detection group. 1=ascending above group rolling max,0=descending"
+ParamSum2[3,1]<-"Skip threshold:"
+ParamSum2[3,2]<- paste(detskip,collapse = ",")
+ParamSum2[3,3]<-"Maximum amount of skips between detector rank to count towards ascending pattern distinction"
+ParamSum2[4,1]<-"Time threshold for group:"
+ParamSum2[4,2]<- paste(groupInt,collapse = ",")
+ParamSum2[4,3]<-"Maximum second difference between detection mean time to be considered a detection group"
+ParamSum2[5,1]<-"Detectors ran in each spread:"
+ParamSum2[5,2]<- paste(detlist,collapse = ",")
+ParamSum2[5,3]<- " "
+
+  ParamSum<-rbind(ParamSum,ParamSum2)
+}
+
+write.table(ParamSum,paste('E:/DetectorRunOutput/',runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
+
+######################################
+
+#path to ground truth table
+GT<-list()
+for(f in 1:length(moorings)){
+  GT[[f]] <- read.delim(paste("E:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
+}
+
+if(dettype=="spread"|dettype=="combined"){
+for(i in 1:length(detectorsspr)){
+  for(j in 1:length(detectorsspr[[i]])){
+    detectorsspr[[i]][j]<-paste("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",detectorsspr[[i]][j],sep="")
+  }
+}
+}
+if(dettype=="single"|dettype=="combined"){
+  for(k in 1:length(detectorssin)){
+    detectorssin[k]<-paste("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",detectorssin[k],sep="")
+  }  
+}
+
+#run sound files:
+resltsTab <- NULL
+for(m in moorings){
+  if(whiten=="n"){
+  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
+  combSound<-paste("E:/Combined_sound_files/",m,"/",spec,"/",MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  if(file.exists(combSound)){
+  }else{
+    dir.create(paste("E:/Combined_sound_files/",m,sep=""))
+    dir.create(paste("E:/Combined_sound_files/",m,"/",spec,sep=""))
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," E:/Combined_sound_files/",m,"/",spec,"/",MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+  }
+  }else{
+    sound_files <- dir(paste("E:/Datasets/",m,"Bbandp",100*LMS,"x_","FO",FO,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  }
+  
+#run detector(s)
+if(dettype=="spread"|dettype=="combined"){
+  for(q in 1:length(detectorssprshort)){
+    for(r in detectorssprshort[[q]]){
+      resltVar <- raven_batch_detec(raven.path = "C:/Users/danby456/Raven Pro 1.5", sound.files = paste(MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""), path = paste("E:/Combined_sound_files/",m,"/",spec,sep=""),detector = "Band Limited Energy Detector",preset=r)
+      resltVar$Mooring<-m
+      resltVar$detector<-r
+      resltVar$detectorType<-"spread"
+      resltVar$detectorCount<-q
+      resltsTab<- rbind(resltsTab,resltVar)
+      resltVar<-NULL 
+    }
+    }
+  }
+ 
+if(dettype=="single"|dettype=="combined"){
+  for(n in detectorssinshort){
+    resltVar <- raven_batch_detec(raven.path = "C:/Users/danby456/Raven Pro 1.5", sound.files = paste(MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""), path = paste("E:/Combined_sound_files/",m,"/",spec,sep=""),detector = "Band Limited Energy Detector",preset=n)
+    resltVar$Mooring<-m
+    resltVar$detector<-n
+    resltVar$detectorType<-"single"
+    resltVar$detectorCount<-which(detectorssinshort==n)
+    resltsTab<- rbind(resltsTab,resltVar)
+    resltVar<-NULL
+    }
+  }
+}
+
+
+
+l=1
+DetecTab<-NULL
+if(dettype=="spread"|dettype=="combined"){
+  resltsTabspr<-resltsTab[which(resltsTab$detectorType=="spread"),]
+  RTSVar<-unique(substr(resltsTabspr$detector,1,2))
+  for(d in 1:length(RTSVar)){
+    resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,2)==RTSVar[d]),]
+      for(e in unique(resltsTSPVd$Mooring)){
+        resltsTSPV<-resltsTSPVd[which(resltsTSPVd$Mooring==e),]
+        for(f in 1:length(unique(resltsTSPV$bottom.freq))){
+          resltsTSPV[resltsTSPV$bottom.freq==unique(resltsTSPV$bottom.freq)[f],13]<-f
+        }
+        colnames(resltsTSPV)[13] <- "detectorRank"
+        resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
+        resltsTSPV$group[1]<-1
+        resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
+        #need to order chronologically
+        resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime),]
+        #assign groups based on groupInt value
+        z<-1
+        f<-1
+        for(z in 1:(nrow(resltsTSPV)-1)){
+          if(resltsTSPV[z,15]+groupInt[d]>=resltsTSPV[z+1,15]){
+            resltsTSPV[z+1,14]<-f
+          }else{
+            f<-f+1
+            resltsTSPV[z+1,14]<-f
+          }
+        }
+        #remove groups based on grpsize value
+        removegrp <- table(resltsTSPV$group)
+        resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
+        #add direction column
+        resltsTSPV$direction<-2
+        
+        #if the meantime is the same take only the lowest # box. 
+        resltsTSPV$remove<-0
+        for(g in 1:(nrow(resltsTSPV)-1)){
+          if(resltsTSPV[g+1,15]==resltsTSPV[g,15]){
+            resltsTSPV[g+1,17]<-1}}
+        resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
+        resltsTSPV$remove<-NULL
+        
+        Rolling_max <- resltsTSPV[1,13]
+        
+        #assign direction for each row in group
+        for(r in 1:(nrow(resltsTSPV)-1)){
+          if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
+            if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<=Rolling_max+detskip[d]){
+              Rolling_max <- resltsTSPV[r+1,13]
+              resltsTSPV[r+1,16]<-1
+            }else{
+              resltsTSPV[r+1,16]<-0
+            }
+          }else{
+            Rolling_max <- resltsTSPV[r+1,13]
+            resltsTSPV[r+1,16]<-2
+          }
+        }
+        
+        TSPV_pat<-patterns[[d]]
+        v <- resltsTSPV$direction
+        run<-list()
+        for(b in 1:length(TSPV_pat)){
+          idx <- which(v == TSPV_pat[[b]][1])
+          run[[b]] <- idx[sapply(idx, function(i) all(v[i:(i+(length(TSPV_pat[[b]])-1))] == TSPV_pat[[b]]))]
+        }
+        
+        resltsTSPV$detection<-0 #17
+        #assign detections
+        for(c in 1:length(run)){
+          resltsTSPV[na.omit(c(run[[c]])),17]<-1
+        }
+        
+        #for each group with detection, 
+        for(m in 1:(nrow(resltsTSPV)-1)){
+          if(resltsTSPV[m+1,14]==resltsTSPV[m,14] & resltsTSPV[m+1,17]==1){
+            resltsTSPV[m,17]<-1}
+          else if(resltsTSPV[m+1,14]==resltsTSPV[m,14] & resltsTSPV[m,17]==1){
+            resltsTSPV[m+1,17]<-1
+          }
+        }
+        
+
+        resltsTSPV<- subset(resltsTSPV,direction!=0)
+        resltsTSPV<- subset(resltsTSPV,detection==1)#this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. \
+        
+        if(nrow(resltsTSPV)==0){
+          write.table("There were no detections",paste('E:/DetectorRunOutput/',runname,"/",e,"/_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+        }else{
+          
+          colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
+          resltsTSPVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring", colClasses = colClasses)
+          colnames(resltsTSPVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring")
+          
+
+        p=1
+        for(j in unique(resltsTSPV$group)){
+          grpminfreq <- min(resltsTSPV[resltsTSPV$group==j,6])
+          grpmaxfreq <- max(resltsTSPV[resltsTSPV$group==j,7])
+          grpstarttime <- min(resltsTSPV[resltsTSPV$group==j,4])
+          grpendtime <- max(resltsTSPV[resltsTSPV$group==j,5])
+          
+          resltsTSPVFinal[p,1]<-p
+          resltsTSPVFinal[p,4]<-grpstarttime
+          resltsTSPVFinal[p,5]<-grpendtime
+          resltsTSPVFinal[p,6]<-grpminfreq
+          resltsTSPVFinal[p,7]<-grpmaxfreq
+          resltsTSPVFinal[p,8]<-l
+          resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,2)
+          resltsTSPVFinal[p,10]<-"spread"
+          resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
+          resltsTSPVFinal[p,12]<-e
+        
+          p<-p+1
+        }
+        
+        resltsTSPVFinal$View<-"Spectrogram 1"
+        resltsTSPVFinal$Channel<-1
+        
+        DetecTab<- rbind(DetecTab,resltsTSPVFinal)
+        
+        resltsTSPVFinal<- resltsTSPVFinal[,1:7]
+        write.table(resltsTSPVFinal,paste('E:/DetectorRunOutput/',runname,"/",e,"_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        }
+        }
+    l<-l+1}
+}
+
+
+
+
+if(dettype=="combined"){
+}else{
+  l=1
+}
+
+if(dettype=="single"|dettype=="combined"){
+  resltsTabsin<-resltsTab[which(resltsTab$detectorType=="single"),]
+  for(d in 1:length(unique(resltsTabsin$detector))){
+    resltsTSGVd<-resltsTabsin[which(resltsTabsin$detector==unique(resltsTabsin$detector)[d]),]
+    for(e in unique(resltsTSGVd$Mooring)){
+      resltsTSGV<-resltsTSGVd[which(resltsTSGVd$Mooring==e),]
+      
+      if(nrow(resltsTSGV)==0){
+        write.table("There were no detections",paste('E:/DetectorRunOutput/',runname,"/",e,"/_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      }else{
+      
+      colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
+      resltsTSGVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring", colClasses = colClasses)[1:nrow(resltsTSGV), ]
+      colnames(resltsTSGVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring")
+      
+      resltsTSGVFinal$Selection<-seq(1:nrow(resltsTSGV))
+      resltsTSGVFinal$View<-"Spectrogram 1"
+      resltsTSGVFinal$Channel<-1
+      resltsTSGVFinal[,4]<-resltsTSGV$start
+      resltsTSGVFinal[,5]<-resltsTSGV$end
+      resltsTSGVFinal[,6]<-resltsTSGV$bottom.freq
+      resltsTSGVFinal[,7]<-resltsTSGV$top.freq
+      resltsTSGVFinal$DetectorCount<-l
+      resltsTSGVFinal$DetectorName<- resltsTSGV$detector[1]
+      resltsTSGVFinal$DetectorType<-"single"
+      resltsTSGVFinal$numDetectors<-1
+      resltsTSGVFinal$Mooring<-e
+      
+      DetecTab<- rbind(DetecTab,resltsTSGVFinal)
+      
+      resltsTSGVFinal<- resltsTSGVFinal[,1:7]
+      write.table(resltsTSGVFinal,paste('E:/DetectorRunOutput/',runname,"/",e,"_Summary_single_",resltsTSGVd$detector[1],"_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      }
+  }
+  l=l+1}
+  }
+  
+  ############
+#now need to average detections between detectors. set 
+
+DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
+#need to order chronologically
+DetecTab<-DetecTab[order(DetecTab$meantime),]
+DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
+DetecTab$UniqueID<-seq(1:nrow(DetecTab))
+DetecTab$remove<-0
+
+AvgDet<-DetecTab[0,]
+DetecTab2<-DetecTab[0,]
+for(w in unique(DetecTab$Mooring)){
+  CompareDet<-DetecTab[which(DetecTab$Mooring==w),]
+  if(detnum>1){
+  CDvar<-unique(CompareDet$DetectorCount)
+  for(x in 1:(length(CDvar)-1)){
+    i = CompareDet[which(CompareDet$DetectorCount==CDvar[x]),]
+    j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
+    for(y in 1:nrow(i)){
+      for(z in 1:nrow(j)){
+        if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
+          CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
+          CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
+          meanS<-mean(c(i[y,4],j[z,4]))
+          meanE<-mean(c(i[y,5],j[z,5]))
+          meanL<-mean(c(i[y,6],j[z,6]))
+          meanH<-mean(c(i[y,7],j[z,7]))
+          
+          AvgDet2<-data.frame(99,as.character("Spectogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
+          names(AvgDet2)<-colnames(AvgDet)
+          #make new dataframe be second detector ID so it will loop properly
+          
+          AvgDet<- rbind(AvgDet,AvgDet2)  
+          
+        }
+      }
+    }
+    CompareDet<-CompareDet[-which(CompareDet$remove==1),]
+    
+    CompareDet[which(CompareDet$DetectorCount==i[1,8]),8]<-j[1,8]
+    CompareDet[which(CompareDet$DetectorName==i[1,9] |CompareDet$DetectorName==j[1,9]),9]<-as.character(paste(i[1,9],"+",j[1,9]))
+    CompareDet[which(CompareDet$DetectorType==i[1,10] |CompareDet$DetectorType==j[1,10]),10]<-as.character(paste(i[1,10],"+",j[1,10]))
+    CompareDet[which(CompareDet$numDetector==i[1,11] |CompareDet$numDetector==j[1,11]),11]<-(j[1,11]+i[1,11])
+    
+    CompareDet<-rbind(CompareDet,AvgDet)
+    CompareDet<-CompareDet[order(CompareDet$meantime),]
+    
+    CompareDet$UniqueID<-seq(1:nrow(CompareDet))
+    AvgDet<-DetecTab[0,]
+  }
+  }
+  DetecTab2<-rbind(DetecTab2,CompareDet)
+}
+
+DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
+DetecTab2$UniqueID<-NULL
+DetecTab2$remove<-NULL
+
+##Compare tables and print results. 
+
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPpercOg, TPpercOu, FNpercOu, FPpercOu,TP_FPrat, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,Notes", colClasses = colClasses)
+
+colClasses = c("character","numeric","numeric","numeric","numeric","numeric")
+MooringSumz<-read.csv(text="Moorings,numTP,numFN,numFP,numTPtruth,sumOu",colClasses = colClasses)
+
+for(v in 1:length(unique(DetecTab2$Mooring))){
+  MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
+  MoorVar$Selection<-seq(1:nrow(MoorVar))
+  write.csv(MoorVar,paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
+  write.table(MoorVar[,1:7],paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  
+  MoorVar$detectionType<-0
+  
+  GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
+  GT[[v]]$View<-as.character(GT[[v]]$View)
+  GT[[v]]$detectionType<-0
+  
+  colnames(GT[[v]]) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+  
+  colClasses = c("numeric","character", "numeric","numeric","numeric", "numeric","numeric","numeric","numeric")
+  
+  OutputCompare <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), meantime, detection type", colClasses = colClasses)
+  colnames(OutputCompare)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+  OutputCompare2 <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),meantime, detection type", colClasses = colClasses)
+  colnames(OutputCompare2)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+  
+  
+  
+  p=1
+  for(h in 1:nrow(MoorVar)){
+    for(g in 1:nrow(GT[[v]])){
+      if((MoorVar[h,13]>GT[[v]][g,4]) & (MoorVar[h,13]<GT[[v]][g,5])){
+        OutputCompare[p,]<-MoorVar[h,c(1:7,13,15)]
+        OutputCompare[p,9]<-"TP"
+        p=p+1
+      }
+    }
+  }
+  
+  if(nrow(OutputCompare)>0){
+  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,13,15)])
+  OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
+  }
+  
+  p=1
+  for(h in 1:nrow(GT[[v]])){
+    for(g in 1:nrow(MoorVar)){
+      if(GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5]){
+        OutputCompare2[p,]<-GT[[v]][h,]
+        OutputCompare2[p,9]<-"TP truth"
+        p=p+1
+      }
+    }
+  }
+  
+  if(nrow(OutputCompare2)>0){
+  OutputCompare2 <- rbind(OutputCompare2,GT[[v]][-which(GT[[v]]$Selection %in% OutputCompare2$Selection),])
+  OutputCompare2[which(OutputCompare2$detectionType!="TP truth"),9]<-"FN"
+  
+  
+  OutputCompare<-rbind(OutputCompare,OutputCompare2)
+  
+  OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
+  
+  OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
+  
+  OutputCompare[which(OutputCompare$detectionType=="TP truth"),9]<-"x"
+  
+  #for(q in 1:(nrow(OutputCompare)-1)){
+  #  if((OutputCompare$detectionType[q]=="TP"|OutputCompare$detectionType[q]=="TP truth"|OutputCompare$detectionType[q]=="x")&(OutputCompare$detectionType[q+1]=="TP"|OutputCompare$detectionType[q+1]=="TP truth")&((OutputCompare$meantime[q+1]-OutputCompare$meantime[q])<1.5)){
+  #    OutputCompare$detectionType[q+1]<-"x"
+  #  }
+  #}
+  
+  OutputCompare <- subset(OutputCompare,detectionType!="x")
+
+  colnames(OutputCompare)[8]<-'TP/FP/FN'
+  
+  OutputCompare<- OutputCompare[,-8]
+  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
+  write.table(OutputCompare,paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  }else{
+  write.table("There were no true positive detections for this mooring",paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+    
+  }
+  
+  #Make summary table of statistics for table comparison. 
+
+
+
+  numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
+  numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+  numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
+  numTPtruth<- nrow(GT[[v]])
+  sumOu<- nrow(OutputCompare)
+  
+  TPpercOg <- numTP/numTPtruth*100
+  TPpercOu <- numTP/sumOu*100
+  FNpercOu <- numFN/sumOu*100
+  FPpercOu <- numFP/sumOu*100
+  TP_FPrat<- numTP/numFP
+  
+  MooringSumz2 <- MooringSumz[0,]
+  MooringSumz2[1,]<-c(MoorVar[1,12],numTP,numFN,numFP,numTPtruth,sumOu)
+  
+  MooringSumz<-rbind(MooringSumz,MooringSumz2)
+
+  detecEval<-detecEvalFinal[0,]
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(length(detlist),paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=" "),paste(grpsize,collapse=" "),paste(detskip,collapse=" "),paste(groupInt,collapse=" "),as.character(paste(detnum,sum(detlist),sep=";"))," ")
+
+  
+  detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+  
+  png(paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
+  hist(MoorVar$meantime,main=paste(MoorVar[1,12],"Detections"))
+  dev.off()
+  
+  png(paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_GTDistribution.png",sep =""), width = 600, height = 300)
+  hist(GT[[v]]$meantime,main=paste(MoorVar[1,12],"Ground Truth Detections"))
+  dev.off()
+}
+
+  numTP <- sum(as.numeric(MooringSumz$numTP))
+  numFN <- sum(as.numeric(MooringSumz$numFN))
+  numFP <- sum(as.numeric(MooringSumz$numFP))
+  numTPtruth<- sum(as.numeric(MooringSumz$numTPtruth))
+  sumOu<- sum(as.numeric(MooringSumz$sumOu))
+  
+  TPpercOg <- numTP/numTPtruth*100
+  TPpercOu <- numTP/sumOu*100
+  FNpercOu <- numFN/sumOu*100
+  FPpercOu <- numFP/sumOu*100
+  TP_FPrat<- numTP/numFP
+  
+  detecEval<-detecEvalFinal[0,]
+  if(dettype=="spread"|dettype=="combined"){
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=","))," ")
+  }else{
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=","))," ")   
+  }
+  detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+  
+detecEval2<-read.csv("E:/DetectorRunOutput/DetectorRunLog.csv")
+detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
+
+
+
+
+beep(10)
+
+
+write.csv(detecEvalFinal,"E:/DetectorRunOutput/DetectorRunLog.csv",row.names=FALSE)
+
+
+beep(10)
+
+
+#next steps: open up tables for comparison in Raven. display some measure of how calls are spread out (histogram, a statistic?)                                                    
