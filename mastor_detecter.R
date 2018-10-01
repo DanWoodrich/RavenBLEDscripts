@@ -6,7 +6,7 @@ library(beepr)
 library(stringr)
 
 
-raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, preset="Default",vpreset="RW_Upcalls")
+raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
 {
   
   #check path to working directory
@@ -48,12 +48,12 @@ raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detec
     
     if (Sys.info()[1] == "Windows")
     {  
-      comnd <- paste(shQuote(file.path(raven.path, "Raven.exe"), type = "cmd"), paste0("-detPreset:",preset), paste0("-viewPreset:",vpreset), paste0("-detType:", detector), shQuote(x), "-detTable:temp.bcv.txt -x")
+      comnd <- paste(shQuote(file.path(raven.path, "Raven.exe"), type = "cmd"), paste0("-detPreset:",dpreset), paste0("-viewPreset:",vpreset), paste0("-detType:", detector), shQuote(x), "-detTable:temp.bcv.txt -x")
     } else
     {
       if (Sys.info()[1] == "Linux")
-        comnd <- paste(file.path(raven.path, "Raven"), paste0("-detType:", detector), x, "-detTable:temp.bcv.txt -x") else
-          comnd <- paste("open Raven.app --args", x, paste0("-detType:", detector), "-detTable:temp.bcv.txt -x") # OSX
+        comnd <- paste(file.path(raven.path, "Raven"), paste0("-detPreset:",dpreset), paste0("-viewPreset:",vpreset), paste0("-detType:", detector), x, "-detTable:temp.bcv.txt -x") else
+          comnd <- paste("open Raven.app --args", x, paste0("-detPreset:",dpreset), paste0("-viewPreset:",vpreset), paste0("-detType:", detector), "-detTable:temp.bcv.txt -x") # OSX
     }
     
     # run raven
@@ -122,6 +122,51 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
+sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
+{
+  
+  if (is.null(exename)) {
+    exename <- "sox"
+  } else {
+    exename = exename
+  }
+  
+  if (is.null(path2exe)) {
+    exe <- exename
+  } else {
+    path2exe <- normalizePath(path = path2exe, winslash = "/", mustWork = TRUE)
+    exe <- paste(path2exe, exename, sep = "/")
+  }
+  
+  if (.Platform$OS.type == "windows") {
+    
+    if(is.null(shQuote_type)) {
+      shQuote_type = "cmd"
+    } else {
+      shQuote_type = "cmd2"
+    }
+    
+  } else {  # .Platform$OS.type == "unix" # + Apple OS X + other
+    
+    if(is.null(shQuote_type)) {
+      shQuote_type = "sh"
+    } else {
+      shQuote_type = "csh"
+    }
+    
+  }
+  
+  exe <- shQuote(exe, type = shQuote_type)
+  system(paste(exe, command, argus, sep = " "), ignore.stderr = TRUE)
+  
+}
+
+#paths
+startcombpath<-"E:/Combined_sound_files/"
+BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
+ravenpath<-"C:/Users/danby456/Raven Pro 1.5"
+outputpath<-"E:/DetectorRunOutput/"
+
 #moorings completed 
 allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
 allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
@@ -147,9 +192,6 @@ runname<- "whitentestBband1x_100"
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
-#Pre whiten data?(y or no)
-whiten<-"n"
-
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "single" 
 
@@ -159,13 +201,13 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-#detectorsspr[[1]] <- dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[23:34] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[11:20]
+#detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
+#detectorsspr[[2]] <- dir(BLEDpath)[11:20]
 detectorssprshort<- detectorsspr
 }
 
 if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/")[6]
+detectorssin <- c(dir(BLEDpath)[6]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
@@ -175,6 +217,9 @@ freqdiff<-100
 timediff<-0.5
 
 ############################Whiten parameters (need to have done this in Raven previously)
+
+#Pre whiten data?(y or no)
+whiten<-"n"
 FO<-200 #filter order
 LMS<-.15 #LMS step size
 
@@ -206,15 +251,15 @@ groupInt<-c(.5)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
-dir.create(paste('E:/DetectorRunOutput/',runname,sep=""))
+dir.create(paste(outputpath,runname,sep=""))
 
 if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("AW12_AU_BS3") #add as complete GTs 
+  allmooringsGT<- c("BS15_AU_02b") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,217)
+  allmooringsSF[[1]]<-c(1,62)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
@@ -317,7 +362,7 @@ ParamSum2[5,3]<- " "
   ParamSum<-rbind(ParamSum,ParamSum2)
 }
 
-write.table(ParamSum,paste('E:/DetectorRunOutput/',runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
+write.table(ParamSum,paste(outputpath,runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
 
 ######################################
 
@@ -331,13 +376,13 @@ for(f in 1:length(moorings)){
 if(dettype=="spread"|dettype=="combined"){
 for(i in 1:length(detectorsspr)){
   for(j in 1:length(detectorsspr[[i]])){
-    detectorsspr[[i]][j]<-paste("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",detectorsspr[[i]][j],sep="")
+    detectorsspr[[i]][j]<-paste(BLEDpath,detectorsspr[[i]][j],sep="")
   }
 }
 }
 if(dettype=="single"|dettype=="combined"){
   for(k in 1:length(detectorssin)){
-    detectorssin[k]<-paste("C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",detectorssin[k],sep="")
+    detectorssin[k]<-paste(BLEDpath,detectorssin[k],sep="")
   }  
 }
 
@@ -345,26 +390,29 @@ if(dettype=="single"|dettype=="combined"){
 resltsTab <- NULL
 for(m in moorings){
   if(whiten=="n"){
+  whiten2<-"No_whiten"
   sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
   sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
-  combSound<-paste("E:/Combined_sound_files/",m,"/",spec,"/",MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
   }else{
-    dir.create(paste("E:/Combined_sound_files/",m,sep=""))
-    dir.create(paste("E:/Combined_sound_files/",m,"/",spec,sep=""))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," E:/Combined_sound_files/",m,"/",spec,"/",MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+    dir.create(paste(startcombpath,spec,sep=""))
+    dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
   }
   }else{
-    sound_files <- dir(paste("E:/Datasets/",m,"Bbandp",100*LMS,"x_","FO",FO,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
   }
+
+  combname<- paste(m,MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   
+
 #run detector(s)
 if(dettype=="spread"|dettype=="combined"){
   for(q in 1:length(detectorssprshort)){
     for(r in detectorssprshort[[q]]){
-      resltVar <- raven_batch_detec(raven.path = "C:/Users/danby456/Raven Pro 1.5", sound.files = paste(MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""), path = paste("E:/Combined_sound_files/",m,"/",spec,sep=""),detector = "Band Limited Energy Detector",preset=r)
+      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
       resltVar$Mooring<-m
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
@@ -377,7 +425,7 @@ if(dettype=="spread"|dettype=="combined"){
  
 if(dettype=="single"|dettype=="combined"){
   for(n in detectorssinshort){
-    resltVar <- raven_batch_detec(raven.path = "C:/Users/danby456/Raven Pro 1.5", sound.files = paste(MooringsDat[2,colnames(MooringsDat)==m],"_",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep=""), path = paste("E:/Combined_sound_files/",m,"/",spec,sep=""),detector = "Band Limited Energy Detector",preset=n)
+    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
     resltVar$Mooring<-m
     resltVar$detector<-n
     resltVar$detectorType<-"single"
@@ -478,7 +526,7 @@ if(dettype=="spread"|dettype=="combined"){
         resltsTSPV<- subset(resltsTSPV,detection==1)#this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. \
         
         if(nrow(resltsTSPV)==0){
-          write.table("There were no detections",paste('E:/DetectorRunOutput/',runname,"/",e,"/_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+          write.table("There were no detections",paste(outputpath,runname,"/",e,"/_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
         }else{
           
           colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
@@ -513,7 +561,7 @@ if(dettype=="spread"|dettype=="combined"){
         DetecTab<- rbind(DetecTab,resltsTSPVFinal)
         
         resltsTSPVFinal<- resltsTSPVFinal[,1:7]
-        write.table(resltsTSPVFinal,paste('E:/DetectorRunOutput/',runname,"/",e,"_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",e,"_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         }
         }
     l<-l+1}
@@ -535,7 +583,7 @@ if(dettype=="single"|dettype=="combined"){
       resltsTSGV<-resltsTSGVd[which(resltsTSGVd$Mooring==e),]
       
       if(nrow(resltsTSGV)==0){
-        write.table("There were no detections",paste('E:/DetectorRunOutput/',runname,"/",e,"/_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+        write.table("There were no detections",paste(outputpath,runname,"/",e,"/_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
       
       colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
@@ -558,7 +606,7 @@ if(dettype=="single"|dettype=="combined"){
       DetecTab<- rbind(DetecTab,resltsTSGVFinal)
       
       resltsTSGVFinal<- resltsTSGVFinal[,1:7]
-      write.table(resltsTSGVFinal,paste('E:/DetectorRunOutput/',runname,"/",e,"_Summary_single_",resltsTSGVd$detector[1],"_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      write.table(resltsTSGVFinal,paste(outputpath,runname,"/",e,"_Summary_single_",resltsTSGVd$detector[1],"_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       }
   }
   l=l+1}
@@ -634,8 +682,8 @@ MooringSumz<-read.csv(text="Moorings,numTP,numFN,numFP,numTPtruth,sumOu",colClas
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
-  write.csv(MoorVar,paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
-  write.table(MoorVar[,1:7],paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.csv(MoorVar,paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
+  write.table(MoorVar[,1:7],paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   MoorVar$detectionType<-0
   
@@ -706,9 +754,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   OutputCompare<- OutputCompare[,-8]
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
-  write.table(OutputCompare,paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.table(OutputCompare,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }else{
-  write.table("There were no true positive detections for this mooring",paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+  write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     
   }
   
@@ -739,11 +787,11 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
-  png(paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
+  png(paste(outputpath,runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
   hist(MoorVar$meantime,main=paste(MoorVar[1,12],"Detections"))
   dev.off()
   
-  png(paste('E:/DetectorRunOutput/',runname,"/",MoorVar[1,12],"_GTDistribution.png",sep =""), width = 600, height = 300)
+  png(paste(outputpath,runname,"/",MoorVar[1,12],"_GTDistribution.png",sep =""), width = 600, height = 300)
   hist(GT[[v]]$meantime,main=paste(MoorVar[1,12],"Ground Truth Detections"))
   dev.off()
 }
@@ -768,7 +816,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
-detecEval2<-read.csv("E:/DetectorRunOutput/DetectorRunLog.csv")
+detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
 detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
 
@@ -777,7 +825,7 @@ detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 beep(10)
 
 
-write.csv(detecEvalFinal,"E:/DetectorRunOutput/DetectorRunLog.csv",row.names=FALSE)
+write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
 
 beep(10)
