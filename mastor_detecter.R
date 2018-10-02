@@ -187,7 +187,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "whitentestBband1x_100"
+runname<- "20LMS200FO full test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -219,7 +219,7 @@ timediff<-0.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"n"
+whiten<-"y"
 FO<-200 #filter order
 LMS<-.20 #LMS step size
 
