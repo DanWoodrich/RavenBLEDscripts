@@ -187,13 +187,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "20LMS200FO full test"
+runname<- "stat change test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "combined" 
+dettype<- "single" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -201,13 +201,13 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
+#detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
 #detectorsspr[[2]] <- dir(BLEDpath)[11:20]
 detectorssprshort<- detectorsspr
 }
 
 if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[6]
+detectorssin <- c(dir(BLEDpath)[1]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
@@ -220,13 +220,13 @@ timediff<-0.5
 
 #Pre whiten data?(y or no)
 whiten<-"y"
-FO<-200 #filter order
-LMS<-.20 #LMS step size
+FO<-100 #filter order
+LMS<-.10 #LMS step size
 
 ############################Spread parameters. must be same length as number of spread detectors you are running
 
 #(SPREAD) enter the desired smallest group size for detection. Will be ignored for single detector
-grpsize<-c(2)
+grpsize<-c(2,3)
 
 #(SPREAD) patterns of detectors to mark detection, where 1 = increasing (sequentially) and 0 = decreasing (or increasing past what is sequential)
 #enter as many patterns as you like. Add new row for each new pattern below. Need at least 1. 
@@ -240,14 +240,14 @@ patterns2<-list()
 patterns2[[1]] <- c(1,1)
 patterns2[[2]] <- c(1,0,1) 
 
-patterns<-list(patterns1)
+patterns<-list(patterns1,patterns2)
 
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(4)
+detskip<-c(4,5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(.5)
+groupInt<-c(.5,0.4)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -257,9 +257,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("BS15_AU_02b") #add as complete GTs 
+  allmooringsGT<- c("BS15_AU_02a") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,62)
+  allmooringsSF[[1]]<-c(1,104)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
@@ -697,11 +697,8 @@ DetecTab2$remove<-NULL
 
 ##Compare tables and print results. 
 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPpercOg, TPpercOu, FNpercOu, FPpercOu,TP_FPrat, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
-
-colClasses = c("character","numeric","numeric","numeric","numeric","numeric")
-MooringSumz<-read.csv(text="Moorings,numTP,numFN,numFP,numTPtruth,sumOu",colClasses = colClasses)
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -792,23 +789,14 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
   numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
   numTPtruth<- nrow(GT[[v]])
-  sumOu<- nrow(OutputCompare)
-  
-  TPpercOg <- numTP/numTPtruth*100
-  TPpercOu <- numTP/sumOu*100
-  FNpercOu <- numFN/sumOu*100
-  FPpercOu <- numFP/sumOu*100
-  TP_FPrat<- numTP/numFP
-  
-  MooringSumz2 <- MooringSumz[0,]
-  MooringSumz2[1,]<-c(MoorVar[1,12],numTP,numFN,numFP,numTPtruth,sumOu)
-  
-  MooringSumz<-rbind(MooringSumz,MooringSumz2)
+
+  TPhitRate <- numTP/numTPtruth*100
+  TPR <- numTP/(numTP+numFN)
+  TPdivFP<- numTP/numFP
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(length(detlist),paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=" "),paste(grpsize,collapse=" "),paste(detskip,collapse=" "),paste(groupInt,collapse=" "),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(patlist,collapse=" "),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
-  
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   png(paste(outputpath,runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
@@ -820,39 +808,31 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   dev.off()
 }
 
-  numTP <- sum(as.numeric(MooringSumz$numTP))
-  numFN <- sum(as.numeric(MooringSumz$numFN))
-  numFP <- sum(as.numeric(MooringSumz$numFP))
-  numTPtruth<- sum(as.numeric(MooringSumz$numTPtruth))
-  sumOu<- sum(as.numeric(MooringSumz$sumOu))
-  
-  TPpercOg <- numTP/numTPtruth*100
-  TPpercOu <- numTP/sumOu*100
-  FNpercOu <- numFN/sumOu*100
-  FPpercOu <- numFP/sumOu*100
-  TP_FPrat<- numTP/numFP
+numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
+numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
+numTPtruth<- nrow(GT[[v]])
+
+TPhitRate <- numTP/numTPtruth*100
+TPR <- numTP/(numTP+numFN)
+TPdivFP<- numTP/numFP
   
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=",")),FO,LMS," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPpercOg,TPpercOu,FNpercOu,FPpercOu,TP_FPrat,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=",")),FO,LMS," ")   
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
 detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
 detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
-
-
-
 beep(10)
-
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
 
-beep(10)
 
 
 #next steps: open up tables for comparison in Raven. display some measure of how calls are spread out (histogram, a statistic?)                                                    
