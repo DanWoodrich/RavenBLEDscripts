@@ -187,10 +187,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "P8 test"
+runname<- "new alg test 2"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -201,7 +201,7 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[1]] <- dir(BLEDpath)[8:19] #add more spreads with notation detectorspr[[x]]<-...
 #detectorsspr[[2]] <- dir(BLEDpath)[11:20]
 detectorssprshort<- detectorsspr
 }
@@ -226,16 +226,16 @@ LMS<-.10 #LMS step size
 ############################Spread parameters. must be same length as number of spread detectors you are running
 
 #(SPREAD) enter the desired smallest group size for detection. Will be ignored for single detector
-grpsize<-c(3)
+grpsize<-c(2)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(5)
+detskip<-c(3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.35)
+groupInt<-c(0.5)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -492,20 +492,21 @@ if(dettype=="spread"|dettype=="combined"){
         #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
         for(f in unique(resltsTSPV[,14])){
           groupdat<- subset(resltsTSPV,group==f)
-          grpvec<-groupdat[,14]
+          grpvec<-groupdat[,13]
           colClasses = c("numeric","numeric","numeric","numeric")
           runsum<- read.csv(text="start, ones, zeros, length", colClasses = colClasses)
           
-          for(g in 1:nrow(groupdat)){
-            RM<-groupdat[g,14]
+          for(g in 1:(nrow(groupdat)-1)){
+            RM<-groupdat[g,13]
             rsltvec<-NULL
-            rsltvec[1]<-2
+            rsltvec<-rep(99,(g-1))
+            rsltvec[g]<-2
             for(h in g:(length(grpvec)-1)){
               rsltvec0s<-rle(rsltvec)
-              if(any(rsltvec0s$lengths[rsltvec0s$values==0])>allowedZeros[d]){
+              if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
                 break
               }  
-              if(RM>=grpvec[h+1]|RM+detskip[d]<=grpvec[h+1]){
+              if(RM>=grpvec[h+1]|(RM+detskip[d]<=grpvec[h+1])){
                 rsltvec[h+1]<-0
               }else{
                 rsltvec[h+1]<-1
