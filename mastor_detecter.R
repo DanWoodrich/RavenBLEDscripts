@@ -187,7 +187,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "new alg test 2"
+runname<- "new alg test 3"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
@@ -235,7 +235,7 @@ allowedZeros<-c(1)
 detskip<-c(3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.5)
+groupInt<-c(0.75)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -526,7 +526,7 @@ if(dettype=="spread"|dettype=="combined"){
           runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
           runsum<-runsum[1,] #choose first one
           
-          groupdat<-groupdat[g:as.numeric((g+runsum[4]-1)),]
+          groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
             
           resltsTSPV<- subset(resltsTSPV,group!=f)
           resltsTSPV<-rbind(resltsTSPV,groupdat)
