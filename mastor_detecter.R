@@ -475,19 +475,19 @@ if(dettype=="spread"|dettype=="combined"){
             resltsTSPV[z+1,14]<-f
           }
         }
-        #remove groups based on grpsize value
-        removegrp <- table(resltsTSPV$group)
-        resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-        #add direction column
-        resltsTSPV$direction<-2
-        
+
         #if the meantime is the same take only the lowest # box. 
         resltsTSPV$remove<-0
         for(g in 1:(nrow(resltsTSPV)-1)){
           if(resltsTSPV[g+1,15]==resltsTSPV[g,15]){
-            resltsTSPV[g+1,17]<-1}}
+            resltsTSPV[g+1,16]<-1}}
         resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
         resltsTSPV$remove<-NULL
+        
+        #remove groups based on grpsize value
+        removegrp <- table(resltsTSPV$group)
+        resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
+        
         
         #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
         for(f in unique(resltsTSPV[,14])){
@@ -498,15 +498,19 @@ if(dettype=="spread"|dettype=="combined"){
           
           for(g in 1:(nrow(groupdat)-1)){
             RM<-groupdat[g,13]
+            RM2<-groupdat[g,13]
             rsltvec<-NULL
-            rsltvec<-rep(99,(g-1))
+            rsltvec<-rep(2,(g-1))
             rsltvec[g]<-2
             for(h in g:(length(grpvec)-1)){
               rsltvec0s<-rle(rsltvec)
               if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
                 break
               }  
-              if(RM>=grpvec[h+1]|(RM+detskip[d]<=grpvec[h+1])){
+              if(grpvec[h]>RM2){
+                RM2<-grpvec[h]
+              }
+              if(RM>=grpvec[h+1]|(RM2+detskip[d]<grpvec[h+1])){
                 rsltvec[h+1]<-0
               }else{
                 rsltvec[h+1]<-1
@@ -515,26 +519,27 @@ if(dettype=="spread"|dettype=="combined"){
             runsum[g,1]<-g
             runsum[g,2]<-sum(rsltvec==1)
             runsum[g,3]<-sum(rsltvec==0)
-            runsum[g,4]<-length(rsltvec)
+            runsum[g,4]<-(sum(rsltvec==1)+sum(rsltvec==0)+1)
           }
           runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
           runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least os
           runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
           runsum<-runsum[1,] #choose first one
           
-          groupdat<-groupdat[g:(g+runsum[4]),]
+          groupdat<-groupdat[g:as.numeric((g+runsum[4]-1)),]
             
           resltsTSPV<- subset(resltsTSPV,group!=f)
           resltsTSPV<-rbind(resltsTSPV,groupdat)
           }
-      
+
+    #add direction column
+    resltsTSPV$direction<-2
     
     Rolling_max <- resltsTSPV[1,13]
-    
     #assign direction for each row in group, to remove boxes that are out of direction later
     for(r in 1:(nrow(resltsTSPV)-1)){
       if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
-        if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<=Rolling_max+detskip[d]){
+        if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<Rolling_max+detskip[d]){
           Rolling_max <- resltsTSPV[r+1,13]
           resltsTSPV[r+1,16]<-1
         }else{
