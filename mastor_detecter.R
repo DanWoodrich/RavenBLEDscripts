@@ -187,13 +187,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "stat change test"
+runname<- "P8 test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "spread" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -201,7 +201,7 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-#detectorsspr[[1]] <- dir(BLEDpath)[23:34] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
 #detectorsspr[[2]] <- dir(BLEDpath)[11:20]
 detectorssprshort<- detectorsspr
 }
@@ -226,28 +226,16 @@ LMS<-.10 #LMS step size
 ############################Spread parameters. must be same length as number of spread detectors you are running
 
 #(SPREAD) enter the desired smallest group size for detection. Will be ignored for single detector
-grpsize<-c(2,3)
+grpsize<-c(3)
 
-#(SPREAD) patterns of detectors to mark detection, where 1 = increasing (sequentially) and 0 = decreasing (or increasing past what is sequential)
-#enter as many patterns as you like. Add new row for each new pattern below. Need at least 1. 
-#Will be ignored for single detector
-
-patterns1<-list()
-#patterns[[1]] <- c(1,1)
-#patterns[[2]] <- c(1,0,1) 
-patterns1[[1]] <- c(1) 
-patterns2<-list()
-patterns2[[1]] <- c(1,1)
-patterns2[[2]] <- c(1,0,1) 
-
-patterns<-list(patterns1,patterns2)
-
+#(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
+allowedZeros<-c(1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(4,5)
+detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(.5,0.4)
+groupInt<-c(0.35)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -271,10 +259,6 @@ moorings<- colnames(MooringsDat)
   moorings<-colnames(MooringsDat)
 }
 
-patlist<-NULL
-for(n in 1:length(patterns)){
-  patlist<-c(patlist,paste(patterns[[n]],collapse = " "))
-}
 
 detlist<-NULL
 detlist2<-NULL
@@ -346,12 +330,12 @@ colnames(ParamSum2)<-c("Parameter","Value","Description")
 ParamSum2[1,1]<-"Spread group size:"
 ParamSum2[1,2]<- paste(grpsize,collapse = ",")
 ParamSum2[1,3]<-"Minimum amount of detections needed to be considered a detection group"
-ParamSum2[2,1]<-"Patterns:"
-ParamSum2[2,2]<- paste(patlist,collapse=",")
-ParamSum2[2,3]<-"Patterns of consecutive direction of detections in group to be considered a detection group. 1=ascending above group rolling max,0=descending"
+ParamSum2[2,1]<-"Zeros:"
+ParamSum2[2,2]<- allowedZeros
+ParamSum2[2,3]<-"Maximum number of consecutive descending boxes allowed in an ascending sequence"
 ParamSum2[3,1]<-"Skip threshold:"
 ParamSum2[3,2]<- paste(detskip,collapse = ",")
-ParamSum2[3,3]<-"Maximum amount of skips between detector rank to count towards ascending pattern distinction"
+ParamSum2[3,3]<-"Maximum amount of skips between detector rank to count towards ascending sequence distinction"
 ParamSum2[4,1]<-"Time threshold for group:"
 ParamSum2[4,2]<- paste(groupInt,collapse = ",")
 ParamSum2[4,3]<-"Maximum second difference between detection mean time to be considered a detection group"
@@ -505,50 +489,64 @@ if(dettype=="spread"|dettype=="combined"){
         resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
         resltsTSPV$remove<-NULL
         
-        Rolling_max <- resltsTSPV[1,13]
-        
-        #assign direction for each row in group
-        for(r in 1:(nrow(resltsTSPV)-1)){
-          if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
-            if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<=Rolling_max+detskip[d]){
-              Rolling_max <- resltsTSPV[r+1,13]
-              resltsTSPV[r+1,16]<-1
-            }else{
-              resltsTSPV[r+1,16]<-0
+        #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
+        for(f in unique(resltsTSPV[,14])){
+          groupdat<- subset(resltsTSPV,group==f)
+          grpvec<-groupdat[,14]
+          colClasses = c("numeric","numeric","numeric","numeric")
+          runsum<- read.csv(text="start, ones, zeros, length", colClasses = colClasses)
+          
+          for(g in 1:nrow(groupdat)){
+            RM<-groupdat[g,14]
+            rsltvec<-NULL
+            rsltvec[1]<-2
+            for(h in g:(length(grpvec)-1)){
+              rsltvec0s<-rle(rsltvec)
+              if(any(rsltvec0s$lengths[rsltvec0s$values==0])>allowedZeros[d]){
+                break
+              }  
+              if(RM>=grpvec[h+1]|RM+detskip[d]<=grpvec[h+1]){
+                rsltvec[h+1]<-0
+              }else{
+                rsltvec[h+1]<-1
+              }
             }
-          }else{
-            Rolling_max <- resltsTSPV[r+1,13]
-            resltsTSPV[r+1,16]<-2
+            runsum[g,1]<-g
+            runsum[g,2]<-sum(rsltvec==1)
+            runsum[g,3]<-sum(rsltvec==0)
+            runsum[g,4]<-length(rsltvec)
           }
-        }
-        
-        TSPV_pat<-patterns[[d]]
-        v <- resltsTSPV$direction
-        run<-list()
-        for(b in 1:length(TSPV_pat)){
-          idx <- which(v == TSPV_pat[[b]][1])
-          run[[b]] <- idx[sapply(idx, function(i) all(v[i:(i+(length(TSPV_pat[[b]])-1))] == TSPV_pat[[b]]))]
-        }
-        
-        resltsTSPV$detection<-0 #17
-        #assign detections
-        for(c in 1:length(run)){
-          resltsTSPV[na.omit(c(run[[c]])),17]<-1
-        }
-        
-        #for each group with detection, 
-        for(m in 1:(nrow(resltsTSPV)-1)){
-          if(resltsTSPV[m+1,14]==resltsTSPV[m,14] & resltsTSPV[m+1,17]==1){
-            resltsTSPV[m,17]<-1}
-          else if(resltsTSPV[m+1,14]==resltsTSPV[m,14] & resltsTSPV[m,17]==1){
-            resltsTSPV[m+1,17]<-1
+          runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
+          runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least os
+          runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
+          runsum<-runsum[1,] #choose first one
+          
+          groupdat<-groupdat[g:(g+runsum[4]),]
+            
+          resltsTSPV<- subset(resltsTSPV,group!=f)
+          resltsTSPV<-rbind(resltsTSPV,groupdat)
           }
+      
+    
+    Rolling_max <- resltsTSPV[1,13]
+    
+    #assign direction for each row in group, to remove boxes that are out of direction later
+    for(r in 1:(nrow(resltsTSPV)-1)){
+      if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
+        if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<=Rolling_max+detskip[d]){
+          Rolling_max <- resltsTSPV[r+1,13]
+          resltsTSPV[r+1,16]<-1
+        }else{
+          resltsTSPV[r+1,16]<-0
         }
-        
-
+      }else{
+        Rolling_max <- resltsTSPV[r+1,13]
+        resltsTSPV[r+1,16]<-2
+      }
+    }
+        #remove boxes that are not in direction. 
         resltsTSPV<- subset(resltsTSPV,direction!=0)
-        resltsTSPV<- subset(resltsTSPV,detection==1)#this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. \
-        
+
         if(nrow(resltsTSPV)==0){
           write.table("There were no detections",paste(outputpath,runname,"/",e,"/_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
         }else{
@@ -698,7 +696,7 @@ DetecTab2$remove<-NULL
 ##Compare tables and print results. 
 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, Patterns,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -795,7 +793,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   TPdivFP<- numTP/numFP
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(patlist,collapse=" "),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
@@ -819,7 +817,7 @@ TPdivFP<- numTP/numFP
   
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(patlist,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
   detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
