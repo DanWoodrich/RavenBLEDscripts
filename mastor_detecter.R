@@ -662,19 +662,20 @@ DetecTab$UniqueID<-seq(1:nrow(DetecTab))
 DetecTab$remove<-0
 
 #average detections within detectors using timediffself parameter
-s=0
+n=0
 for(o in unique(DetecTab$Mooring)){
   Tab<-DetecTab[which(DetecTab$Mooring==o),]
   for(p in 1:max(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
     newrow<-AvgTab[0,]
+    IDvec<-NULL
     for(q in 1:(nrow(AvgTab)-1)){
       if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
         
         newdat<-AvgTab[0,]
-        newdat[1,]<-AvgTab[c(q,q+1),]
-        AvgTab<-AvgTab[-c(q,q+1),]
+        newdat[1:2,]<-AvgTab[c(q,q+1),]
+        IDvec<-c(IDvec,newdat$UniqueID)
         s<-mean(newdat[,4])
         e<-mean(newdat[,5])
         h<-mean(newdat[,6])
@@ -687,15 +688,16 @@ for(o in unique(DetecTab$Mooring)){
       }
     }
     if(r>0){
+      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
       AvgTab<-rbind(AvgTab,newrow)
       AvgTab<-AvgTab[order(AvgTab$meantime),]
     Tab<- Tab[-which(Tab$DetectorCount==p),]
     Tab<-rbind(Tab,AvgTab)
-    s=s+1
+    n=n+1
     }
     
   }
-  if(s>0){
+  if(n>0){
   DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
   DetecTab<-rbind(DetecTab,Tab)
   }
@@ -752,23 +754,47 @@ for(w in unique(DetecTab$Mooring)){
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
 #average detections within combined detector using timediffself parameter (again)
-for(q in 1:(nrow(DetecTab2)-1)){
-  if(DetecTab2[q+1,13]<=(DetecTab2[q,13]+timediffself)){
-    newdat<-DetecTab2[c(q,q+1),]
-    DetecTab2<-DetecTab2[-c(q,q+1),]
-    s<-mean(newdat[,4])
-    e<-mean(newdat[,5])
-    h<-mean(newdat[,6])
-    l<-mean(newdat[,7])
-    mt<-(newdat[,4]+newdat[,5])/2
-    mf<-(newdat[,6]+newdat[,7])/2
-    unqID<-newdat[1,15]
-    newrow<-c(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
-    DetecTab2<-rbind(DetecTab2,newrow)
-    DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
+n=0
+for(o in unique(DetecTab$Mooring)){
+  Tab<-DetecTab[which(DetecTab$Mooring==o),]
+  for(p in 1:max(Tab$DetectorCount)){
+    r=0
+    AvgTab<- Tab[which(Tab$DetectorCount==p),]
+    newrow<-AvgTab[0,]
+    IDvec<-NULL
+    for(q in 1:(nrow(AvgTab)-1)){
+      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
+        
+        newdat<-AvgTab[0,]
+        newdat[1:2,]<-AvgTab[c(q,q+1),]
+        IDvec<-c(IDvec,newdat$UniqueID)
+        s<-mean(newdat[,4])
+        e<-mean(newdat[,5])
+        h<-mean(newdat[,6])
+        l<-mean(newdat[,7])
+        mt<-(s+e)/2
+        mf<-(h+l)/2
+        unqID<-newdat[1,15]
+        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
+        r=r+1
+      }
+    }
+    if(r>0){
+      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
+      AvgTab<-rbind(AvgTab,newrow)
+      AvgTab<-AvgTab[order(AvgTab$meantime),]
+      Tab<- Tab[-which(Tab$DetectorCount==p),]
+      Tab<-rbind(Tab,AvgTab)
+      n=n+1
+    }
+    
+  }
+  if(n>0){
+    DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
+    DetecTab<-rbind(DetecTab,Tab)
   }
 }
-  
+
 DetecTab2$UniqueID<-NULL
 DetecTab2$remove<-NULL
 
