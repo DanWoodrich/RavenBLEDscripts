@@ -212,9 +212,13 @@ detectorssin <- c(dir(BLEDpath)[1]
 detectorssinshort<- detectorssin
 }
 
-############################Combine detector (multiple detectors) parameters
+############################Combine detector  parameters
+timediffself<-1
+
+#multiple detectors
 freqdiff<-100
 timediff<-0.5
+
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -310,8 +314,8 @@ ParamSum[4,1]<-"Species:"
 ParamSum[4,2]<- spec
 ParamSum[4,3]<-"Call type that detector(s) will look for (RW=right whale,GS=gunshot etc.)"
 ParamSum[5,1]<-"Time threshold for combination:"
-ParamSum[5,2]<- paste(timediff,"s",sep="")
-ParamSum[5,3]<-"Maximum second difference between detection mean time to be considered a combined detection"
+ParamSum[5,2]<- paste(paste(timediff,"s",sep=""),paste(timediffself,"s",sep=""),sep=",")
+ParamSum[5,3]<-"Maximum second difference between detection mean time to be considered a combined detection. Self and between detectors"
 ParamSum[6,1]<-"Frequency threshold for combination:"
 ParamSum[6,2]<- paste(freqdiff,"Hz",sep="")
 ParamSum[6,3]<-"Maximum Hz difference between detection mean freq to be considered a combined detection"
@@ -657,11 +661,11 @@ DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
 DetecTab$UniqueID<-seq(1:nrow(DetecTab))
 DetecTab$remove<-0
 
-#average detections within detectors using timediff parameter
+#average detections within detectors using timediffself parameter
 for(p in DetecTab$DetectorCount){
   AvgTab<- DetecTab[which(DetecTab$DetectorCount==p),]
   for(q in 1:(nrow(AvgTab)-1)){
-    if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediff)){
+    if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
       newdat<-AvgTab[c(q,q+1),]
       AvgTab<-AvgTab[-c(q,q+1),]
       s<-mean(newdat[4,])
@@ -729,9 +733,9 @@ for(w in unique(DetecTab$Mooring)){
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
-#average detections within combined detector using timediff parameter (again)
+#average detections within combined detector using timediffself parameter (again)
 for(q in 1:(nrow(DetecTab2)-1)){
-  if(DetecTab2[q+1,13]<=(DetecTab2[q,13]+timediff)){
+  if(DetecTab2[q+1,13]<=(DetecTab2[q,13]+timediffself)){
     newdat<-DetecTab2[c(q,q+1),]
     DetecTab2<-DetecTab2[-c(q,q+1),]
     s<-mean(newdat[4,])
@@ -850,7 +854,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   TPdivFP<- numTP/numFP
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
@@ -874,9 +878,9 @@ TPdivFP<- numTP/numFP
   
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(timediffself,timediff,sep = ","),NA,as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
