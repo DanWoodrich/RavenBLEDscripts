@@ -187,13 +187,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "new alg test 3"
+runname<- "self avg test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -201,8 +201,8 @@ spec <- "RW"
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[8:19] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[11:20]
+detectorsspr[[1]] <- dir(BLEDpath)[20:38] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[2]] <- dir(BLEDpath)[8:19]
 detectorssprshort<- detectorsspr
 }
 
@@ -224,18 +224,18 @@ FO<-100 #filter order
 LMS<-.10 #LMS step size
 
 ############################Spread parameters. must be same length as number of spread detectors you are running
-
-#(SPREAD) enter the desired smallest group size for detection. Will be ignored for single detector
-grpsize<-c(2)
+#p7 good ones: 2,1,3,0.75
+#(SPREAD) enter the desired smallest group (sequence) size for detection. 
+grpsize<-c(3,2)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(1)
+allowedZeros<-c(2,1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(3)
+detskip<-c(3,3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.75)
+groupInt<-c(.25,.75)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -331,7 +331,7 @@ ParamSum2[1,1]<-"Spread group size:"
 ParamSum2[1,2]<- paste(grpsize,collapse = ",")
 ParamSum2[1,3]<-"Minimum amount of detections needed to be considered a detection group"
 ParamSum2[2,1]<-"Zeros:"
-ParamSum2[2,2]<- allowedZeros
+ParamSum2[2,2]<- paste(allowedZeros,collapse = ",")
 ParamSum2[2,3]<-"Maximum number of consecutive descending boxes allowed in an ascending sequence"
 ParamSum2[3,1]<-"Skip threshold:"
 ParamSum2[3,2]<- paste(detskip,collapse = ",")
@@ -552,6 +552,10 @@ if(dettype=="spread"|dettype=="combined"){
     }
         #remove boxes that are not in direction. 
         resltsTSPV<- subset(resltsTSPV,direction!=0)
+        
+        #remove groups based on grpsize value (again)
+        removegrp <- table(resltsTSPV$group)
+        resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
 
         if(nrow(resltsTSPV)==0){
           write.table("There were no detections",paste(outputpath,runname,"/",e,"/_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
@@ -641,6 +645,9 @@ if(dettype=="single"|dettype=="combined"){
   }
   
   ############
+
+
+
 #now need to average detections between detectors. set 
 
 DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
@@ -649,6 +656,31 @@ DetecTab<-DetecTab[order(DetecTab$meantime),]
 DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
 DetecTab$UniqueID<-seq(1:nrow(DetecTab))
 DetecTab$remove<-0
+
+#average detections within detectors using timediff parameter
+for(p in DetecTab$DetectorCount){
+  AvgTab<- DetecTab[which(DetecTab$DetectorCount==p),]
+  for(q in 1:(nrow(AvgTab)-1)){
+    if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediff)){
+      newdat<-AvgTab[c(q,q+1),]
+      AvgTab<-AvgTab[-c(q,q+1),]
+      s<-mean(newdat[4,])
+      e<-mean(newdat[5,])
+      h<-mean(newdat[6,])
+      l<-mean(newdat[7,])
+      mt<-(newdat[4,]+newdat[5,])/2
+      mf<-(newdat[6,]+newdat[7,])/2
+      unqID<-newdat[1,15]
+      newrow<-c(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
+      AvgTab<-rbind(AvgTab,newdat)
+      AvgTab<-AvgTab[order(AvgTab$meantime),]
+    }
+  }
+  DetecTab<- DetecTab[-which(DetecTab$DetectorCount==p),]
+  DetecTab<-rbind(DetecTab,AvgTab)
+}
+
+DetecTab<-DetecTab[order(DetecTab$meantime),]
 
 AvgDet<-DetecTab[0,]
 DetecTab2<-DetecTab[0,]
@@ -696,6 +728,25 @@ for(w in unique(DetecTab$Mooring)){
 }
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
+
+#average detections within combined detector using timediff parameter (again)
+for(q in 1:(nrow(DetecTab2)-1)){
+  if(DetecTab2[q+1,13]<=(DetecTab2[q,13]+timediff)){
+    newdat<-DetecTab2[c(q,q+1),]
+    DetecTab2<-DetecTab2[-c(q,q+1),]
+    s<-mean(newdat[4,])
+    e<-mean(newdat[5,])
+    h<-mean(newdat[6,])
+    l<-mean(newdat[7,])
+    mt<-(newdat[4,]+newdat[5,])/2
+    mf<-(newdat[6,]+newdat[7,])/2
+    unqID<-newdat[1,15]
+    newrow<-c(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
+    DetecTab2<-rbind(DetecTab2,newdat)
+    DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
+  }
+}
+  
 DetecTab2$UniqueID<-NULL
 DetecTab2$remove<-NULL
 
