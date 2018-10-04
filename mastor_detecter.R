@@ -757,7 +757,7 @@ DetecTab2$remove<-NULL
 ##Compare tables and print results. 
 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
