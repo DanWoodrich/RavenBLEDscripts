@@ -187,10 +187,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "self avg test"
+runname<- "Full run good"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "combined" 
@@ -213,7 +213,7 @@ detectorssinshort<- detectorssin
 }
 
 ############################Combine detector  parameters
-timediffself<-1
+timediffself<-1.3
 
 #multiple detectors
 freqdiff<-100
@@ -683,7 +683,7 @@ for(o in unique(DetecTab$Mooring)){
         mt<-(s+e)/2
         mf<-(h+l)/2
         unqID<-newdat[1,15]
-        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
+        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
         r=r+1
       }
     }
@@ -755,8 +755,8 @@ DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
 #average detections within combined detector using timediffself parameter (again)
 n=0
-for(o in unique(DetecTab$Mooring)){
-  Tab<-DetecTab[which(DetecTab$Mooring==o),]
+for(o in unique(DetecTab2$Mooring)){
+  Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
   for(p in 1:max(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
@@ -775,7 +775,7 @@ for(o in unique(DetecTab$Mooring)){
         mt<-(s+e)/2
         mf<-(h+l)/2
         unqID<-newdat[1,15]
-        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0)
+        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
         r=r+1
       }
     }
@@ -790,8 +790,8 @@ for(o in unique(DetecTab$Mooring)){
     
   }
   if(n>0){
-    DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
-    DetecTab<-rbind(DetecTab,Tab)
+    DetecTab2<-DetecTab[-which(DetecTab2$Mooring==o),]
+    DetecTab<-rbind(DetecTab2,Tab)
   }
 }
 
