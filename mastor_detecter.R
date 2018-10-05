@@ -214,8 +214,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-1.2
-Mindur<-1
+Maxdur<-2
+Mindur<-0.3
 
 ############################Combine detector  parameters
 timediffself<-1.3
@@ -804,14 +804,20 @@ for(o in unique(DetecTab2$Mooring)){
 }
 
 DetecTab2$UniqueID<-NULL
-
-for(f in 1:nrow(DetecTab2)){
-  if((DetecTab2[f,5]-DetecTab2[f,4])>Maxdur|(DetecTab2[f,5]-DetecTab2[f,4])<Mindur){
-    DetecTab2[f,15]<-1
+for(d in unique(DetecTab2$Mooring)){
+  Tab<-DetecTab2[which(DetecTab2$Mooring==d),]
+  for(f in 1:nrow(Tab)){
+    if((Tab[f,5]-Tab[f,4])>Maxdur|(Tab[f,5]-Tab[f,4])<Mindur){
+      Tab[f,15]<-1
+    }
   }
+  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==d),]
+  DetecTab2<-rbind(DetecTab2,Tab)
 }
 
-DetecTab2<-DetecTab2[-which(DetecTab2$remove==1),]
+DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
+
+DetecTab2$remove<-NULL
 
 ##Compare tables and print results. 
 
