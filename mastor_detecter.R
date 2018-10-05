@@ -187,13 +187,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "Full run good"
+runname<- "minmax test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -214,8 +214,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-2
-Mindur<-0.3
+Maxdur<-2.2
+Mindur<-0.2
 
 ############################Combine detector  parameters
 timediffself<-1.3
@@ -254,9 +254,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("BS15_AU_02a") #add as complete GTs 
+  allmooringsGT<- c("BS15_AU_02b") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,104)
+  allmooringsSF[[1]]<-c(1,62)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
@@ -765,7 +765,7 @@ DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 n=0
 for(o in unique(DetecTab2$Mooring)){
   Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
-  for(p in 1:max(Tab$DetectorCount)){
+  for(p in unique(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
     newrow<-AvgTab[0,]
