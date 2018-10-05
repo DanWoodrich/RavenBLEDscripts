@@ -790,8 +790,8 @@ for(o in unique(DetecTab2$Mooring)){
     
   }
   if(n>0){
-    DetecTab2<-DetecTab[-which(DetecTab2$Mooring==o),]
-    DetecTab<-rbind(DetecTab2,Tab)
+    DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==o),]
+    DetecTab2<-rbind(DetecTab2,Tab)
   }
 }
 
@@ -800,9 +800,9 @@ DetecTab2$remove<-NULL
 
 ##Compare tables and print results. 
 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,numDetectors,FO,LMS,Notes", colClasses = colClasses)
-
+ colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself, numDetectors,FO,LMS,Notes", colClasses = colClasses)
+GTtot<-0
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
@@ -814,6 +814,8 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
   GT[[v]]$View<-as.character(GT[[v]]$View)
   GT[[v]]$detectionType<-0
+  
+  GTtot<-sum(GTtot,nrow(GT[[v]]))
   
   colnames(GT[[v]]) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   
@@ -911,10 +913,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   dev.off()
 }
 
-numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
-numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
-numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
-numTPtruth<- nrow(GT[[v]])
+numTP <- sum(as.numeric(detecEvalFinal[,6]))
+numFN <- sum(as.numeric(detecEvalFinal[,8]))
+numFP <- sum(as.numeric(detecEvalFinal[,7]))
+numTPtruth<- GTtot
 
 TPhitRate <- numTP/numTPtruth*100
 TPR <- numTP/(numTP+numFN)
