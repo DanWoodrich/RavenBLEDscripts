@@ -190,10 +190,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "Full run good"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "combined" 
+dettype<- "single" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -211,6 +211,11 @@ detectorssin <- c(dir(BLEDpath)[1]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
+
+##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
+
+Maxdur<-1.2
+Mindur<-1
 
 ############################Combine detector  parameters
 timediffself<-1.3
@@ -319,9 +324,12 @@ ParamSum[5,3]<-"Maximum second difference between detection mean time to be cons
 ParamSum[6,1]<-"Frequency threshold for combination:"
 ParamSum[6,2]<- paste(freqdiff,"Hz",sep="")
 ParamSum[6,3]<-"Maximum Hz difference between detection mean freq to be considered a combined detection"
-ParamSum[7,1]<-"Number/name spread detectors ran:"
-ParamSum[7,2]<- paste(length(sonlydetlist),paste(sonlydetlist2,collapse="/"))
+ParamSum[7,1]<-"Min/Max duration for final detections"
+ParamSum[7,2]<- paste(Mindur,Maxdur)
 ParamSum[7,3]<- " "
+ParamSum[8,1]<-"Number/name spread detectors ran:"
+ParamSum[8,2]<- paste(length(sonlydetlist),paste(sonlydetlist2,collapse="/"))
+ParamSum[8,3]<- " "
 
 
 if(dettype=="spread"|dettype=="combined"){
@@ -796,12 +804,19 @@ for(o in unique(DetecTab2$Mooring)){
 }
 
 DetecTab2$UniqueID<-NULL
-DetecTab2$remove<-NULL
+
+for(f in 1:nrow(DetecTab2)){
+  if((DetecTab2[f,5]-DetecTab2[f,4])>Maxdur|(DetecTab2[f,5]-DetecTab2[f,4])<Mindur){
+    DetecTab2[f,15]<-1
+  }
+}
+
+DetecTab2<-DetecTab2[-which(DetecTab2$remove==1),]
 
 ##Compare tables and print results. 
 
- colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","numeric","numeric","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself, numDetectors,FO,LMS,Notes", colClasses = colClasses)
+ colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 GTtot<-0
 for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -900,7 +915,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   TPdivFP<- numTP/numFP
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
@@ -924,9 +939,9 @@ TPdivFP<- numTP/numFP
   
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,paste(timediffself,timediff,sep = ","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
