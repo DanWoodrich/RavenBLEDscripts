@@ -214,8 +214,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-2.2
-Mindur<-0.2
+Maxdur<-1.9
+Mindur<-0.4
 
 ############################Combine detector  parameters
 timediffself<-1.3
