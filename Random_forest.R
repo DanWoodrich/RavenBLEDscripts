@@ -7,7 +7,11 @@
 #install.packages("ggplot2")
 #install.packages("usdm")
 #install.packages("ROCR")
+#install.packages("e1071")  
+#install.packages("caret")  
 
+library(e1071)  
+library(caret)  
 library(randomForest)
 library(seewave)
 library(tuneR)
@@ -17,6 +21,7 @@ library(ggplot2)
 library(usdm)
 library(flightcallr)
 library(ROCR)
+library(ModelMetrics)
 
 
 #Which data would you like to evaluate?
@@ -136,18 +141,39 @@ new<-vif(data)[which(vif(data)$VIF>4),1]
 #kappa(cor(data),exact=T)
 #cor(data)
 
-
+#########################################
 #before going too deep into trying to tune the glm, give random forest a shot.
 data2$detectionType<-factor(data2$detectionType)
 data2<-data[,1:(length(data)-2)]
 train<-splitdf(data2,weight = 2/3)
 
+train[[1]]$detectionType<-factor(train[[1]]$detectionType)
+train[[2]]$detectionType<-factor(train[[2]]$detectionType)
 
-data.rf<-randomForest(x=train[[1]],formula=detectionType ~ .)
+data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],nodesize=5)
 data.rf
+plot(data.rf)
 
+#test against test data
+train[[2]]$predicted.response <- predict(data.rf ,train[[2]])
+# Create Confusion Matrix
+print(  
+  confusionMatrix(data=train[[2]]$predicted.response,  
+                  reference=train[[2]]$detectionType,
+                  positive="1")
+)
 
+ROCRpred<-prediction(as.numeric(model_pred_det),train[[2]]$detectionType)
 
+roc.perf = performance(ROCRpred, measure = "tpr", x.measure = "fpr")
+plot(roc.perf)
+abline(a=0, b= 1)
+
+varImpPlot(data.rf,  
+           sort = T,
+           n.var=10,
+           main="Top 10 - Variable Importance")
+############################################################
 
 #pairs(data2, upper.panel = NULL)
 
