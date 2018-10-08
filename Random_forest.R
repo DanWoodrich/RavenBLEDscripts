@@ -6,6 +6,7 @@
 #install.packages("aod")
 #install.packages("ggplot2")
 #install.packages("usdm")
+#install.packages("ROCR")
 
 library(randomForest)
 library(seewave)
@@ -15,6 +16,7 @@ library(aod)
 library(ggplot2)
 library(usdm)
 library(flightcallr)
+library(ROCR)
 
 
 #Which data would you like to evaluate?
@@ -79,7 +81,7 @@ data[which(data$detectionType=="FN"),9]<-2
 data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
-data<-data[1:6000,]
+data<-splitdf(data,weight = 1/4)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -96,23 +98,23 @@ for(z in 1:nrow(data)){
   data$spectral.flatness.measure[z] = sfm(foo.spec)
   data$spectrum.roughness[z] = roughness(foo.meanspec[,2])
   data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
-  #data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
+  data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
   data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
   data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
   data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
   data$specprop.mean[z] = foo.specprop$mean[1]
   data$specprop.sd[z] = foo.specprop$sd[1]
   data$specprop.sem[z] = foo.specprop$sem[1]
-  #data$specprop.median[z] = foo.specprop$median[1]
+  data$specprop.median[z] = foo.specprop$median[1]
   data$specprop.mode[z] = foo.specprop$mode[1]
-  #data$specprop.Q25[z] = foo.specprop$Q25[1]
-  #data$specprop.Q75[z] = foo.specprop$Q75[1]
-  #data$specprop.IQR[z] = foo.specprop$IQR[1]
-  #data$specprop.cent[z] = foo.specprop$cent[1]
+  data$specprop.Q25[z] = foo.specprop$Q25[1]
+  data$specprop.Q75[z] = foo.specprop$Q75[1]
+  data$specprop.IQR[z] = foo.specprop$IQR[1]
+  data$specprop.cent[z] = foo.specprop$cent[1]
   data$specprop.skewness[z] = foo.specprop$skewness[1]
   data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
-  #data$specprop.sfm[z] = foo.specprop$sfm[1]
-  #data$specprop.sh[z] = foo.specprop$sh[1]
+  data$specprop.sfm[z] = foo.specprop$sfm[1]
+  data$specprop.sh[z] = foo.specprop$sh[1]
   print(paste("done with",z))
 }
 
@@ -135,13 +137,21 @@ new<-vif(data)[which(vif(data)$VIF>4),1]
 #cor(data)
 
 
-##################removed "colinear parameters"
+#before going too deep into trying to tune the glm, give random forest a shot.
+data2$detectionType<-factor(data2$detectionType)
 data2<-data[,1:(length(data)-2)]
 train<-splitdf(data2,weight = 2/3)
 
-pairs(data2, upper.panel = NULL)
 
-data2$detectionType<-factor(data2$detectionType)
+data.rf<-randomForest(x=train[[1]],formula=detectionType ~ .)
+data.rf
+
+
+
+
+#pairs(data2, upper.panel = NULL)
+
+
 mylogit<-glm(formula=detectionType~rugosity+crest.factor+temporal.entropy+shannon.entropy+spectral.flatness.measure+
                spectrum.roughness+autoc.mean+autoc.se+dfreq.mean+dfreq.se+specprop.mean+specprop.sd+specprop.sem+
                specprop.mode,family="binomial",data=train[[1]])
@@ -149,13 +159,21 @@ summary(mylogit)
 
 pred<-predict(mylogit,train[[2]],type="response")
 model_pred_det<-rep("0",nrow(train[[2]]))
-model_pred_det[pred>0.5]<-"1"
+model_pred_det[pred>0.135]<-"1"
 tab<-table(model_pred_det,train[[2]]$detectionType)
 print(tab)
-1-sum(diag(tab))/sum(tab) #15.5% misclassification. 
+1-sum(diag(tab))/sum(tab) #15.5% misclassification with pred>.5 (first 6000 rows)
 
-View(cbind(model_pred_det,train[[2]]$detectionType))
+
+ROCRpred<-prediction(as.numeric(model_pred_det),train[[2]]$detectionType)
+
+roc.perf = performance(ROCRpred, measure = "tpr", x.measure = "fpr")
+plot(roc.perf)
+abline(a=0, b= 1)
+
+#going with this approach, should include site and season as fixed effects, or include site/season (mooring name) as a random effect and run a glmm
 ######################################
+
 
 
 
