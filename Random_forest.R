@@ -1,3 +1,4 @@
+#install.packages("flightcallr")
 #install.packages("randomForest")
 #install.packages("seewave")
 #install.packages("tuneR")
@@ -13,6 +14,7 @@ library(plotrix)
 library(aod)
 library(ggplot2)
 library(usdm)
+library(flightcallr)
 
 
 #Which data would you like to evaluate?
@@ -112,34 +114,48 @@ for(z in 1:nrow(data)){
   #data$specprop.sfm[z] = foo.specprop$sfm[1]
   #data$specprop.sh[z] = foo.specprop$sh[1]
   print(paste("done with",z))
-      }
-data<-data[,9:length(data)]
-#test for collinearity
-cor(data)
-vif(data)
+}
 
-data1<-data.frame(scale(data))
+data<-data[,9:length(data)]
+
+#data1<-data.frame(scale(data))
+
+#test for collinearity
+vif(data1)
 #first<-vif(data)[which(vif(data)$VIF>4),1]
 #second<-vif(data)[which(vif(data)$VIF>4),1]
 #third<-vif(data)[which(vif(data)$VIF>4)
 #fourth<-vif(data)[which(vif(data)$VIF>4),1]
 new<-vif(data)[which(vif(data)$VIF>4),1]
 #vif >4
-
 #of original params: take one of (8,9),(13,16,18,19,21 keep: ),(14,20),(23,24),(6,24),(5,25). just take the first for now, remove the rest. 
 
-pairs(data1, upper.panel = NULL)
+#eigen(cor(data))$values
+#kappa(cor(data),exact=T)
+#cor(data)
 
 
-eigen(cor(data))$values
+##################removed "colinear parameters"
+data2<-data[,1:(length(data)-2)]
+train<-splitdf(data2,weight = 2/3)
 
-kappa(cor(data),exact=T)
+pairs(data2, upper.panel = NULL)
 
-cor(data)
+data2$detectionType<-factor(data2$detectionType)
+mylogit<-glm(formula=detectionType~rugosity+crest.factor+temporal.entropy+shannon.entropy+spectral.flatness.measure+
+               spectrum.roughness+autoc.mean+autoc.se+dfreq.mean+dfreq.se+specprop.mean+specprop.sd+specprop.sem+
+               specprop.mode,family="binomial",data=train[[1]])
+summary(mylogit)
 
+pred<-predict(mylogit,train[[2]],type="response")
+model_pred_det<-rep("0",nrow(train[[2]]))
+model_pred_det[pred>0.5]<-"1"
+tab<-table(model_pred_det,train[[2]]$detectionType)
+print(tab)
+1-sum(diag(tab))/sum(tab) #15.5% misclassification. 
 
-
-
+View(cbind(model_pred_det,train[[2]]$detectionType))
+######################################
 
 
 
