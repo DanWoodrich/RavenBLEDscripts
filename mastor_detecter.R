@@ -187,13 +187,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "minmax test"
+runname<- "full run no minmax test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "combined" 
+dettype<- "spread" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -202,7 +202,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[20:38] #add more spreads with notation detectorspr[[x]]<-...
-detectorsspr[[2]] <- dir(BLEDpath)[8:19]
+#detectorsspr[[2]] <- dir(BLEDpath)[8:19]
 detectorssprshort<- detectorsspr
 }
 
@@ -214,8 +214,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-1.9
-Mindur<-0.4
+Maxdur<-99
+Mindur<-0
 
 ############################Combine detector  parameters
 timediffself<-1.3
@@ -234,17 +234,18 @@ LMS<-.10 #LMS step size
 
 ############################Spread parameters. must be same length as number of spread detectors you are running
 #p7 good ones: 2,1,3,0.75
+#p9 working ones: 3,2,3,.25
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(3,2)
+grpsize<-c(5)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(2,1)
+allowedZeros<-c(1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(3,3)
+detskip<-c(4)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(.25,.75)
+groupInt<-c(.3)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -254,9 +255,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("BS15_AU_02b") #add as complete GTs 
+  allmooringsGT<- c("BS15_AU_02a") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,62)
+  allmooringsSF[[1]]<-c(1,104)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
