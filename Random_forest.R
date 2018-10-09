@@ -87,9 +87,9 @@ data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
 #######1 mooring test######
-#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-data<-splitdf(data,weight = 1/3)[[1]]
+#data<-splitdf(data,weight = 1/3)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -102,27 +102,27 @@ for(z in 1:nrow(data)){
   data$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
   data$temporal.entropy[z] = th(foo.env)
-  data$shannon.entropy[z] = sh(foo.spec)
-  data$spectral.flatness.measure[z] = sfm(foo.spec)
+  #data$shannon.entropy[z] = sh(foo.spec)
+  #data$spectral.flatness.measure[z] = sfm(foo.spec)
   data$spectrum.roughness[z] = roughness(foo.meanspec[,2])
-  data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
+  #data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
   data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
-  data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
-  data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
-  data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
-  data$specprop.mean[z] = foo.specprop$mean[1]
-  data$specprop.sd[z] = foo.specprop$sd[1]
+  #data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
+  #data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
+  #data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
+  #data$specprop.mean[z] = foo.specprop$mean[1]
+  #data$specprop.sd[z] = foo.specprop$sd[1]
   data$specprop.sem[z] = foo.specprop$sem[1]
-  data$specprop.median[z] = foo.specprop$median[1]
+  #data$specprop.median[z] = foo.specprop$median[1]
   data$specprop.mode[z] = foo.specprop$mode[1]
-  data$specprop.Q25[z] = foo.specprop$Q25[1]
-  data$specprop.Q75[z] = foo.specprop$Q75[1]
-  data$specprop.IQR[z] = foo.specprop$IQR[1]
-  data$specprop.cent[z] = foo.specprop$cent[1]
-  data$specprop.skewness[z] = foo.specprop$skewness[1]
+  #data$specprop.Q25[z] = foo.specprop$Q25[1]
+  #data$specprop.Q75[z] = foo.specprop$Q75[1]
+  #data$specprop.IQR[z] = foo.specprop$IQR[1]
+  #data$specprop.cent[z] = foo.specprop$cent[1]
+  #data$specprop.skewness[z] = foo.specprop$skewness[1]
   data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
-  data$specprop.sfm[z] = foo.specprop$sfm[1]
-  data$specprop.sh[z] = foo.specprop$sh[1]
+  #data$specprop.sfm[z] = foo.specprop$sfm[1]
+  #data$specprop.sh[z] = foo.specprop$sh[1]
   print(paste("done with",z))
 }
 
@@ -131,12 +131,12 @@ data2<-data[,9:length(data)]
 #data1<-data.frame(scale(data))
 
 #test for collinearity
-vif(data1)
+#vif(data1)
 #first<-vif(data)[which(vif(data)$VIF>4),1]
 #second<-vif(data)[which(vif(data)$VIF>4),1]
 #third<-vif(data)[which(vif(data)$VIF>4)
 #fourth<-vif(data)[which(vif(data)$VIF>4),1]
-new<-vif(data)[which(vif(data)$VIF>4),1]
+#new<-vif(data)[which(vif(data)$VIF>4),1]
 #vif >4
 #of original params: take one of (8,9),(13,16,18,19,21 keep: ),(14,20),(23,24),(6,24),(5,25). just take the first for now, remove the rest. 
 
@@ -149,7 +149,7 @@ new<-vif(data)[which(vif(data)$VIF>4),1]
 #test individual moorings to see if it makes it better
 
 data2$detectionType<-as.factor(data2$detectionType)
-train<-splitdf(data2,weight = 2/3)
+#train<-splitdf(data2,weight = 2/3)
 
 #test out what happens if I remove most of the 0s. Did not seem to have any positive effect. 
 #train2<-splitdf(train[[1]][which(train[[1]]$detectionType==0),],weight=1/6)[[1]]
@@ -157,13 +157,21 @@ train<-splitdf(data2,weight = 2/3)
 #train2<-rbind(train2,train3)
 #train3<-NULL
 
-
-data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=9,ntree=10000)
+data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]])
 data.rf
 plot(data.rf)
 
+
 #cross validation:
-data.rf.cv<-rfcv(train[[1]],train[[1]]$detectionType,100)
+#data.rf.cv<-rfcv(train[[1]][,2:length(train[[1]])],train[[1]]$detectionType,20,step=0.8,formula=detectionType ~ .)
+#data.rf.cv
+#smallest error at step .8, nfold 20, at 7th iteration. Only 6 variables really used for rf?? 
+#top 6 variables: specprop.mode,autoc.median,temporal.entropy,spectrum.roughness,specprop.sem,specprop.kurtosis
+
+#test<-data.rf.cv$predicted[7]
+
+
+
 
 #test against test data
 pred<-predict(data.rf,train[[2]],type="prob")
@@ -181,8 +189,8 @@ auc.perf = performance(ROCRpred, measure = "auc",plot=F)
 auc.perf@y.values
 
 #varImpPlot(data.rf,  
-#           sort = T,
-#           n.var=10,
+#           sort = 24,
+#           n.var=24,
 #           main="Top 10 - Variable Importance")
 
 #did better on only BS15_AU_02a- at .35 pred cutoff, achieved AUC score of .87,.82,.85,.87,.85... (small sample size)  
@@ -198,6 +206,9 @@ auc.perf@y.values
                                       #at 300 trees: 11.32%
                                       #at 1000 trees: 11.16%
                                       #at 10000 trees: 11.09% Does not appear to be making a big difference
+
+#After reducing it to 6 vars instead on 24 based on rfcv() analysis...:
+#run with top 6 vars: 0.8339438, .8,.82,.8 - fairly similar to with all 24. Good to know if need to reduce computation time, otherwise will include all vars for after I introduce fin and mooring detectors.  
                                                 
 ############################################################
 
