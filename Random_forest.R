@@ -87,9 +87,9 @@ data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
 #######1 mooring test######
-data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#data<-splitdf(data,weight = 1/3)[[1]]
+data<-splitdf(data,weight = 1/3)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -149,7 +149,7 @@ data2<-data[,9:length(data)]
 #test individual moorings to see if it makes it better
 
 data2$detectionType<-as.factor(data2$detectionType)
-#train<-splitdf(data2,weight = 2/3)
+train<-splitdf(data2,weight = 2/3)
 
 #test out what happens if I remove most of the 0s. Did not seem to have any positive effect. 
 #train2<-splitdf(train[[1]][which(train[[1]]$detectionType==0),],weight=1/6)[[1]]
@@ -198,9 +198,9 @@ auc.perf@y.values
                     #AW12_AU_BS3- full samp size auc: .77,.79,.76,.78,.78,78,.79... correctly gets about 60% TPs. Overall including Raven BLED would be about .6*.83 = .5 of all calls (including manual review of yeses produced here, which adds another 50% to look at beyond TPs). # is also mooring specific, would be worse with a more general detector. 
                     #BS13_AU_04- full samp size auc: .71,(from here on with better looking auc curve, no cutoff..),.79,.799,.77...
                     #BS15_AU_02a with no cutoff: .94,.94.,.9,.9,.9,.92,.9,...
-                    #full moorings with no cutoff: .82,.815,.8,.815,.83,.8... about .85 sensitivity for 50% FP rate. meaning on average for full analysis, could get .8 from BLED, .85 from RF for a total of 68% of upcalls, and would have to manually review an equivalent amount of FPs as TPs.  
-                    #full moorings with half of 0s taken out:.8,.82
-                    #full moorings with only 1/6 of original no's:.8,.815,.8
+                    #full moorings AUC with no cutoff: .82,.815,.8,.815,.83,.8... about .85 sensitivity for 50% FP rate. meaning on average for full analysis, could get .8 from BLED, .85 from RF for a total of 68% of upcalls, and would have to manually review an equivalent amount of FPs as TPs.  
+                    #full moorings AUC with half of 0s taken out:.8,.82
+                    #full moorings AUC with only 1/6 of original no's:.8,.815,.8
                     #OOB % error rate: at 500 trees: 11.06,11.13
                                       #at 100 trees: 11.41%
                                       #at 300 trees: 11.32%
@@ -210,6 +210,7 @@ auc.perf@y.values
 #After reducing it to 6 vars instead on 24 based on rfcv() analysis...:
 #run with top 6 vars: 0.8339438, .8,.82,.8 - fairly similar to with all 24. Good to know if need to reduce computation time, otherwise will include all vars for after I introduce fin and mooring detectors.  
                                                 
+#test: use only BS15_AU_02a to train model, and use it to predict rest of moorings. result: AUC .73,.72... This could be an option, if you just want the "best" calls, would involve more manual analysis. 
 ############################################################
 
 #pairs(data2, upper.panel = NULL)

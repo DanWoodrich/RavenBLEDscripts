@@ -122,45 +122,6 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
-{
-  
-  if (is.null(exename)) {
-    exename <- "sox"
-  } else {
-    exename = exename
-  }
-  
-  if (is.null(path2exe)) {
-    exe <- exename
-  } else {
-    path2exe <- normalizePath(path = path2exe, winslash = "/", mustWork = TRUE)
-    exe <- paste(path2exe, exename, sep = "/")
-  }
-  
-  if (.Platform$OS.type == "windows") {
-    
-    if(is.null(shQuote_type)) {
-      shQuote_type = "cmd"
-    } else {
-      shQuote_type = "cmd2"
-    }
-    
-  } else {  # .Platform$OS.type == "unix" # + Apple OS X + other
-    
-    if(is.null(shQuote_type)) {
-      shQuote_type = "sh"
-    } else {
-      shQuote_type = "csh"
-    }
-    
-  }
-  
-  exe <- shQuote(exe, type = shQuote_type)
-  system(paste(exe, command, argus, sep = " "), ignore.stderr = TRUE)
-  
-}
-
 #paths
 startcombpath<-"E:/Combined_sound_files/"
 BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
