@@ -86,7 +86,10 @@ data[which(data$detectionType=="FN"),9]<-2
 data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
-data<-splitdf(data,weight = 1/4)[[1]]
+#######1 mooring test######
+data<-data[which(data$`soundfiles[n]`=="AW12_AU_BS3_files1-217.wav"),]
+
+#data<-splitdf(data,weight = 1/4)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -123,7 +126,7 @@ for(z in 1:nrow(data)){
   print(paste("done with",z))
 }
 
-data<-data[,9:length(data)]
+data2<-data[,9:length(data)]
 
 #data1<-data.frame(scale(data))
 
@@ -143,25 +146,22 @@ new<-vif(data)[which(vif(data)$VIF>4),1]
 
 #########################################
 #before going too deep into trying to tune the glm, give random forest a shot.
-data2$detectionType<-factor(data2$detectionType)
-data2<-data[,1:(length(data)-2)]
+#test individual moorings to see if it makes it better
+
+data2$detectionType<-as.factor(data2$detectionType)
 train<-splitdf(data2,weight = 2/3)
 
-train[[1]]$detectionType<-factor(train[[1]]$detectionType)
-train[[2]]$detectionType<-factor(train[[2]]$detectionType)
-
-data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],nodesize=5)
+data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=9)
 data.rf
 plot(data.rf)
 
 #test against test data
-train[[2]]$predicted.response <- predict(data.rf ,train[[2]])
-# Create Confusion Matrix
-print(  
-  confusionMatrix(data=train[[2]]$predicted.response,  
-                  reference=train[[2]]$detectionType,
-                  positive="1")
-)
+pred<-predict(data.rf,train[[2]],type="prob")
+model_pred_det<-rep("0",nrow(train[[2]]))
+model_pred_det[pred[,2]>0.35]<-"1"
+tab<-table(model_pred_det,train[[2]]$detectionType)
+print(tab)
+1-sum(diag(tab))/sum(tab) #15.5% misclassification with pred>.5 (first 6000 rows)
 
 ROCRpred<-prediction(as.numeric(model_pred_det),train[[2]]$detectionType)
 
@@ -169,10 +169,21 @@ roc.perf = performance(ROCRpred, measure = "tpr", x.measure = "fpr")
 plot(roc.perf)
 abline(a=0, b= 1)
 
-varImpPlot(data.rf,  
-           sort = T,
-           n.var=10,
-           main="Top 10 - Variable Importance")
+acc.perf = performance(ROCRpred, measure = "acc")
+plot(acc.perf)
+
+auc.perf = performance(ROCRpred, measure = "auc")
+auc.perf@y.values
+
+#varImpPlot(data.rf,  
+#           sort = T,
+#           n.var=10,
+#           main="Top 10 - Variable Importance")
+
+#did better on only BS15_AU_02a- at .35 pred cutoff, achieved AUC score of .87,.82,.85,.87,.85... (small sample size)  
+                                #larger sample size: .82,.86,.82,.82,.85,.87,.88 (all done without specifying mtry)
+                    #AW12_AU_BS3- full samp size auc: .77,.79,.76,.78,.78,78,.79... correctly gets about 60% TPs. Overall including Raven BLED would be about .6*.83 = .5 of all calls (including manual review of yeses produced here, which adds another 50% to look at beyond TPs)
+
 ############################################################
 
 #pairs(data2, upper.panel = NULL)
