@@ -151,9 +151,19 @@ new<-vif(data)[which(vif(data)$VIF>4),1]
 data2$detectionType<-as.factor(data2$detectionType)
 train<-splitdf(data2,weight = 2/3)
 
-data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=9)
+#test out what happens if I remove most of the 0s. Did not seem to have any positive effect. 
+#train2<-splitdf(train[[1]][which(train[[1]]$detectionType==0),],weight=1/6)[[1]]
+#train3<-train[[1]][which(train[[1]]$detectionType==1),]
+#train2<-rbind(train2,train3)
+#train3<-NULL
+
+
+data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=9,ntree=10000)
 data.rf
 plot(data.rf)
+
+#cross validation:
+data.rf.cv<-rfcv(train[[1]],train[[1]]$detectionType,100)
 
 #test against test data
 pred<-predict(data.rf,train[[2]],type="prob")
@@ -180,8 +190,15 @@ auc.perf@y.values
                     #AW12_AU_BS3- full samp size auc: .77,.79,.76,.78,.78,78,.79... correctly gets about 60% TPs. Overall including Raven BLED would be about .6*.83 = .5 of all calls (including manual review of yeses produced here, which adds another 50% to look at beyond TPs). # is also mooring specific, would be worse with a more general detector. 
                     #BS13_AU_04- full samp size auc: .71,(from here on with better looking auc curve, no cutoff..),.79,.799,.77...
                     #BS15_AU_02a with no cutoff: .94,.94.,.9,.9,.9,.92,.9,...
-                    #full mooring with no cutoff: .82,.815,.8,.815,.83,.8... about .85 sensitivity for 50% FP rate. meaning for full analysis, could get .8 from BLED, .85 from RF, and 
-
+                    #full moorings with no cutoff: .82,.815,.8,.815,.83,.8... about .85 sensitivity for 50% FP rate. meaning on average for full analysis, could get .8 from BLED, .85 from RF for a total of 68% of upcalls, and would have to manually review an equivalent amount of FPs as TPs.  
+                    #full moorings with half of 0s taken out:.8,.82
+                    #full moorings with only 1/6 of original no's:.8,.815,.8
+                    #OOB % error rate: at 500 trees: 11.06,11.13
+                                      #at 100 trees: 11.41%
+                                      #at 300 trees: 11.32%
+                                      #at 1000 trees: 11.16%
+                                      #at 10000 trees: 11.09% Does not appear to be making a big difference
+                                                
 ############################################################
 
 #pairs(data2, upper.panel = NULL)
