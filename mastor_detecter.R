@@ -148,22 +148,29 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "full run no minmax test"
+runname<- "mooring and pulse detec test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
+dettype<- "single" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
 
+#compare detections with pulses and fin/mooring noise, other sources of intereference y or n
+interfere<-"y"
+
+interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
+
+
+
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[20:38] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[8:19]
+detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
+#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
 
@@ -370,6 +377,7 @@ if(dettype=="single"|dettype=="combined"){
 
 #run sound files:
 resltsTab <- NULL
+resltsTabInt<- NULL
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
@@ -389,7 +397,19 @@ for(m in moorings){
 
   combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   
-
+#run pulse and fin/mooring detector, if selected:
+if(interfere=="y"){
+  for(i in interfereVec){
+    resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+    resltVarInt$Mooring<-m
+    resltVarInt$detector<-i
+    resltVarInt$detectorType<-"intereference"
+    resltVarInt$detectorCount<-which(interfereVec==i)
+    resltsTabInt<-rbind(resltsTabInt,resltVarInt)
+    resltVarInt<-NULL
+  }
+  
+}
 #run detector(s)
 if(dettype=="spread"|dettype=="combined"){
   for(q in 1:length(detectorssprshort)){
@@ -861,13 +881,38 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
   colnames(OutputCompare)[8]<-'TP/FP/FN'
   
-  OutputCompare<- OutputCompare[,-8]
-  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
-  write.table(OutputCompare,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  #compare detections to sources of interference
+  if(interfere=="y"){
+    MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
+    for(n in 1:max(resltsTabInt$detectorCount)){
+      OutputCompare2[,n+9]<-""
+      colnames(OutputCompare2)[length(OutputCompare2)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
+      for(h in 1:nrow(MoorInt)){
+        for(g in 1:nrow(OutputCompare2)){
+          if(MoorInt[h,4]<OutputCompare2[g,8] & MoorInt[h,5]>OutputCompare2[g,8]){
+            OutputCompare2[g,n+9]<-1
+          }else{
+            OutputCompare2[g,n+9]<-0
+          }
+        }
+      }
+    }
+  }
+  
+  OutputCompareRav<- OutputCompare[,-8]
+  OutputCompareRav<- OutputCompareRav[,1:8]
+  
+  OutputCompareRav$Selection<-seq(1:nrow(OutputCompareRav))
+  write.table(OutputCompareRav,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }else{
   write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     
   }
+  OutputCompareRF<- OutputCompare[,-8]
+  OutputCompareRF$Selection<-seq(1:nrow(OutputCompare))
+  write.table(OutputCompareRF,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_RF.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  
+  
   
   #Make summary table of statistics for table comparison. 
 

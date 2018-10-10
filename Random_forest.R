@@ -37,7 +37,7 @@ runname<-"full run no minmax test_20181006144510"
 
 
 ##########
-detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "TPFPFN")  
+detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
 
 #extract mooring names from moorings used in run
 mooringpat=NULL
