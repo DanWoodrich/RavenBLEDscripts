@@ -32,7 +32,7 @@ ymaxx<-1000 #" "
 
 spec<-"RW"
 
-runname<-"full run no minmax test_20181006144510"
+runname<-"mooring and pulse detec test_20181010113138"
 
 
 
@@ -102,27 +102,27 @@ for(z in 1:nrow(data)){
   data$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
   data$temporal.entropy[z] = th(foo.env)
-  #data$shannon.entropy[z] = sh(foo.spec)
-  #data$spectral.flatness.measure[z] = sfm(foo.spec)
+  data$shannon.entropy[z] = sh(foo.spec)
+  data$spectral.flatness.measure[z] = sfm(foo.spec)
   data$spectrum.roughness[z] = roughness(foo.meanspec[,2])
-  #data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
+  data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
   data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
-  #data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
-  #data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
-  #data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
-  #data$specprop.mean[z] = foo.specprop$mean[1]
-  #data$specprop.sd[z] = foo.specprop$sd[1]
+  data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
+  data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
+  data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
+  data$specprop.mean[z] = foo.specprop$mean[1]
+  data$specprop.sd[z] = foo.specprop$sd[1]
   data$specprop.sem[z] = foo.specprop$sem[1]
-  #data$specprop.median[z] = foo.specprop$median[1]
+  data$specprop.median[z] = foo.specprop$median[1]
   data$specprop.mode[z] = foo.specprop$mode[1]
-  #data$specprop.Q25[z] = foo.specprop$Q25[1]
-  #data$specprop.Q75[z] = foo.specprop$Q75[1]
-  #data$specprop.IQR[z] = foo.specprop$IQR[1]
-  #data$specprop.cent[z] = foo.specprop$cent[1]
-  #data$specprop.skewness[z] = foo.specprop$skewness[1]
+  data$specprop.Q25[z] = foo.specprop$Q25[1]
+  data$specprop.Q75[z] = foo.specprop$Q75[1]
+  data$specprop.IQR[z] = foo.specprop$IQR[1]
+  data$specprop.cent[z] = foo.specprop$cent[1]
+  data$specprop.skewness[z] = foo.specprop$skewness[1]
   data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
-  #data$specprop.sfm[z] = foo.specprop$sfm[1]
-  #data$specprop.sh[z] = foo.specprop$sh[1]
+  data$specprop.sfm[z] = foo.specprop$sfm[1]
+  data$specprop.sh[z] = foo.specprop$sh[1]
   print(paste("done with",z))
 }
 

@@ -154,7 +154,7 @@ runname<- "mooring and pulse detec test"
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -170,7 +170,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
+detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
 
@@ -204,16 +204,16 @@ LMS<-.10 #LMS step size
 #p7 good ones: 2,1,3,0.75
 #p9 working ones: 3,2,3,.25
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(5)
+grpsize<-c(5,2)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(1)
+allowedZeros<-c(1,1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(4)
+detskip<-c(4,3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(.3)
+groupInt<-c(.3,0.75)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -885,14 +885,14 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   if(interfere=="y"){
     MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
     for(n in 1:max(resltsTabInt$detectorCount)){
-      OutputCompare2[,n+9]<-""
-      colnames(OutputCompare2)[length(OutputCompare2)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
+      OutputCompare[,n+9]<-""
+      colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
       for(h in 1:nrow(MoorInt)){
-        for(g in 1:nrow(OutputCompare2)){
-          if(MoorInt[h,4]<OutputCompare2[g,8] & MoorInt[h,5]>OutputCompare2[g,8]){
-            OutputCompare2[g,n+9]<-1
+        for(g in 1:nrow(OutputCompare)){
+          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare2[4] & MoorInt[h,5]<OutputCompare2[5])){
+            OutputCompare[g,n+9]<-1
           }else{
-            OutputCompare2[g,n+9]<-0
+            OutputCompare[g,n+9]<-0
           }
         }
       }
@@ -909,9 +909,12 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     
   }
   OutputCompareRF<- OutputCompare[,-8]
-  OutputCompareRF$Selection<-seq(1:nrow(OutputCompare))
+  OutputCompareRF$Selection<-seq(1:nrow(OutputCompareRF))
   write.table(OutputCompareRF,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_RF.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
+  OutputCompare<- OutputCompare[,-8]
+  OutputCompare<- OutputCompare[,1:8]
+  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   
   
   #Make summary table of statistics for table comparison. 
@@ -928,8 +931,11 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   TPdivFP<- numTP/numFP
 
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(spec,MoorVar[1,12],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-
+  if(dettype=="spread"|dettype=="combined"){
+    detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,allowedZeros,paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  }else{
+    detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,paste(timediffself,timediff,sep = ","),paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+  }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   png(paste(outputpath,runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
