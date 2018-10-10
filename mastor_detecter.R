@@ -148,13 +148,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "mooring and pulse detec test"
+runname<- "mooring and pulse full test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -170,7 +170,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
+detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
 
@@ -446,9 +446,11 @@ if(dettype=="spread"|dettype=="combined"){
   resltsTabspr<-resltsTab[which(resltsTab$detectorType=="spread"),]
   RTSVar<-unique(substr(resltsTabspr$detector,1,2))
   for(d in 1:length(RTSVar)){
+    print(paste("Combining spread for",RTSVar[d]))
     resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,2)==RTSVar[d]),]
       for(e in unique(resltsTSPVd$Mooring)){
         resltsTSPV<-resltsTSPVd[which(resltsTSPVd$Mooring==e),]
+        print("    ",e)
         for(f in 1:length(unique(resltsTSPV$bottom.freq))){
           resltsTSPV[resltsTSPV$bottom.freq==unique(resltsTSPV$bottom.freq)[f],13]<-f
         }
@@ -604,10 +606,11 @@ if(dettype=="combined"){
 if(dettype=="single"|dettype=="combined"){
   resltsTabsin<-resltsTab[which(resltsTab$detectorType=="single"),]
   for(d in 1:length(unique(resltsTabsin$detector))){
+    print(paste("Configuring single detector",unique(resltsTabsin$detector)[d]))
     resltsTSGVd<-resltsTabsin[which(resltsTabsin$detector==unique(resltsTabsin$detector)[d]),]
     for(e in unique(resltsTSGVd$Mooring)){
       resltsTSGV<-resltsTSGVd[which(resltsTSGVd$Mooring==e),]
-      
+      print(paste("     ",e))
       if(nrow(resltsTSGV)==0){
         write.table("There were no detections",paste(outputpath,runname,"/",e,"/_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
@@ -655,9 +658,11 @@ DetecTab$remove<-0
 n=0
 for(o in unique(DetecTab$Mooring)){
   Tab<-DetecTab[which(DetecTab$Mooring==o),]
+  print(paste("For mooring",o))
   for(p in 1:max(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
+    print(paste("       Average within detector",AvgTab$DetectorName[1]))
     newrow<-AvgTab[0,]
     IDvec<-NULL
     for(q in 1:(nrow(AvgTab)-1)){
@@ -696,15 +701,18 @@ for(o in unique(DetecTab$Mooring)){
 
 DetecTab<-DetecTab[order(DetecTab$meantime),]
 
+#average between detectors
 AvgDet<-DetecTab[0,]
 DetecTab2<-DetecTab[0,]
 for(w in unique(DetecTab$Mooring)){
+  print(paste("For mooring",w))
   CompareDet<-DetecTab[which(DetecTab$Mooring==w),]
   if(detnum>1){
   CDvar<-unique(CompareDet$DetectorCount)
   for(x in 1:(length(CDvar)-1)){
     i = CompareDet[which(CompareDet$DetectorCount==CDvar[x]),]
     j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
+    print(paste("      Average detectors",i[1,9],"and",j[1,9]))
     for(y in 1:nrow(i)){
       for(z in 1:nrow(j)){
         if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
@@ -747,9 +755,12 @@ DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 n=0
 for(o in unique(DetecTab2$Mooring)){
   Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
+  print(paste("For mooring",o))   
   for(p in unique(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
+    print("       Average combined detector")
+
     newrow<-AvgTab[0,]
     IDvec<-NULL
     for(q in 1:(nrow(AvgTab)-1)){
@@ -868,7 +879,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
   
   OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
-  
+
   OutputCompare[which(OutputCompare$detectionType=="TP truth"),9]<-"x"
   
   #for(q in 1:(nrow(OutputCompare)-1)){
@@ -879,7 +890,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   OutputCompare <- subset(OutputCompare,detectionType!="x")
 
-
+  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   
   #compare detections to sources of interference
   if(interfere=="y"){
@@ -890,14 +901,14 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
       for(h in 1:nrow(MoorInt)){
         for(g in 1:nrow(OutputCompare)){
-          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare2[h,4] & MoorInt[h,5]<OutputCompare2[h,5])){
+          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
             OutputCompare[g,n+9]<-1
           }
           }
         }
       }
     }
-  }
+  
   
   colnames(OutputCompare)[8]<-'TP/FP/FN'
   OutputCompareRav<- OutputCompare[,-8]
@@ -905,17 +916,19 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   OutputCompareRav$Selection<-seq(1:nrow(OutputCompareRav))
   write.table(OutputCompareRav,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-  }else{
-  write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
-    
-  }
+
   OutputCompareRF<- OutputCompare[,-8]
   OutputCompareRF$Selection<-seq(1:nrow(OutputCompareRF))
   write.table(OutputCompareRF,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_RF.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   OutputCompare<- OutputCompare[,-8]
   OutputCompare<- OutputCompare[,1:8]
-  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
+
+  
+  }else{
+    write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+    
+  }
   
   
   #Make summary table of statistics for table comparison. 

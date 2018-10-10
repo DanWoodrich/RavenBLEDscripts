@@ -32,7 +32,7 @@ ymaxx<-1000 #" "
 
 spec<-"RW"
 
-runname<-"mooring and pulse detec test_20181010113138"
+runname<-"mooring and pulse detec test_20181010131039"
 
 
 
@@ -86,6 +86,12 @@ data[which(data$detectionType=="FN"),9]<-2
 data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
+#make interference columns into factors
+if(length(data)>8){
+  for(n in 9:length(data)){
+    data[,n]<-as.factor(data[,n])
+  }
+}
 #######1 mooring test######
 #data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
@@ -211,6 +217,9 @@ auc.perf@y.values
 #run with top 6 vars: 0.8339438, .8,.82,.8 - fairly similar to with all 24. Good to know if need to reduce computation time, otherwise will include all vars for after I introduce fin and mooring detectors.  
                                                 
 #test: use only BS15_AU_02a to train model, and use it to predict rest of moorings. result: AUC .73,.72... This could be an option, if you just want the "best" calls, would involve more manual analysis. 
+
+#test: use binary fin and mooring noise detector as categorical variables.
+
 ############################################################
 
 #pairs(data2, upper.panel = NULL)
