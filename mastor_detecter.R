@@ -151,10 +151,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "mooring and pulse detec test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "combined" 
+dettype<- "single" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -170,7 +170,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
-detectorsspr[[2]] <- dir(BLEDpath)[9:20]
+#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
 
@@ -204,16 +204,16 @@ LMS<-.10 #LMS step size
 #p7 good ones: 2,1,3,0.75
 #p9 working ones: 3,2,3,.25
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(5,2)
+grpsize<-c(5)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(1,1)
+allowedZeros<-c(1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(4,3)
+detskip<-c(4)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(.3,0.75)
+groupInt<-c(.3)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -879,26 +879,27 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   OutputCompare <- subset(OutputCompare,detectionType!="x")
 
-  colnames(OutputCompare)[8]<-'TP/FP/FN'
+
   
   #compare detections to sources of interference
   if(interfere=="y"){
-    MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
     for(n in 1:max(resltsTabInt$detectorCount)){
-      OutputCompare[,n+9]<-""
+      MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
+      OutputCompare[,n+9]<-0
       colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
+      MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
       for(h in 1:nrow(MoorInt)){
         for(g in 1:nrow(OutputCompare)){
-          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare2[4] & MoorInt[h,5]<OutputCompare2[5])){
+          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare2[h,4] & MoorInt[h,5]<OutputCompare2[h,5])){
             OutputCompare[g,n+9]<-1
-          }else{
-            OutputCompare[g,n+9]<-0
+          }
           }
         }
       }
     }
   }
   
+  colnames(OutputCompare)[8]<-'TP/FP/FN'
   OutputCompareRav<- OutputCompare[,-8]
   OutputCompareRav<- OutputCompareRav[,1:8]
   
