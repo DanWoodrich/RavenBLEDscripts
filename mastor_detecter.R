@@ -450,7 +450,7 @@ if(dettype=="spread"|dettype=="combined"){
     resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,2)==RTSVar[d]),]
       for(e in unique(resltsTSPVd$Mooring)){
         resltsTSPV<-resltsTSPVd[which(resltsTSPVd$Mooring==e),]
-        print("    ",e)
+        print(paste("    ",e))
         for(f in 1:length(unique(resltsTSPV$bottom.freq))){
           resltsTSPV[resltsTSPV$bottom.freq==unique(resltsTSPV$bottom.freq)[f],13]<-f
         }
@@ -818,6 +818,7 @@ DetecTab2$remove<-NULL
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 GTtot<-0
 for(v in 1:length(unique(DetecTab2$Mooring))){
+  print(paste("Comparing ground truth of",o,"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   write.csv(MoorVar,paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
@@ -899,6 +900,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       OutputCompare[,n+9]<-0
       colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
+      print(paste("       Compare with detector",MoorInt[1,10]))   
       for(h in 1:nrow(MoorInt)){
         for(g in 1:nrow(OutputCompare)){
           if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
