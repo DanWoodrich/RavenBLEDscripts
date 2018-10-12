@@ -1,3 +1,5 @@
+#random forest model to seperate FPs and TPs from Raven output
+
 #install.packages("flightcallr")
 #install.packages("randomForest")
 #install.packages("seewave")
@@ -32,7 +34,7 @@ ymaxx<-1000 #" "
 
 spec<-"RW"
 
-runname<-"mooring and pulse detec test_20181010131039"
+runname<-"mooring and pulse full test_20181010145447"
 
 
 
@@ -132,7 +134,8 @@ for(z in 1:nrow(data)){
   print(paste("done with",z))
 }
 
-data2<-data[,9:length(data)]
+data2<-data[,c(1,9:length(data))]
+colnames(data2)[1]<-"File"
 
 #data1<-data.frame(scale(data))
 
@@ -157,20 +160,42 @@ data2<-data[,9:length(data)]
 data2$detectionType<-as.factor(data2$detectionType)
 train<-splitdf(data2,weight = 2/3)
 
+#test using file as variable
+#randfile<- sample(1:7, 4, replace=F)
+#train<-list()
+#train[[1]]<-data2[which(data2$File %in% unique(data2$File)[randfile]),]
+#train[[2]]<-data2[which(data2$File %in% unique(data2$File)[-randfile]),]
 #test out what happens if I remove most of the 0s. Did not seem to have any positive effect. 
 #train2<-splitdf(train[[1]][which(train[[1]]$detectionType==0),],weight=1/6)[[1]]
 #train3<-train[[1]][which(train[[1]]$detectionType==1),]
 #train2<-rbind(train2,train3)
 #train3<-NULL
 
-data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]])
-data.rf
-plot(data.rf)
 
+mtry_avg<-c()
+mtry_count<-c()
+for(i in 1:13){
+  print(paste("mtry value",i))
+  AUC_avg<-c()
+  for(p in 1:10){
+    print(paste("model",p))
+    train<-splitdf(data2,weight = 2/3)
+    data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
+    pred<-predict(data.rf,train[[2]],type="prob")
+    ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+    auc.perf = performance(ROCRpred, measure = "auc",plot=F)
+    AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
+      }
+  mtry_avg<-c(mtry_avg,mean(AUC_avg))
+  mtry_count<-c(mtry_count,i)
+}
+
+plot(mtry_count,mtry_avg)
 
 #cross validation:
 #data.rf.cv<-rfcv(train[[1]][,2:length(train[[1]])],train[[1]]$detectionType,20,step=0.8,formula=detectionType ~ .)
 #data.rf.cv
+
 #smallest error at step .8, nfold 20, at 7th iteration. Only 6 variables really used for rf?? 
 #top 6 variables: specprop.mode,autoc.median,temporal.entropy,spectrum.roughness,specprop.sem,specprop.kurtosis
 
@@ -194,10 +219,10 @@ abline(a=0, b= 1)
 auc.perf = performance(ROCRpred, measure = "auc",plot=F)
 auc.perf@y.values
 
-#varImpPlot(data.rf,  
-#           sort = 24,
-#           n.var=24,
-#           main="Top 10 - Variable Importance")
+varImpPlot(data.rf,  
+           sort = 27,
+           n.var=27,
+           main="Top 10 - Variable Importance")
 
 #did better on only BS15_AU_02a- at .35 pred cutoff, achieved AUC score of .87,.82,.85,.87,.85... (small sample size)  
                                 #larger sample size: .82,.86,.82,.82,.85,.87,.88 (all done without specifying mtry)
@@ -218,8 +243,12 @@ auc.perf@y.values
                                                 
 #test: use only BS15_AU_02a to train model, and use it to predict rest of moorings. result: AUC .73,.72... This could be an option, if you just want the "best" calls, would involve more manual analysis. 
 
-#test: use binary fin and mooring noise detector as categorical variables.
+#test: use binary fin and mooring noise detector as categorical variables. All other variables included. AUC: .845, .85, .815, .827, .81, .83. May be a slight improvement, mooring and fin detectors could be made better as well. With .83 AUC run could get .9 from random forest with 50% FP rate. 
+#   The variable importance suggests that the mooring/fin and pulses detectors were the worst predictors, visaully by a pretty clear margin. 
 
+#test: include file as a variable, randomly compare 3 moorings (train) to 4 (test). AUC: .75, .79, .75, .75,.76 (with 4 in train now) .7,.81,.75  ... seems to do nothing, as expected, when variable isn't repeated from the training to the test set. 
+
+#could try with mooring, or with year- variables that represent a better 
 ############################################################
 
 #pairs(data2, upper.panel = NULL)
@@ -246,7 +275,5 @@ abline(a=0, b= 1)
 
 #going with this approach, should include site and season as fixed effects, or include site/season (mooring name) as a random effect and run a glmm
 ######################################
-
-
 
 
