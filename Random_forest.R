@@ -135,7 +135,7 @@ for(z in 1:nrow(data)){
 }
 
 data2<-data[,9:length(data)]
-colnames(data2)[1]<-"File"
+#colnames(data2)[1]<-"File"
 
 #data1<-data.frame(scale(data))
 
@@ -174,13 +174,13 @@ train<-splitdf(data2,weight = 2/3)
 
 mtry_avg<-c()
 mtry_count<-c()
-for(i in seq(100,3000,100)){
+for(i in 1:13){
   print(paste("ntree value",i))
   AUC_avg<-c()
   for(p in 1:20){
     print(paste("model",p))
     train<-splitdf(data2,weight = 2/3)
-    data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7,ntree=i)
+    data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
     pred<-predict(data.rf,train[[2]],type="prob")
     ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
     auc.perf = performance(ROCRpred, measure = "auc",plot=F)

@@ -1,5 +1,27 @@
 #Evaluate and score custom BLED detector(s) in R. Sox must be installed and pathed to accordingly
 
+###############################################
+
+
+#RUN RAVEN DETECTORS
+
+
+################################################
+
+#install.packages("flightcallr")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2")install.packages("usdm")install.packages("ROCR")install.packages("e1071")  install.packages("caret")  
+
+library(e1071)  
+library(caret)  
+library(randomForest)
+library(seewave)
+library(tuneR)
+library(plotrix)
+library(aod)
+library(ggplot2)
+library(usdm)
+library(flightcallr)
+library(ROCR)
+library(ModelMetrics)
 library(Rraven)
 library(seewave)
 library(beepr)
@@ -439,7 +461,7 @@ if(dettype=="single"|dettype=="combined"){
 }
 
 
-
+#Combine and configure spread detectors. 
 l=1
 DetecTab<-NULL
 if(dettype=="spread"|dettype=="combined"){
@@ -603,6 +625,7 @@ if(dettype=="combined"){
   l=1
 }
 
+#Configure single detectors. 
 if(dettype=="single"|dettype=="combined"){
   resltsTabsin<-resltsTab[which(resltsTab$detectorType=="single"),]
   for(d in 1:length(unique(resltsTabsin$detector))){
@@ -643,10 +666,7 @@ if(dettype=="single"|dettype=="combined"){
   
   ############
 
-
-
 #now need to average detections between detectors. set 
-
 DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
 #need to order chronologically
 DetecTab<-DetecTab[order(DetecTab$meantime),]
@@ -723,7 +743,7 @@ for(w in unique(DetecTab$Mooring)){
           meanL<-mean(c(i[y,6],j[z,6]))
           meanH<-mean(c(i[y,7],j[z,7]))
           
-          AvgDet2<-data.frame(99,as.character("Spectogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
+          AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
           names(AvgDet2)<-colnames(AvgDet)
           #make new dataframe be second detector ID so it will loop properly
           
@@ -812,37 +832,40 @@ DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
 
 DetecTab2$remove<-NULL
 
-##Compare tables and print results. 
-
+#Define table for later excel file export. 
  colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
-GTtot<-0
+  detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+  GTtot<-0
+  
 for(v in 1:length(unique(DetecTab2$Mooring))){
   print(paste("Comparing ground truth of",o,"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
+  #this table is mostly buggy and useless in its stats 
   write.csv(MoorVar,paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
+  #useable table to evaluate just results of combined detectors. 
   write.table(MoorVar[,1:7],paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
+  #Define useful comlumns in both MoorVar and GT
   MoorVar$detectionType<-0
-  
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
   GT[[v]]$View<-as.character(GT[[v]]$View)
   GT[[v]]$detectionType<-0
   
+  #sum rows of GT to do stats with later
   GTtot<-sum(GTtot,nrow(GT[[v]]))
   
+  #change GT names to match what Raven accepts
   colnames(GT[[v]]) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
-  
   colClasses = c("numeric","character", "numeric","numeric","numeric", "numeric","numeric","numeric","numeric")
   
+  #define tables for Tp/FN/FPs
   OutputCompare <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), meantime, detection type", colClasses = colClasses)
   colnames(OutputCompare)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   OutputCompare2 <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),meantime, detection type", colClasses = colClasses)
   colnames(OutputCompare2)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   
-  
-  
+  #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
     for(g in 1:nrow(GT[[v]])){
@@ -854,11 +877,13 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     }
   }
   
+  #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   if(nrow(OutputCompare)>0){
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,13,15)])
   OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
   }
   
+  #Add rows where GT meantime was in between 
   p=1
   for(h in 1:nrow(GT[[v]])){
     for(g in 1:nrow(MoorVar)){
@@ -870,27 +895,17 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     }
   }
   
+  #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
   if(nrow(OutputCompare2)>0){
   OutputCompare2 <- rbind(OutputCompare2,GT[[v]][-which(GT[[v]]$Selection %in% OutputCompare2$Selection),])
   OutputCompare2[which(OutputCompare2$detectionType!="TP truth"),9]<-"FN"
   
-  
+  #Combine tables and remove GT TPs from dataset. 
   OutputCompare<-rbind(OutputCompare,OutputCompare2)
-  
   OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
-  
   OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
-
   OutputCompare[which(OutputCompare$detectionType=="TP truth"),9]<-"x"
-  
-  #for(q in 1:(nrow(OutputCompare)-1)){
-  #  if((OutputCompare$detectionType[q]=="TP"|OutputCompare$detectionType[q]=="TP truth"|OutputCompare$detectionType[q]=="x")&(OutputCompare$detectionType[q+1]=="TP"|OutputCompare$detectionType[q+1]=="TP truth")&((OutputCompare$meantime[q+1]-OutputCompare$meantime[q])<1.5)){
-  #    OutputCompare$detectionType[q+1]<-"x"
-  #  }
-  #}
-  
   OutputCompare <- subset(OutputCompare,detectionType!="x")
-
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   
   #compare detections to sources of interference
@@ -911,7 +926,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       }
     }
   
-  
+  #Ready table for Raven and save. 
   colnames(OutputCompare)[8]<-'TP/FP/FN'
   OutputCompareRav<- OutputCompare[,-8]
   OutputCompareRav<- OutputCompareRav[,1:8]
@@ -926,7 +941,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   OutputCompare<- OutputCompare[,-8]
   OutputCompare<- OutputCompare[,1:8]
 
-  
   }else{
     write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     
@@ -934,9 +948,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   
   #Make summary table of statistics for table comparison. 
-
-
-
   numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
   numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
   numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
@@ -946,6 +957,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   TPR <- numTP/(numTP+numFN)
   TPdivFP<- numTP/numFP
 
+  #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
     detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
@@ -963,6 +975,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   dev.off()
 }
 
+#Make summary table of whole run statistics for table comparison. 
 numTP <- sum(as.numeric(detecEvalFinal[,6]))
 numFN <- sum(as.numeric(detecEvalFinal[,8]))
 numFP <- sum(as.numeric(detecEvalFinal[,7]))
@@ -971,15 +984,16 @@ numTPtruth<- GTtot
 TPhitRate <- numTP/numTPtruth*100
 TPR <- numTP/(numTP+numFN)
 TPdivFP<- numTP/numFP
-  
-  detecEval<-detecEvalFinal[0,]
-  if(dettype=="spread"|dettype=="combined"){
+
+#save stats and parameters to excel file
+detecEval<-detecEvalFinal[0,]
+if(dettype=="spread"|dettype=="combined"){
   detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
-  detecEvalFinal <- rbind(detecEvalFinal,detecEval)
-  
+detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+ 
 detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
 detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
@@ -987,7 +1001,140 @@ beep(10)
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
+###############################################
 
 
+#RUN RANDOM FOREST MODEL 
 
-#next steps: open up tables for comparison in Raven. display some measure of how calls are spread out (histogram, a statistic?)                                                    
+
+################################################
+runname<-runname
+spec<-spec
+#Which data would you like to evaluate?
+#species
+samplingRate<-16384 #hz
+yminn<-0 #for spec plotting. Should be the same as detector window preset
+ymaxx<-1000 #" "
+
+detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
+
+#extract mooring names from moorings used in run
+mooringpat=NULL
+for(n in 1:length(detfiles)){
+  mooringpat<-c(mooringpat,substr(detfiles[n],1,11))
+}
+
+#Can automate this by digging out parameters, but not worth it right now
+#was data whitened?(y or no)
+whiten<-"y"
+if(whiten=="y"){
+  FO<-100 #filter order
+  LMS<-.10 #LMS step size
+  soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
+}else{
+  soundfile<-dir("E:/Combined_sound_files/RW/No_whiten")
+}
+
+#only choose soundfiles that match those used in run
+soundfiles<-NULL
+for(n in 1:length(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
+  if(substr(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
+    soundfiles<-c(soundfiles,dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
+  }
+}
+
+#make sure they are in same order
+soundfiles<-sort(soundfiles)
+detfiles<-sort(detfiles)
+
+
+data=NULL
+for(n in 1:length(detfiles)){
+  data2<-read.csv(paste("E:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
+  data2<-cbind(soundfiles[n],data2)
+  data<-rbind(data,data2)
+}
+
+#translate response to binary 
+data$detectionType<- as.character(data$detectionType)
+data[which(data$detectionType=="TP"),9]<-1
+data[which(data$detectionType=="FP"),9]<-0
+data[which(data$detectionType=="FN"),9]<-2
+
+#remove FN from data
+data<-data[which(data$detectionType==0|data$detectionType==1),]
+data$detectionType<-as.numeric(data$detectionType)
+
+#make interference columns into factors
+if(length(data)>8){
+  for(n in 9:length(data)){
+    data[,n]<-as.factor(data[,n])
+  }
+}
+#######1 mooring test######
+#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+
+data<-splitdf(data,weight = 1/3)[[1]]
+
+for(z in 1:nrow(data)){
+  foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
+  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(yminn,ymaxx))
+  foo.specprop <- specprop(foo.spec)
+  foo.meanspec = meanspec(foo, plot=FALSE, ovlp=90)#not sure what ovlp parameter does but initially set to 90
+  foo.autoc = autoc(foo, plot=F)
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90)
+  data$rugosity[z] = rugo(foo@left / max(foo@left)) #no idea how these @s work
+  data$crest.factor[z] = crest(foo)$C
+  foo.env = seewave:::env(foo, plot=F) 
+  data$temporal.entropy[z] = th(foo.env)
+  data$shannon.entropy[z] = sh(foo.spec)
+  data$spectral.flatness.measure[z] = sfm(foo.spec)
+  data$spectrum.roughness[z] = roughness(foo.meanspec[,2])
+  data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
+  data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
+  data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
+  data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
+  data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
+  data$specprop.mean[z] = foo.specprop$mean[1]
+  data$specprop.sd[z] = foo.specprop$sd[1]
+  data$specprop.sem[z] = foo.specprop$sem[1]
+  data$specprop.median[z] = foo.specprop$median[1]
+  data$specprop.mode[z] = foo.specprop$mode[1]
+  data$specprop.Q25[z] = foo.specprop$Q25[1]
+  data$specprop.Q75[z] = foo.specprop$Q75[1]
+  data$specprop.IQR[z] = foo.specprop$IQR[1]
+  data$specprop.cent[z] = foo.specprop$cent[1]
+  data$specprop.skewness[z] = foo.specprop$skewness[1]
+  data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
+  data$specprop.sfm[z] = foo.specprop$sfm[1]
+  data$specprop.sh[z] = foo.specprop$sh[1]
+  print(paste("done with",z))
+}
+
+data2<-data[,9:length(data)]
+data2$detectionType<-as.factor(data2$detectionType)
+
+
+my.xval = list()
+my.xval$predictions = list()
+my.xval$labels = list()
+
+for(p in 1:100){
+  print(paste("model",p))
+  train<-splitdf(data2,weight = 2/3)
+  data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
+  pred<-predict(data.rf,train[[2]],type="prob")
+  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+  auc.perf = performance(ROCRpred, measure = "auc",plot=F)
+  AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
+  
+  my.xval$predictions[[i]] = pred@predictions[[1]]
+  my.xval$labels[[i]] = pred@labels[[1]]
+}
+
+print(mean(AUC_avg))
+
+varImpPlot(data.rf,  
+           sort = 27,
+           n.var=27,
+           main="Top 10 - Variable Importance")
