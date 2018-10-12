@@ -134,7 +134,7 @@ for(z in 1:nrow(data)){
   print(paste("done with",z))
 }
 
-data2<-data[,c(1,9:length(data))]
+data2<-data[,9:length(data)]
 colnames(data2)[1]<-"File"
 
 #data1<-data.frame(scale(data))
@@ -174,13 +174,13 @@ train<-splitdf(data2,weight = 2/3)
 
 mtry_avg<-c()
 mtry_count<-c()
-for(i in 1:13){
-  print(paste("mtry value",i))
+for(i in seq(100,3000,100)){
+  print(paste("ntree value",i))
   AUC_avg<-c()
-  for(p in 1:10){
+  for(p in 1:20){
     print(paste("model",p))
     train<-splitdf(data2,weight = 2/3)
-    data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
+    data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7,ntree=i)
     pred<-predict(data.rf,train[[2]],type="prob")
     ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
     auc.perf = performance(ROCRpred, measure = "auc",plot=F)
@@ -191,6 +191,10 @@ for(i in 1:13){
 }
 
 plot(mtry_count,mtry_avg)
+lm(formula = mtry_avg ~ mtry_count)
+abline(8.23e-01,  3.48e-07 )
+#appears that mtry at 7 is consistently best (when ntree is not specified). 
+#when mtry is 7, looks like ntree is pretty much neutral from 400 onwards...? Seems like a very low # of trees is worse (~100), but it is the same after that. Say 500 for ease of computation. 
 
 #cross validation:
 #data.rf.cv<-rfcv(train[[1]][,2:length(train[[1]])],train[[1]]$detectionType,20,step=0.8,formula=detectionType ~ .)
@@ -246,7 +250,7 @@ varImpPlot(data.rf,
 #test: use binary fin and mooring noise detector as categorical variables. All other variables included. AUC: .845, .85, .815, .827, .81, .83. May be a slight improvement, mooring and fin detectors could be made better as well. With .83 AUC run could get .9 from random forest with 50% FP rate. 
 #   The variable importance suggests that the mooring/fin and pulses detectors were the worst predictors, visaully by a pretty clear margin. 
 
-#test: include file as a variable, randomly compare 3 moorings (train) to 4 (test). AUC: .75, .79, .75, .75,.76 (with 4 in train now) .7,.81,.75  ... seems to do nothing, as expected, when variable isn't repeated from the training to the test set. 
+#test: include file as a variable, randomly compare 3 moorings (train) to 4 (test). AUC: .75, .79, .75, .75,.76 (with 4 in train now) .7,.81,.75  ... seems to do nothing, as expected, when variable isn't repeated from the training to the test set. Could be informative if I choose to include more GT data that matches in part with each mooring. 
 
 #could try with mooring, or with year- variables that represent a better 
 ############################################################
