@@ -1074,7 +1074,7 @@ if(length(data)>8){
 #######1 mooring test######
 #data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-data<-splitdf(data,weight = 1/3)[[1]]
+data<-splitdf(data,weight = 1/2)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -1119,7 +1119,8 @@ my.xval = list()
 my.xval$predictions = list()
 my.xval$labels = list()
 
-for(p in 1:100){
+#how many cross validation runs you want
+for(p in 1:30){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
@@ -1128,13 +1129,105 @@ for(p in 1:100){
   auc.perf = performance(ROCRpred, measure = "auc",plot=F)
   AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
   
-  my.xval$predictions[[i]] = pred@predictions[[1]]
-  my.xval$labels[[i]] = pred@labels[[1]]
+  my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
+  my.xval$labels[[p]] = ROCRpred@labels[[1]]
 }
 
+pp = my.xval$predictions
+ll = my.xval$labels
+predd = prediction(pp, ll)
+perff = performance(predd, "tpr", "fpr")
+
+plot(perff)
+abline(a=0, b= 1)
+
 print(mean(AUC_avg))
+
 
 varImpPlot(data.rf,  
            sort = 27,
            n.var=27,
            main="Top 10 - Variable Importance")
+
+###############################################
+
+
+#EMPLOY MODEL ON ALL DATA
+
+
+
+################################################
+
+allDataPath<-"E:/Datasets"
+allMoorings<-dir(allDataPath)
+
+#run sound files:
+resltsTab <- NULL
+resltsTabInt<- NULL
+for(m in allMoorings){
+  if(whiten=="n"){
+    whiten2<-"Entire_No_whiten"
+    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) #based on amount analyzed in GT set
+    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+    #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
+    combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire.wav",sep="")
+    if(file.exists(combSound)){
+    }else{
+      dir.create(paste(startcombpath,spec,sep=""))
+      dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
+      sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+    }
+  }else{
+    whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  }
+  
+  combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  
+  #run pulse and fin/mooring detector, if selected:
+  if(interfere=="y"){
+    for(i in interfereVec){
+      resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+      resltVarInt$Mooring<-m
+      resltVarInt$detector<-i
+      resltVarInt$detectorType<-"intereference"
+      resltVarInt$detectorCount<-which(interfereVec==i)
+      resltsTabInt<-rbind(resltsTabInt,resltVarInt)
+      resltVarInt<-NULL
+    }
+    
+  }
+  #run detector(s)
+  if(dettype=="spread"|dettype=="combined"){
+    for(q in 1:length(detectorssprshort)){
+      for(r in detectorssprshort[[q]]){
+        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+        resltVar$Mooring<-m
+        resltVar$detector<-r
+        resltVar$detectorType<-"spread"
+        resltVar$detectorCount<-q
+        resltsTab<- rbind(resltsTab,resltVar)
+        resltVar<-NULL 
+      }
+    }
+  }
+  
+  if(dettype=="single"|dettype=="combined"){
+    for(n in detectorssinshort){
+      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+      resltVar$Mooring<-m
+      resltVar$detector<-n
+      resltVar$detectorType<-"single"
+      resltVar$detectorCount<-which(detectorssinshort==n)
+      resltsTab<- rbind(resltsTab,resltVar)
+      resltVar<-NULL
+    }
+  }
+}
+
+
+  
+  
+  
+  
+  
+  
