@@ -1008,7 +1008,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-runname
+runname<-"mooring and pulse full test_20181010145447"
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1072,9 +1072,9 @@ if(length(data)>8){
   }
 }
 #######1 mooring test######
-#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+data<-data[which(data$`soundfiles[n]`=="BS14_AU_04_files1-96.wav"),]
 
-data<-splitdf(data,weight = 1/2)[[1]]
+#data<-splitdf(data,weight = 1/2)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -1120,7 +1120,7 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #how many cross validation runs you want
-for(p in 1:30){
+for(p in 1:100){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=i)
@@ -1138,10 +1138,18 @@ ll = my.xval$labels
 predd = prediction(pp, ll)
 perff = performance(predd, "tpr", "fpr")
 
+#no avg
 plot(perff)
 abline(a=0, b= 1)
 
+#avg. Don't really know what the points on the line mean. 
+plot(perff, avg = "threshold", spread.estimate = "stderror",
+     spread.scale=abs(qnorm(0.025, mean=0, sd=1)),
+     #show.spread.at = c(0.824),
+     lwd = 2, main = paste("Threshold avg w/ 95% confidence intervals\n"))
+
 print(mean(AUC_avg))
+
 
 
 varImpPlot(data.rf,  
@@ -1167,9 +1175,8 @@ resltsTabInt<- NULL
 for(m in allMoorings){
   if(whiten=="n"){
     whiten2<-"Entire_No_whiten"
-    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) #based on amount analyzed in GT set
+    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) 
     sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
-    #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
     combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire.wav",sep="")
     if(file.exists(combSound)){
     }else{
@@ -1181,7 +1188,7 @@ for(m in allMoorings){
     whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
   }
   
-  combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combname<- paste(m,"_files_entire.wav",sep="")
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
