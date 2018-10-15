@@ -1173,63 +1173,76 @@ allMoorings<-dir(allDataPath)
 resltsTab <- NULL
 resltsTabInt<- NULL
 for(m in allMoorings){
-  #allMoorings #2: file too large to run detector 
-  #allMoorings #4: Couldn't run SoX: unknown reason, but there are a ton of files. Seperating it into chunks seemed to work fine. 
-  if(whiten=="n"){
-    whiten2<-"Entire_No_whiten"
-    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) 
-    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")[601:800]
-    combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire.wav",sep="")
-    if(file.exists(combSound)){
-    }else{
-      dir.create(paste(startcombpath,spec,sep=""))
-      dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
-      sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-    }
-  }else{
-    whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) 
+  #make 200 increment break points for sound files. 
+  bigFile_breaks<-c(seq(1,length(sound_files),250),length(sound_files))
+  #if end of file happens to end on last break make sure its not redundant
+  if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
+    bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]
   }
-  
-  combname<- paste(m,"_files_entire.wav",sep="")
+  for(b in 1:(length(bigFile_breaks)-1)){
+    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[bigFile_breaks[b]:bigFile_breaks[b+1]] 
+    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+    combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+    if(whiten=="n"){
+      whiten2<-"Entire_No_whiten"
+      if(file.exists(combSound)){
+      }else{
+        dir.create(paste(startcombpath,spec,sep=""))
+        dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
+        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+      }
+    }else{
+      whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+    }
+  }
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
-    for(i in interfereVec){
-      resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
-      resltVarInt$Mooring<-m
-      resltVarInt$detector<-i
-      resltVarInt$detectorType<-"intereference"
-      resltVarInt$detectorCount<-which(interfereVec==i)
-      resltsTabInt<-rbind(resltsTabInt,resltVarInt)
-      resltVarInt<-NULL
+    for(b in bigFile_breaks[length(bigFile_breaks)-1]){
+      combname<- paste(m,"_files_entire",b,".wav",sep="")
+      for(i in interfereVec){
+        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+        resltVarInt$Mooring<-m
+        resltVarInt$detector<-i
+        resltVarInt$detectorType<-"intereference"
+        resltVarInt$detectorCount<-which(interfereVec==i)
+        resltsTabInt<-rbind(resltsTabInt,resltVarInt)
+        resltVarInt<-NULL
+        }
+      }
     }
-    
-  }
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
-    for(q in 1:length(detectorssprshort)){
-      for(r in detectorssprshort[[q]]){
-        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
-        resltVar$Mooring<-m
-        resltVar$detector<-r
-        resltVar$detectorType<-"spread"
-        resltVar$detectorCount<-q
-        resltsTab<- rbind(resltsTab,resltVar)
-        resltVar<-NULL 
-      }
+    for(b in bigFile_breaks[length(bigFile_breaks)-1]){
+      combname<- paste(m,"_files_entire",b,".wav",sep="")
+      for(q in 1:length(detectorssprshort)){
+        for(r in detectorssprshort[[q]]){
+          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+          resltVar$Mooring<-m
+          resltVar$detector<-r
+          resltVar$detectorType<-"spread"
+          resltVar$detectorCount<-q
+          resltsTab<- rbind(resltsTab,resltVar)
+          resltVar<-NULL 
+        }
+      }  
     }
   }
   
   if(dettype=="single"|dettype=="combined"){
-    for(n in detectorssinshort){
-      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
-      resltVar$Mooring<-m
-      resltVar$detector<-n
-      resltVar$detectorType<-"single"
-      resltVar$detectorCount<-which(detectorssinshort==n)
-      resltsTab<- rbind(resltsTab,resltVar)
-      resltVar<-NULL
-    }
+    for(b in bigFile_breaks[length(bigFile_breaks)-1]){
+      combname<- paste(m,"_files_entire",b,".wav",sep="")
+      for(n in detectorssinshort){
+        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+        resltVar$Mooring<-m
+        resltVar$detector<-n
+        resltVar$detectorType<-"single"
+        resltVar$detectorCount<-which(detectorssinshort==n)
+        resltsTab<- rbind(resltsTab,resltVar)
+        resltVar<-NULL
+      }
+    }  
   }
 }
 
@@ -1610,6 +1623,8 @@ colClasses = c("character","character","character","character","character","nume
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 GTtot<-0
 
+MoorVar<-NULL
+MoorVar$Moorpred<-NULL
 for(v in 1:length(unique(DetecTab2$Mooring))){
   print(paste("Comparing ground truth of",o,"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -1640,7 +1655,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       }
     }
 
-  pred<-predict(data.rf,train[[2]],type="prob")
+  MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
   
 }
 
