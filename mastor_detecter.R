@@ -838,7 +838,7 @@ DetecTab2$remove<-NULL
   GTtot<-0
   
 for(v in 1:length(unique(DetecTab2$Mooring))){
-  print(paste("Comparing ground truth of",o,"with final detector"))   
+  print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   #this table is mostly buggy and useless in its stats 
@@ -911,7 +911,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #compare detections to sources of interference
   if(interfere=="y"){
     for(n in 1:max(resltsTabInt$detectorCount)){
-      MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
+      MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
       OutputCompare[,n+9]<-0
       colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
@@ -1072,9 +1072,9 @@ if(length(data)>8){
   }
 }
 #######1 mooring test######
-data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#data<-splitdf(data,weight = 1/4)[[1]]
+data<-splitdf(data,weight = 1/4)[[1]]
 
 for(z in 1:nrow(data)){
   foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
@@ -1174,8 +1174,8 @@ resltsTab <- NULL
 resltsTabInt<- NULL
 for(m in allMoorings){
   sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) 
-  #make 200 increment break points for sound files. 
-  bigFile_breaks<-c(seq(1,length(sound_files),250),length(sound_files))
+  #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
+  bigFile_breaks<-c(seq(1,length(sound_files),300),length(sound_files))
   #if end of file happens to end on last break make sure its not redundant
   if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
     bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]
@@ -1203,7 +1203,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
-        resltVarInt$Mooring<-m
+        resltVarInt$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
@@ -1219,7 +1219,7 @@ for(m in allMoorings){
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
-          resltVar$Mooring<-m
+          resltVar$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
@@ -1235,7 +1235,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
-        resltVar$Mooring<-m
+        resltVar$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
@@ -1621,28 +1621,25 @@ DetecTab2$remove<-NULL
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
-GTtot<-0
 
+MoorTab<-NULL
 MoorVar<-NULL
 MoorVar$Moorpred<-NULL
 for(v in 1:length(unique(DetecTab2$Mooring))){
-  print(paste("Comparing ground truth of",o,"with final detector"))   
+  print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
-  #this table is mostly buggy and useless in its stats 
-  write.csv(MoorVar,paste(outputpath,runname,"/",MoorVar[1,12],"FINAL_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
-  #useable table to evaluate just results of combined detectors. 
-  write.table(MoorVar[,1:7],paste(outputpath,runname,"/",MoorVar[1,12],"FINAL_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-  
   #Define useful comlumns in both MoorVar and GT
   MoorVar$detectionType<-0
-    
+  
+  MoorVar <- MoorVar[,c(1:7,13,15)]
+  
     #compare detections to sources of interference
     if(interfere=="y"){
       for(n in 1:max(resltsTabInt$detectorCount)){
-        MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==unique(DetecTab2$Mooring)[v]),]
+        MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
         MoorVar[,n+9]<-0
-        colnames(MoorVar)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
+        colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
         for(h in 1:nrow(MoorInt)){
@@ -1654,16 +1651,22 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
         }
       }
     }
-
-  MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
   
+  #this table is mostly buggy and useless in its stats 
+  write.csv(MoorVar,paste(outputpath,runname,"/",v,"FINAL_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
+  #useable table to evaluate just results of combined detectors. 
+  write.table(MoorVar[,1:7],paste(outputpath,runname,"/",unique(DetecTab2$Mooring)[v],"FINAL_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  
+
+  #MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
+  
+  #numP<- MoorVar$Moorpred>0.8
+ # numF<- MoorVar$Moorpred<0.8
 }
 
 #Make summary table of whole run statistics for table comparison. 
 numTP <- sum(as.numeric(detecEvalFinal[,6]))
-numFN <- sum(as.numeric(detecEvalFinal[,8]))
 numFP <- sum(as.numeric(detecEvalFinal[,7]))
-numTPtruth<- GTtot
 
 TPhitRate <- numTP/numTPtruth*100
 TPR <- numTP/(numTP+numFN)
