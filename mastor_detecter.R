@@ -179,8 +179,9 @@ for(z in 1:nrow(data)){
   data$specprop.sh[z] = foo.specprop$sh[1]
   print(paste("done with",z))
   
-  return(data)
+
 }
+  return(data)
 }
 
 process_data<-function(){
@@ -1054,7 +1055,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-"mooring and pulse full test_20181016093736"
+runname<-"mooring and pulse full test_20181010145447"
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1069,9 +1070,6 @@ mooringpat=NULL
 for(n in 1:length(detfiles)){
   mooringpat<-c(mooringpat,substr(detfiles[n],1,11))
 }
-
-#Can automate this by digging out parameters, but not worth it right now
-#was data whitened?(y or no)
 
 if(whiten=="y"){
   soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
@@ -1214,7 +1212,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
-        resltVarInt$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
+        resltVarInt$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
@@ -1230,7 +1228,7 @@ for(m in allMoorings){
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
-          resltVar$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
+          resltVar$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
@@ -1246,7 +1244,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
-        resltVar$Mooring<-paste(m,which(bigFile_breaks==b),sep="_")
+        resltVar$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
@@ -1272,42 +1270,58 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   #Define useful comlumns in both MoorVar and GT
-  MoorVar$detectionType<-0
   
+  sound.files <- MoorVar[,12]
   MoorVar <- MoorVar[,c(1:7,13,15)]
+  MoorVar<-cbind(sound.files,MoorVar)
   
     #compare detections to sources of interference
     if(interfere=="y"){
       for(n in 1:max(resltsTabInt$detectorCount)){
         MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-        MoorVar[,n+9]<-0
+        MoorVar[,n+10]<-0
         colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
         for(h in 1:nrow(MoorInt)){
           for(g in 1:nrow(MoorVar)){
-            if((MoorInt[h,4]<MoorVar[g,8] & MoorInt[h,5]> MoorVar[g,8])|(MoorInt[h,4]> MoorVar[g,4] & MoorInt[h,5]< MoorVar[g,5])){
-              MoorVar[g,n+9]<-1
+            if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
+              MoorVar[g,n+10]<-1
             }
           }
         }
       }
     }
   
-  #this table is mostly buggy and useless in its stats 
-  write.csv(MoorVar,paste(outputpath,runname,"/",sort(unique(DetecTab2$Mooring))[v],"FINAL_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
-  #useable table to evaluate just results of combined detectors. 
-  write.table(MoorVar[,1:7],paste(outputpath,runname,"/",unique(DetecTab2$Mooring)[v],"FINAL_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  #write.table(MoorVar[,2:7],paste(outputpath,runname,"/",unique(DetecTab2$Mooring)[v],"FINAL_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   MoorTab<-rbind(MoorTab,MoorVar)
   #MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
-  
-  #numP<- MoorVar$Moorpred>0.8
- # numF<- MoorVar$Moorpred<0.8
 }
 
-  MoorTab<-
-  pred<-predict(MoorTab,train[[2]],type="prob")
+data<-MoorTab
+
+if(whiten=="y"){
+  soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
+}else{
+  soundfile<-"Entire_No_whiten"
+}
+
+#make interference columns into factors
+if(length(data)>9){
+  for(n in 10:length(data)){
+    data[,n]<-as.factor(data[,n])
+  }
+}
+
+data<-splitdf(data,weight = 1/4)[[1]]
+
+data<-spectral_features()
+
+data2<-data[,9:length(data)]
+  
+pred<-predict(data.rf,data2,type="prob")
+ROCRpred<-prediction(pred[,2],data2$detectionType)
   
   
   
