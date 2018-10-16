@@ -11,7 +11,7 @@
 #install.packages("flightcallr")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2")install.packages("usdm")install.packages("ROCR")install.packages("e1071")  install.packages("caret")  
 
 library(e1071)  
-library(caret)  
+#library(caret)  
 library(randomForest)
 library(seewave)
 library(tuneR)
@@ -584,7 +584,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "mooring and pulse full test"
+runname<- "full workflow test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -596,7 +596,7 @@ dettype<- "single"
 spec <- "RW"
 
 #compare detections with pulses and fin/mooring noise, other sources of intereference y or n
-interfere<-"y"
+interfere<-"n"
 
 interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 
@@ -1055,7 +1055,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-"mooring and pulse full test_20181010145447"
+runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1149,14 +1149,12 @@ predd = prediction(pp, ll)
 perff = performance(predd, "tpr", "fpr")
 
 #no avg
-plot(perff)
+plot(perff, xaxs="i", yaxs="i")
 abline(a=0, b= 1)
 
 #avg. Don't really know what the points on the line mean. 
-plot(perff, avg = "threshold", spread.estimate = "stderror",
-     spread.scale=abs(qnorm(0.025, mean=0, sd=1)),
-     #show.spread.at = c(0.824),
-     lwd = 2, main = paste("Threshold avg w/ 95% confidence intervals\n"))
+plot(perff, avg = "threshold", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
+     lwd = 2, main = paste("Threshold avg w/ 95% confidence intervals\n"),colorize=T)
 abline(a=0, b= 1)
 print(mean(AUC_avg))
 
@@ -1212,7 +1210,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
-        resltVarInt$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+        resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
@@ -1228,7 +1226,7 @@ for(m in allMoorings){
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
-          resltVar$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+          resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
@@ -1244,7 +1242,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
-        resltVar$Mooring<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+        resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
@@ -1272,7 +1270,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Define useful comlumns in both MoorVar and GT
   
   sound.files <- MoorVar[,12]
-  MoorVar <- MoorVar[,c(1:7,13,15)]
+  MoorVar <- MoorVar[,c(1:7,13)]
   MoorVar<-cbind(sound.files,MoorVar)
   
     #compare detections to sources of interference
@@ -1300,6 +1298,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 }
 
 data<-MoorTab
+data$detectionType<-0
 
 if(whiten=="y"){
   soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
@@ -1313,8 +1312,6 @@ if(length(data)>9){
     data[,n]<-as.factor(data[,n])
   }
 }
-
-data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features()
 
