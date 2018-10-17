@@ -1323,7 +1323,7 @@ for(v in 1:length(unique(data$sound.files))){
   
   pred<-predict(data.rf,MoorVar2,type="prob")
   hist(pred)
-  MoorVar$detectionType<-ifelse(pred[,2]<0.2,"TP","FP") #threshold of 0.2
+  MoorVar$detectionType<-ifelse(pred[,2]>0.2,"TP","FP") #threshold of 0.2
   
   MoorVar<-MoorVar[,c(2:8,10)]
   
@@ -1331,5 +1331,6 @@ for(v in 1:length(unique(data$sound.files))){
   
 }
   
+#maybe it worked? Need to crunch some numbers to assess accuracy. 
   
   
