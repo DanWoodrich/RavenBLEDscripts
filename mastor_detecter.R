@@ -1262,9 +1262,8 @@ detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName,
 
 MoorTab<-NULL
 MoorVar<-NULL
-MoorVar$Moorpred<-NULL
 for(v in 1:length(unique(DetecTab2$Mooring))){
-  print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
+  print(paste("Adding interference detector variables to",sort(unique(DetecTab2$Mooring))[v]))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   #Define useful comlumns in both MoorVar and GT
@@ -1307,19 +1306,30 @@ if(whiten=="y"){
 }
 
 #make interference columns into factors
-if(length(data)>9){
-  for(n in 10:length(data)){
+if(length(data)>10){
+  for(n in 11:length(data)){
     data[,n]<-as.factor(data[,n])
   }
 }
 
 data<-spectral_features()
 
-data2<-data[,9:length(data)]
+MoorVar<-NULL
+for(v in 1:length(unique(data$sound.files))){
   
-pred<-predict(data.rf,data2,type="prob")
-ROCRpred<-prediction(pred[,2],data2$detectionType)
+  MoorVar<-data[which(data$sound.files==sort(unique(data$sound.files))[v]),]
   
+  MoorVar2<-MoorVar[,10:length(MoorVar)]
+  
+  pred<-predict(data.rf,MoorVar2,type="prob")
+  hist(pred)
+  MoorVar$detectionType<-ifelse(pred[,2]<0.2,"TP","FP") #threshold of 0.2
+  
+  MoorVar<-MoorVar[,c(2:8,10)]
+  
+  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(data$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  
+}
   
   
   
