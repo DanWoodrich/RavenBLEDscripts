@@ -281,8 +281,8 @@ if(dettype=="spread"|dettype=="combined"){
       
       Rolling_max <- resltsTSPV[1,13]
       #assign direction for each row in group, to remove boxes that are out of direction later
+      print("assigning direction for each row")
       for(r in 1:(nrow(resltsTSPV)-1)){
-        print(paste("assigning direction for",r))
         if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
           if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<Rolling_max+detskip[d]){
             Rolling_max <- resltsTSPV[r+1,13]
@@ -496,7 +496,8 @@ for(w in unique(DetecTab$Mooring)){
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
-#average detections within combined detector using timediffself parameter (again)
+#average detections within combined detector using timediffself parameter (again,again,again,again)
+for(a in 1:5){
 n=0
 for(o in unique(DetecTab2$Mooring)){
   Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
@@ -539,6 +540,7 @@ for(o in unique(DetecTab2$Mooring)){
     DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==o),]
     DetecTab2<-rbind(DetecTab2,Tab)
   }
+}
 }
 
 #remove detections that do not fit min/max duration parameters 
@@ -1120,7 +1122,7 @@ if(length(data)>8){
 #######1 mooring test######
 #data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-data<-splitdf(data,weight = 1/4)[[1]]
+#data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features()
 
@@ -1157,8 +1159,11 @@ plot(perff, xaxs="i", yaxs="i")
 abline(a=0, b= 1)
 
 #avg. Don't really know what the points on the line mean. 
-plot(perff, avg = "threshold", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-     lwd = 2, main = paste("Threshold avg w/ 95% confidence intervals\n"),colorize=T)
+plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
+     #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
+     lwd = 2, main = paste("Vertical avg w/ std dev\n"))
+plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
+      lwd = 2, main = paste("Threshold avg"),colorize=T)
 abline(a=0, b= 1)
 print(mean(AUC_avg))
 
