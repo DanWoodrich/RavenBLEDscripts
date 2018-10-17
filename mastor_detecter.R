@@ -209,6 +209,8 @@ if(dettype=="spread"|dettype=="combined"){
       #assign groups based on groupInt value
       z<-1
       f<-1
+      
+      print("assigning group values")
       for(z in 1:(nrow(resltsTSPV)-1)){
         if(resltsTSPV[z,15]+groupInt[d]>=resltsTSPV[z+1,15]){
           resltsTSPV[z+1,14]<-f
@@ -225,7 +227,6 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPV[g+1,16]<-1}}
       resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
       resltsTSPV$remove<-NULL
-      
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
@@ -233,6 +234,7 @@ if(dettype=="spread"|dettype=="combined"){
       
       #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
       for(f in unique(resltsTSPV[,14])){
+        print(paste("calculating best run for group",f))
         groupdat<- subset(resltsTSPV,group==f)
         grpvec<-groupdat[,13]
         colClasses = c("numeric","numeric","numeric","numeric")
@@ -280,6 +282,7 @@ if(dettype=="spread"|dettype=="combined"){
       Rolling_max <- resltsTSPV[1,13]
       #assign direction for each row in group, to remove boxes that are out of direction later
       for(r in 1:(nrow(resltsTSPV)-1)){
+        print(paste("assigning direction for",r))
         if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
           if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<Rolling_max+detskip[d]){
             Rolling_max <- resltsTSPV[r+1,13]
@@ -584,13 +587,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "full workflow test"
+runname<- "p10 test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "spread" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -605,8 +608,8 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[21:39] #add more spreads with notation detectorspr[[x]]<-...
-detectorsspr[[2]] <- dir(BLEDpath)[9:20]
+detectorsspr[[1]] <- dir(BLEDpath)[9:17] #add more spreads with notation detectorspr[[x]]<-...
+#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
 
@@ -622,7 +625,7 @@ Maxdur<-99
 Mindur<-0
 
 ############################Combine detector  parameters
-timediffself<-1.3
+timediffself<-1
 
 #multiple detectors
 freqdiff<-100
@@ -639,17 +642,18 @@ LMS<-.10 #LMS step size
 ############################Spread parameters. must be same length as number of spread detectors you are running
 #p7 good ones: 2,1,3,0.75
 #p9 working ones: 3,2,3,.25
+#p10 trying: 
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(3,2)
+grpsize<-c(2)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(2,1)
+allowedZeros<-c(1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(3,3)
+detskip<-c(2)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.25,0.75)
+groupInt<-c(0.3)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -659,9 +663,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("BS15_AU_02a") #add as complete GTs 
+  allmooringsGT<- c("BS16_AU_02a") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,104)
+  allmooringsSF[[1]]<-c(1,175)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
@@ -1007,9 +1011,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
