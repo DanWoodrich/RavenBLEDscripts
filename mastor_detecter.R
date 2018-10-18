@@ -219,8 +219,6 @@ if(dettype=="spread"|dettype=="combined"){
         }
       }
       
-      #just for testing: 
-      resltsTSPV<-resltsTSPV[1:2500,]
       #if the meantime is the same take only the lowest # box. 
       resltsTSPV$remove<-0
       for(g in 1:(nrow(resltsTSPV)-1)){
@@ -652,10 +650,10 @@ grpsize<-c(3)
 allowedZeros<-c(2)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(5)
+detskip<-c(4)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.4)
+groupInt<-c(0.5)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
