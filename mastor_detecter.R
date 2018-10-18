@@ -227,6 +227,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPV[g+1,16]<-1}}
       resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
       resltsTSPV$remove<-NULL
+      
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
@@ -251,13 +252,11 @@ if(dettype=="spread"|dettype=="combined"){
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(grpvec[h]>RM2){
-              RM2<-grpvec[h]
-            }
             if(RM>=grpvec[h+1]|(RM2+detskip[d]<grpvec[h+1])){
               rsltvec[h+1]<-0
             }else{
               rsltvec[h+1]<-1
+              RM2<-rsltvec[h+1]
             }
           }
           runsum[g,1]<-g
@@ -299,8 +298,8 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV<- subset(resltsTSPV,direction!=0)
       
       #remove groups based on grpsize value (again)
-      #removegrp <- table(resltsTSPV$group)
-     # resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
+      removegrp <- table(resltsTSPV$group)
+      resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
@@ -623,8 +622,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-2.5
-Mindur<-0.2
+Maxdur<-99
+Mindur<-0
 
 ############################Combine detector  parameters
 timediffself<-1
@@ -646,7 +645,7 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 trying: 2,1,2,0.3
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(4)
+grpsize<-c(2)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(1)
@@ -655,7 +654,7 @@ allowedZeros<-c(1)
 detskip<-c(2)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.6)
+groupInt<-c(0.3)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
