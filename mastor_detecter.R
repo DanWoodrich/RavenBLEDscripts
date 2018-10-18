@@ -190,10 +190,10 @@ l=1
 DetecTab<-NULL
 if(dettype=="spread"|dettype=="combined"){
   resltsTabspr<-resltsTab[which(resltsTab$detectorType=="spread"),]
-  RTSVar<-unique(substr(resltsTabspr$detector,1,2))
+  RTSVar<-unique(substr(resltsTabspr$detector,1,3))
   for(d in 1:length(RTSVar)){
     print(paste("Combining spread for",RTSVar[d]))
-    resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,2)==RTSVar[d]),]
+    resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,3)==RTSVar[d]),]
     for(e in unique(resltsTSPVd$Mooring)){
       resltsTSPV<-resltsTSPVd[which(resltsTSPVd$Mooring==e),]
       print(paste("    ",e))
@@ -302,7 +302,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       
       if(nrow(resltsTSPV)==0){
-        write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+        write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
         
         colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
@@ -323,7 +323,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal[p,6]<-grpminfreq
           resltsTSPVFinal[p,7]<-grpmaxfreq
           resltsTSPVFinal[p,8]<-l
-          resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,2)
+          resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
           resltsTSPVFinal[p,10]<-"spread"
           resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
           resltsTSPVFinal[p,12]<-e
@@ -337,7 +337,7 @@ if(dettype=="spread"|dettype=="combined"){
         DetecTab<- rbind(DetecTab,resltsTSPVFinal)
         
         resltsTSPVFinal<- resltsTSPVFinal[,1:7]
-        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",e,"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",e,"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       }
     }
     l<-l+1}
@@ -645,16 +645,16 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 trying: 2,1,2,0.3
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(2)
+grpsize<-c(3)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(1)
+allowedZeros<-c(2)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(2)
+detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.3)
+groupInt<-c(0.4)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -685,7 +685,7 @@ if(dettype=="spread"|dettype=="combined"){
   for(n in 1:length(detectorsspr)){
     detlist<-c(detlist,length(detectorsspr[[n]]))
     sonlydetlist<-detlist
-    detlist2<-c(detlist2,substr(detectorssprshort[[n]][1],1,2))
+    detlist2<-c(detlist2,substr(detectorssprshort[[n]][1],1,3))
     sonlydetlist2<-detlist2
   }
 }
