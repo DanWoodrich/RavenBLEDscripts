@@ -299,8 +299,8 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV<- subset(resltsTSPV,direction!=0)
       
       #remove groups based on grpsize value (again)
-      removegrp <- table(resltsTSPV$group)
-      resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
+      #removegrp <- table(resltsTSPV$group)
+     # resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,2),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
@@ -589,7 +589,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "p10 test"
+runname<- "p7 p9 p10 full run"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
@@ -623,8 +623,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-99
-Mindur<-0
+Maxdur<-2.5
+Mindur<-0.2
 
 ############################Combine detector  parameters
 timediffself<-1
@@ -644,9 +644,9 @@ LMS<-.10 #LMS step size
 ############################Spread parameters. must be same length as number of spread detectors you are running
 #p7 good ones: 2,1,3,0.75
 #p9 working ones: 3,2,3,.25
-#p10 trying: 
+#p10 trying: 2,1,2,0.3
 #(SPREAD) enter the desired smallest group (sequence) size for detection. 
-grpsize<-c(2)
+grpsize<-c(4)
 
 #(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(1)
@@ -655,7 +655,7 @@ allowedZeros<-c(1)
 detskip<-c(2)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.3)
+groupInt<-c(0.6)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
