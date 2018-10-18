@@ -206,10 +206,9 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
       #need to order chronologically
       resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime),]
-      #assign groups based on groupInt value
-      z<-1
-      f<-1
       
+      #assign groups based on groupInt value
+      f<-1
       print("assigning group values")
       for(z in 1:(nrow(resltsTSPV)-1)){
         if(resltsTSPV[z,15]+groupInt[d]>=resltsTSPV[z+1,15]){
@@ -220,6 +219,8 @@ if(dettype=="spread"|dettype=="combined"){
         }
       }
       
+      #just for testing: 
+      resltsTSPV<-resltsTSPV[1:2500,]
       #if the meantime is the same take only the lowest # box. 
       resltsTSPV$remove<-0
       for(g in 1:(nrow(resltsTSPV)-1)){
@@ -256,7 +257,7 @@ if(dettype=="spread"|dettype=="combined"){
               rsltvec[h+1]<-0
             }else{
               rsltvec[h+1]<-1
-              RM2<-rsltvec[h+1]
+              RM2<-grpvec[h+1]
             }
           }
           runsum[g,1]<-g
@@ -588,7 +589,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "p7 p9 p10 full run"
+runname<- "p11"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
@@ -609,7 +610,7 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[9:17] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-...
 #detectorsspr[[2]] <- dir(BLEDpath)[9:20]
 detectorssprshort<- detectorsspr
 }
