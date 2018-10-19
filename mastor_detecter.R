@@ -204,8 +204,8 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
       resltsTSPV$group[1]<-1
       resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
-      #need to order chronologically
-      resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime),]
+      #need to order chronologically. Test: order so highest comes first? could help out in situations with stacked boxes. 
+      resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime,resltsTSPV$top.freq),]
       
       #assign groups based on groupInt value
       f<-1
@@ -220,12 +220,12 @@ if(dettype=="spread"|dettype=="combined"){
       }
       
       #if the meantime is the same take only the lowest # box. 
-      resltsTSPV$remove<-0
-      for(g in 1:(nrow(resltsTSPV)-1)){
-        if(resltsTSPV[g+1,15]==resltsTSPV[g,15]){
-          resltsTSPV[g+1,16]<-1}}
-      resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
-      resltsTSPV$remove<-NULL
+      #resltsTSPV$remove<-0
+      #for(g in 1:(nrow(resltsTSPV)-1)){
+      #  if(resltsTSPV[g+1,15]==resltsTSPV[g,15]){
+      #    resltsTSPV[g+1,16]<-1}}
+      #resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
+      #resltsTSPV$remove<-NULL
       
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
@@ -609,7 +609,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[9:20]
+#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
 
@@ -642,15 +642,15 @@ LMS<-.10 #LMS step size
 ############################Spread parameters. must be same length as number of spread detectors you are running
 #p7 good ones: 2,1,3,0.75
 #p9 working ones: 3,2,3,.25
-#p10 trying: 2,1,2,0.3
-#(SPREAD) enter the desired smallest group (sequence) size for detection. 
+#p10 good ones: 3,2,4,0.5
+#(SPREAD) enter the desired smallest sequence size for detection. 
 grpsize<-c(3)
 
-#(SPREAD) allowed descending boxes allowed to constitute an ascending sequence. Will end sequence after the maximum has been exceeded
+#(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(4)
+detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
 groupInt<-c(0.5)
