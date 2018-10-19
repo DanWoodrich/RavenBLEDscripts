@@ -15,7 +15,7 @@ library(e1071)
 library(randomForest)
 library(seewave)
 library(tuneR)
-library(plotrix)
+library(plotrix)g
 library(aod)
 library(ggplot2)
 library(usdm)
@@ -242,7 +242,6 @@ if(dettype=="spread"|dettype=="combined"){
         
         for(g in 1:(nrow(groupdat)-1)){
           RM<-groupdat[g,13]
-          RM2<-groupdat[g,13]
           rsltvec<-NULL
           rsltvec<-rep(2,(g-1))
           rsltvec[g]<-2
@@ -251,11 +250,13 @@ if(dettype=="spread"|dettype=="combined"){
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(RM>=grpvec[h+1]|(RM2+detskip[d]<grpvec[h+1])){
+            if(RM>=grpvec[h+1] | groupdat[h,15]==groupdat[h+1,15]){
+              rsltvec[h+1]<-0
+            }else if(RM+detskip[d]<grpvec[h+1]){
               rsltvec[h+1]<-0
             }else{
               rsltvec[h+1]<-1
-              RM2<-grpvec[h+1]
+              RM<-grpvec[h+1]
             }
           }
           runsum[g,1]<-g
@@ -647,7 +648,7 @@ LMS<-.10 #LMS step size
 grpsize<-c(3)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(2)
+allowedZeros<-c(3)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
 detskip<-c(5)
