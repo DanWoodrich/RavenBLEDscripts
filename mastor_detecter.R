@@ -591,10 +591,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "p11"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
+dettype<- "combined" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -610,7 +610,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-...
-#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
+detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
 
@@ -636,7 +636,7 @@ timediff<-0.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"n"
+whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -645,16 +645,16 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(3)
+grpsize<-c(3,2)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(3)
+allowedZeros<-c(2,1)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(5)
+detskip<-c(5,3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.5)
+groupInt<-c(0.5,0.75)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
