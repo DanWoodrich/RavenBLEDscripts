@@ -594,7 +594,7 @@ runname<- "p11"
 runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "combined" 
+dettype<- "spread" 
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -610,7 +610,7 @@ if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
 detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-...
-detectorsspr[[2]] <- dir(BLEDpath)[3:14]
+#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
 
@@ -645,16 +645,16 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(3,2)
+grpsize<-c(3)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(2,1)
+allowedZeros<-c(2)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(5,3)
+detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.5,0.75)
+groupInt<-c(0.5)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -1077,7 +1077,7 @@ for(n in 1:length(detfiles)){
 }
 
 if(whiten=="y"){
-  soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
+  soundfile<-(paste("Bbandp",LMS*100,"x_FO",FO,sep=""))
 }else{
   soundfile<-"No_whiten"
 }
@@ -1113,29 +1113,31 @@ data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
 #make interference columns into factors
-if(length(data)>8){
-  for(n in 9:length(data)){
+if(length(data)>9){
+  for(n in 10:length(data)){
     data[,n]<-as.factor(data[,n])
   }
 }
 #######1 mooring test######
 #data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#data<-splitdf(data,weight = 1/4)[[1]]
+data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features()
 
-data2<-data[,9:length(data)]
+data2<-data[,c(1,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
-
+names(data2)[1]<-"Mooring"
 
 my.xval = list()
 my.xval$predictions = list()
 my.xval$labels = list()
 
+CV=30
+
 AUC_avg<-c()
 #how many cross validation runs you want
-for(p in 1:10){
+for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
@@ -1154,7 +1156,7 @@ predd = prediction(pp, ll)
 perff = performance(predd, "tpr", "fpr")
 
 #no avg
-plot(perff, xaxs="i", yaxs="i")
+plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
 abline(a=0, b= 1)
 
 #avg. Don't really know what the points on the line mean. 
@@ -1173,6 +1175,9 @@ varImpPlot(data.rf,
            n.var=27,
            main="Top 10 - Variable Importance")
 
+#run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
+#about the same for second .25 sampling of data. 
+#.95 tpr .7 fpr seems more consistently on curve line than .9/.5. 
 ###############################################
 
 
