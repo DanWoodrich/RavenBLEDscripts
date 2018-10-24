@@ -15,7 +15,7 @@ library(e1071)
 library(randomForest)
 library(seewave)
 library(tuneR)
-library(plotrix)g
+library(plotrix)
 library(aod)
 library(ggplot2)
 library(usdm)
@@ -458,22 +458,25 @@ for(w in unique(DetecTab$Mooring)){
       j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
       print(paste("      Average detectors",i[1,9],"and",j[1,9]))
       for(y in 1:nrow(i)){
-        for(z in 1:nrow(j)){
-          if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
+        jshort <- j[which(j$meantime<(i$meantime+2)|j$meantime>(i$meantime-2)),]
+        if(nrow(jshort)>0){
+        for(z in 1:nrow(jshort)){
+          if(((((i[y,13]-jshort[z,13])<=timediff) & (i[y,13]>=jshort[z,13])) | (((jshort[z,13]-i[y,13])<=timediff) & (jshort[z,13]>=i[y,13]))) & ((((i[y,14]-jshort[z,14])<=freqdiff) & (i[y,14]>=jshort[z,14])) | (((jshort[z,14]-i[y,14])<=freqdiff) & (jshort[z,14]>=i[y,14])))){
             CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
-            CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
-            meanS<-mean(c(i[y,4],j[z,4]))
-            meanE<-mean(c(i[y,5],j[z,5]))
-            meanL<-mean(c(i[y,6],j[z,6]))
-            meanH<-mean(c(i[y,7],j[z,7]))
+            CompareDet[which(jshort[z,15]==CompareDet$UniqueID),16]<-1
+            meanS<-mean(c(i[y,4],jshort[z,4]))
+            meanE<-mean(c(i[y,5],jshort[z,5]))
+            meanL<-mean(c(i[y,6],jshort[z,6]))
+            meanH<-mean(c(i[y,7],jshort[z,7]))
             
-            AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
+            AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,jshort[1,8],as.character(paste(i[1,9],"+",jshort[1,9])),as.character(paste(i[1,10],"+",jshort[1,10])),(jshort[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
             names(AvgDet2)<-colnames(AvgDet)
             #make new dataframe be second detector ID so it will loop properly
             
             AvgDet<- rbind(AvgDet,AvgDet2)  
             
           }
+        }
         }
       }
       CompareDet<-CompareDet[-which(CompareDet$remove==1),]
@@ -496,7 +499,7 @@ for(w in unique(DetecTab$Mooring)){
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
 #average detections within combined detector using timediffself parameter (again,again,again,again)
-for(a in 1:5){
+for(a in 1:3){
 n=0
 for(o in unique(DetecTab2$Mooring)){
   Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
@@ -588,13 +591,16 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "p11"
+runname<- "function test full mooring"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
+
+#enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
+moorType<-"FULL"
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -609,7 +615,7 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-...
+detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -622,8 +628,8 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-99
-Mindur<-0
+Maxdur<-3
+Mindur<-0.5
 
 ############################Combine detector  parameters
 timediffself<-1
@@ -636,7 +642,7 @@ timediff<-0.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"y"
+whiten<-"n"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -645,7 +651,7 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(3)
+grpsize<-c(4)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
@@ -664,9 +670,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("BS16_AU_02a") #add as complete GTs 
+  allmooringsGT<- c("AW12_AU_BS3") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,175)
+  allmooringsSF[[1]]<-c(1,217)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
@@ -819,11 +825,12 @@ if(dettype=="single"|dettype=="combined"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
+
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
   sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
@@ -968,12 +975,15 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
       print(paste("       Compare with detector",MoorInt[1,10]))   
-      for(h in 1:nrow(MoorInt)){
-        for(g in 1:nrow(OutputCompare)){
-          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
+      for(g in 1:nrow(OutputCompare)){
+        hshort <- MoorInt[which(MoorInt$meantime<(OutputCompare$meantime[g]+2)|MoorInt$meantime>(OutputCompare$meantime[g]-2)),]
+        if(nrow(hshort)>0){
+        for(h in 1:nrow(hshort)){
+          if((hshort[h,4]<OutputCompare[g,8] & hshort[h,5]>OutputCompare[g,8])|(hshort[h,4]>OutputCompare[g,4] & hshort[h,5]<OutputCompare[g,5])){
             OutputCompare[g,n+9]<-1
           }
-          }
+        }
+        }
         }
       }
     }
@@ -1189,32 +1199,63 @@ varImpPlot(data.rf,
 allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)
 
+if(moorType=="HG"){
+  sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
+}else{
+  sfpath<-paste("E:/Full_datasets/",m,sep = "")
+}
+
+#
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
 for(m in allMoorings){
-  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")) 
+  sound_files <- dir(sfpath) #return random files for sampling test 9/58 ~15% of data 
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
-  bigFile_breaks<-c(seq(1,length(sound_files),300),length(sound_files))
+  bigFile_breaks<-c(seq(1,length(sound_files),300),length(sound_files))[sample.int(58,size=2,replace=F)] #last index for 15% data test. 
+}
   #if end of file happens to end on last break make sure its not redundant
   if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
     bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]
-  }
   for(b in 1:(length(bigFile_breaks)-1)){
-    sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[bigFile_breaks[b]:bigFile_breaks[b+1]] 
-    sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
-    combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-    if(whiten=="n"){
+    sound_files <- dir(sfpath)[bigFile_breaks[b]:bigFile_breaks[b+1]]
+    sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
+    if(whiten=="n" & moorType=="HG"){
       whiten2<-"Entire_No_whiten"
+      
+      combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(combSound)){
       }else{
         dir.create(paste(startcombpath,spec,sep=""))
         dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
+        print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
         sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
       }
-    }else{
-      whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+      
+    }else if(whiten=="n" & moorType!="HG"){
+      whiten2<-"Entire_full_No_whiten"
+      
+      combSound<-paste(startcombpath,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      if(file.exists(combSound)){
+      }else{
+        dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
+        print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
+        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+      }
+      
     }
+
+    if(whiten=="y" & moorType=="HG"){
+      whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+    }else if(whiten=="y" & moorType!="HG"){
+      whiten2 <- paste("/Entire_full_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+    }
+  }
+  
+  if(moorType=="HG"){
+  ravenPath<- paste(startcombpath,spec,"/",whiten2,sep="")
+  }else{
+  ravenPath<- paste(startcombpath,"/",whiten2,sep="")
   }
   
   #run pulse and fin/mooring detector, if selected:
@@ -1222,7 +1263,7 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
-        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
         resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
@@ -1238,7 +1279,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
-          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
           resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
@@ -1254,7 +1295,7 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
-        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
         resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
@@ -1293,13 +1334,16 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
         colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
-        for(h in 1:nrow(MoorInt)){
-          for(g in 1:nrow(MoorVar)){
-            if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
+        for(g in 1:nrow(MoorVar)){
+          hshort <- MoorInt[which(MoorInt$meantime<(MoorVar$meantime[g]+2)|MoorInt$meantime>(MoorVar$meantime[g]-2)),]
+          if(nrow(hshort)>0){
+          for(h in 1:nrow(hshort)){
+            if((hshort[h,4]<MoorVar[g,9] & hshort[h,5]> MoorVar[g,9])|(hshort[h,4]> MoorVar[g,5] & hshort[h,5]< MoorVar[g,6])){
               MoorVar[g,n+10]<-1
             }
           }
         }
+      }
       }
     }
   
@@ -1341,9 +1385,14 @@ for(v in 1:length(unique(data$sound.files))){
   MoorVar<-MoorVar[,c(2:8,10)]
   
   write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(data$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+ 
+  MoorVar<-MoorVar[,1:9]
+  
+  MoorVar$detectionType<-pred[,2] #just the probabilities
+  
+  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(data$sound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
 }
   
-#maybe it worked? Need to crunch some numbers to assess accuracy. 
-  
+
   
