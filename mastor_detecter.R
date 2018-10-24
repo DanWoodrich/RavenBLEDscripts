@@ -145,8 +145,19 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 }
 
 spectral_features<- function(){
+  
+  if(whiten=="y" & moorType=="HG"){
+    specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+  }else if(whiten=="y" & moorType!="HG"){
+    specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+  }else if(whiten=="n" & moorType=="HG"){
+    specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten","/",sep="")
+  }else{
+    specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
+  }
+print("extracting spectral parameters")
 for(z in 1:nrow(data)){
-  foo <- readWave(paste("E:/Combined_sound_files/",spec,"/",soundfile,"/",data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
+  foo <- readWave(paste(specpath,data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
   foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(yminn,ymaxx))
   foo.specprop <- specprop(foo.spec)
   foo.meanspec = meanspec(foo, plot=FALSE, ovlp=90)#not sure what ovlp parameter does but initially set to 90
@@ -177,8 +188,6 @@ for(z in 1:nrow(data)){
   data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
   data$specprop.sfm[z] = foo.specprop$sfm[1]
   data$specprop.sh[z] = foo.specprop$sh[1]
-  print(paste("done with",z))
-  
 
 }
   return(data)
@@ -233,8 +242,8 @@ if(dettype=="spread"|dettype=="combined"){
       
       
       #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
+      print(paste("calculating best runs for each group"))
       for(f in unique(resltsTSPV[,14])){
-        print(paste("calculating best run for group",f))
         groupdat<- subset(resltsTSPV,group==f)
         grpvec<-groupdat[,13]
         colClasses = c("numeric","numeric","numeric","numeric")
@@ -458,18 +467,18 @@ for(w in unique(DetecTab$Mooring)){
       j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
       print(paste("      Average detectors",i[1,9],"and",j[1,9]))
       for(y in 1:nrow(i)){
-        jshort <- j[which(j$meantime<(i$meantime+2)|j$meantime>(i$meantime-2)),]
-        if(nrow(jshort)>0){
-        for(z in 1:nrow(jshort)){
-          if(((((i[y,13]-jshort[z,13])<=timediff) & (i[y,13]>=jshort[z,13])) | (((jshort[z,13]-i[y,13])<=timediff) & (jshort[z,13]>=i[y,13]))) & ((((i[y,14]-jshort[z,14])<=freqdiff) & (i[y,14]>=jshort[z,14])) | (((jshort[z,14]-i[y,14])<=freqdiff) & (jshort[z,14]>=i[y,14])))){
+        jvec <- which(j$meantime<(i$meantime+2)|j$meantime>(i$meantime-2))
+        if(length(jvec)>0){
+        for(z in min(jvec):max(jvec)){
+          if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
             CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
-            CompareDet[which(jshort[z,15]==CompareDet$UniqueID),16]<-1
-            meanS<-mean(c(i[y,4],jshort[z,4]))
-            meanE<-mean(c(i[y,5],jshort[z,5]))
-            meanL<-mean(c(i[y,6],jshort[z,6]))
-            meanH<-mean(c(i[y,7],jshort[z,7]))
+            CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
+            meanS<-mean(c(i[y,4],j[z,4]))
+            meanE<-mean(c(i[y,5],j[z,5]))
+            meanL<-mean(c(i[y,6],j[z,6]))
+            meanH<-mean(c(i[y,7],j[z,7]))
             
-            AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,jshort[1,8],as.character(paste(i[1,9],"+",jshort[1,9])),as.character(paste(i[1,10],"+",jshort[1,10])),(jshort[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
+            AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
             names(AvgDet2)<-colnames(AvgDet)
             #make new dataframe be second detector ID so it will loop properly
             
@@ -615,7 +624,7 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[25:26] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -651,7 +660,7 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(4)
+grpsize<-c(2)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
@@ -660,7 +669,7 @@ allowedZeros<-c(2)
 detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.5)
+groupInt<-c(0.8)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -848,6 +857,7 @@ for(m in moorings){
 #run pulse and fin/mooring detector, if selected:
 if(interfere=="y"){
   for(i in interfereVec){
+    print(paste("Running detector for",m))
     resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
     resltVarInt$Mooring<-m
     resltVarInt$detector<-i
@@ -862,6 +872,7 @@ if(interfere=="y"){
 if(dettype=="spread"|dettype=="combined"){
   for(q in 1:length(detectorssprshort)){
     for(r in detectorssprshort[[q]]){
+      print(paste("Running detector for",m))
       resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
       resltVar$Mooring<-m
       resltVar$detector<-r
@@ -875,6 +886,7 @@ if(dettype=="spread"|dettype=="combined"){
  
 if(dettype=="single"|dettype=="combined"){
   for(n in detectorssinshort){
+    print(paste("Running detector for",m))
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
     resltVar$Mooring<-m
     resltVar$detector<-n
@@ -976,10 +988,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
       print(paste("       Compare with detector",MoorInt[1,10]))   
       for(g in 1:nrow(OutputCompare)){
-        hshort <- MoorInt[which(MoorInt$meantime<(OutputCompare$meantime[g]+2)|MoorInt$meantime>(OutputCompare$meantime[g]-2)),]
-        if(nrow(hshort)>0){
-        for(h in 1:nrow(hshort)){
-          if((hshort[h,4]<OutputCompare[g,8] & hshort[h,5]>OutputCompare[g,8])|(hshort[h,4]>OutputCompare[g,4] & hshort[h,5]<OutputCompare[g,5])){
+        hvec <- which(MoorInt$meantime<(OutputCompare$meantime[g]+2)|MoorInt$meantime>(OutputCompare$meantime[g]-2))
+        if(length(hvec)>0){
+        for(h in min(hvec):max(hvec)){
+          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
             OutputCompare[g,n+9]<-1
           }
         }
@@ -1135,9 +1147,9 @@ data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features()
 
-data2<-data[,c(1,9:length(data))]
+data2<-data[,9:length(data)]
 data2$detectionType<-as.factor(data2$detectionType)
-names(data2)[1]<-"Mooring"
+#names(data2)[1]<-"Mooring"
 
 my.xval = list()
 my.xval$predictions = list()
@@ -1191,18 +1203,19 @@ varImpPlot(data.rf,
 ###############################################
 
 
-#EMPLOY MODEL ON ALL DATA
-
+#EMPLOY MODEL ON FULL DATASETS
 
 ################################################
 
 allDataPath<-"E:/Datasets"
-allMoorings<-dir(allDataPath)
+allMoorings<-dir(allDataPath)[1]
+
+fileSizeInt<-300
 
 if(moorType=="HG"){
-  sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
-  sfpath<-paste("E:/Full_datasets/",m,sep = "")
+  sfpath<-paste("E:/Full_datasets/",dir(allDataPath)[1],sep = "")
 }
 
 #
@@ -1210,13 +1223,13 @@ if(moorType=="HG"){
 resltsTab <- NULL
 resltsTabInt<- NULL
 for(m in allMoorings){
-  sound_files <- dir(sfpath) #return random files for sampling test 9/58 ~15% of data 
+  sound_files <- dir(sfpath) #
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
-  bigFile_breaks<-c(seq(1,length(sound_files),300),length(sound_files))[sample.int(58,size=2,replace=F)] #last index for 15% data test. 
-}
+  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
+
   #if end of file happens to end on last break make sure its not redundant
   if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
-    bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]
+    bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]}
   for(b in 1:(length(bigFile_breaks)-1)){
     sound_files <- dir(sfpath)[bigFile_breaks[b]:bigFile_breaks[b+1]]
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
@@ -1253,9 +1266,9 @@ for(m in allMoorings){
   }
   
   if(moorType=="HG"){
-  ravenPath<- paste(startcombpath,spec,"/",whiten2,sep="")
+  filePath<- paste(startcombpath,spec,"/",whiten2,sep="")
   }else{
-  ravenPath<- paste(startcombpath,"/",whiten2,sep="")
+  filePath<- paste(startcombpath,"/",whiten2,sep="")
   }
   
   #run pulse and fin/mooring detector, if selected:
@@ -1263,7 +1276,8 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
-        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+        print(paste("Running detector for",m))
+        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
         resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
@@ -1279,7 +1293,8 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
-          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+          print(paste("Running detector for",m))
+          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
           resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
@@ -1295,7 +1310,8 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
-        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = ravenPath,detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+        print(paste("Running detector for",m))
+        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
         resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
@@ -1335,10 +1351,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
         for(g in 1:nrow(MoorVar)){
-          hshort <- MoorInt[which(MoorInt$meantime<(MoorVar$meantime[g]+2)|MoorInt$meantime>(MoorVar$meantime[g]-2)),]
-          if(nrow(hshort)>0){
-          for(h in 1:nrow(hshort)){
-            if((hshort[h,4]<MoorVar[g,9] & hshort[h,5]> MoorVar[g,9])|(hshort[h,4]> MoorVar[g,5] & hshort[h,5]< MoorVar[g,6])){
+          hvec <- which(MoorInt$meantime<(MoorVar$meantime[g]+2)|MoorInt$meantime>(MoorVar$meantime[g]-2))
+          if(length(hvec>0)){
+          for(h in min(hvec):max(hvec)){
+            if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
               MoorVar[g,n+10]<-1
             }
           }
@@ -1355,12 +1371,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
 data<-MoorTab
 data$detectionType<-0
-
-if(whiten=="y"){
-  soundfile<-list.files(paste("E:/Combined_sound_files/",spec,sep=""),pattern =paste(LMS*100,"x_FO",FO,sep=""))
-}else{
-  soundfile<-"Entire_No_whiten"
-}
 
 #make interference columns into factors
 if(length(data)>10){
