@@ -915,8 +915,9 @@ DetecTab2<-process_data()
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
-  GTtot<-0
-  
+  GTtot=0
+  TPtot=0
+  MoorCor=0
 for(v in 1:length(unique(DetecTab2$Mooring))){
   print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -1036,6 +1037,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
   numTPtruth<- nrow(GT[[v]])
 
+  #store this for comparison with full mooring later
+  TPtot<-c(TPtot,numTP)
+  MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
+  
   TPhitRate <- numTP/numTPtruth*100
   TPR <- numTP/(numTP+numFN)
   TPdivFP<- numTP/numFP
@@ -1208,7 +1213,7 @@ varImpPlot(data.rf,
            main="Top 10 - Variable Importance")
 
 #save last model
-save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda"))
+save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 #set cutoff based on results of GT run
 cutoff<-0.2
@@ -1431,6 +1436,8 @@ probstderr<-std.error(probstab[,2])
 findata<-cbind(findata,probmean,probstderr)
 
 findata$detectionType<-ifelse(findata$probmean>cutoff,"TP","FP")
+
+TPtottab<-data.frame(TPtot,MoorCor)
 
 #apply models and average probabilities. 
 MoorVar<-NULL
