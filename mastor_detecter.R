@@ -144,53 +144,62 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-spectral_features<- function(){
-  
-  if(whiten=="y" & moorType=="HG"){
-    specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
-  }else if(whiten=="y" & moorType!="HG"){
-    specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
-  }else if(whiten=="n" & moorType=="HG"){
-    specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten","/",sep="")
+spectral_features<- function(specdata,whichRun=1){
+  if(whichRun==1){
+    if(whiten=="y"){
+      specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+    }else{
+      specpath<-paste(startcombpath,"/",spec,"/No_whiten","/",sep="")
+        }
   }else{
-    specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
+    if(whiten=="y" & moorType=="HG"){
+      specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+    }else if(whiten=="y" & moorType!="HG"){
+      specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+    }else if(whiten=="n" & moorType=="HG"){
+      specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten","/",sep="")
+    }else{
+      specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
+    }
   }
+
+  
 print("extracting spectral parameters")
-for(z in 1:nrow(data)){
-  foo <- readWave(paste(specpath,data[z,1],sep=""),data[z,5],data[z,6],units="seconds")
+for(z in 1:nrow(specdata)){
+  foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata[z,5],specdata[z,6],units="seconds")
   foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(yminn,ymaxx))
   foo.specprop <- specprop(foo.spec)
   foo.meanspec = meanspec(foo, plot=FALSE, ovlp=90)#not sure what ovlp parameter does but initially set to 90
   foo.autoc = autoc(foo, plot=F)
   foo.dfreq = dfreq(foo, plot=F, ovlp=90)
-  data$rugosity[z] = rugo(foo@left / max(foo@left)) 
-  data$crest.factor[z] = crest(foo)$C
+  specdata$rugosity[z] = rugo(foo@left / max(foo@left)) 
+  specdata$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
-  data$temporal.entropy[z] = th(foo.env)
-  data$shannon.entropy[z] = sh(foo.spec)
-  data$spectral.flatness.measure[z] = sfm(foo.spec)
-  data$spectrum.roughness[z] = roughness(foo.meanspec[,2])
-  data$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
-  data$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
-  data$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
-  data$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
-  data$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
-  data$specprop.mean[z] = foo.specprop$mean[1]
-  data$specprop.sd[z] = foo.specprop$sd[1]
-  data$specprop.sem[z] = foo.specprop$sem[1]
-  data$specprop.median[z] = foo.specprop$median[1]
-  data$specprop.mode[z] = foo.specprop$mode[1]
-  data$specprop.Q25[z] = foo.specprop$Q25[1]
-  data$specprop.Q75[z] = foo.specprop$Q75[1]
-  data$specprop.IQR[z] = foo.specprop$IQR[1]
-  data$specprop.cent[z] = foo.specprop$cent[1]
-  data$specprop.skewness[z] = foo.specprop$skewness[1]
-  data$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
-  data$specprop.sfm[z] = foo.specprop$sfm[1]
-  data$specprop.sh[z] = foo.specprop$sh[1]
+  specdata$temporal.entropy[z] = th(foo.env)
+  specdata$shannon.entropy[z] = sh(foo.spec)
+  specdata$spectral.flatness.measure[z] = sfm(foo.spec)
+  specdata$spectrum.roughness[z] = roughness(foo.meanspec[,2])
+  specdata$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
+  specdata$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
+  specdata$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
+  specdata$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
+  specdata$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
+  specdata$specprop.mean[z] = foo.specprop$mean[1]
+  specdata$specprop.sd[z] = foo.specprop$sd[1]
+  specdata$specprop.sem[z] = foo.specprop$sem[1]
+  specdata$specprop.median[z] = foo.specprop$median[1]
+  specdata$specprop.mode[z] = foo.specprop$mode[1]
+  specdata$specprop.Q25[z] = foo.specprop$Q25[1]
+  specdata$specprop.Q75[z] = foo.specprop$Q75[1]
+  specdata$specprop.IQR[z] = foo.specprop$IQR[1]
+  specdata$specprop.cent[z] = foo.specprop$cent[1]
+  specdata$specprop.skewness[z] = foo.specprop$skewness[1]
+  specdata$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
+  specdata$specprop.sfm[z] = foo.specprop$sfm[1]
+  specdata$specprop.sh[z] = foo.specprop$sh[1]
 
 }
-  return(data)
+  return(specdata)
 }
 
 process_data<-function(){
@@ -603,7 +612,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "function test full mooring"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -624,7 +633,7 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[25:26] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -660,7 +669,7 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(2)
+grpsize<-c(3)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
@@ -669,7 +678,7 @@ allowedZeros<-c(2)
 detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.8)
+groupInt<-c(0.5)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -1145,7 +1154,8 @@ if(length(data)>9){
 
 data<-splitdf(data,weight = 1/2)[[1]]
 
-data<-spectral_features()
+data<-spectral_features(data,1)
+
 
 data2<-data[,9:length(data)]
 data2$detectionType<-as.factor(data2$detectionType)
@@ -1196,6 +1206,12 @@ varImpPlot(data.rf,
            sort = 27,
            n.var=27,
            main="Top 10 - Variable Importance")
+
+#save last model
+save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda"))
+
+#set cutoff based on results of GT run
+cutoff<-0.2
 
 #run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
 #about the same for second .25 sampling of data. 
@@ -1264,6 +1280,7 @@ for(m in allMoorings){
       whiten2 <- paste("/Entire_full_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
     }
   }
+
   
   if(moorType=="HG"){
   filePath<- paste(startcombpath,spec,"/",whiten2,sep="")
@@ -1276,7 +1293,7 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
-        print(paste("Running detector for",m))
+        print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
         resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVarInt$detector<-i
@@ -1293,7 +1310,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
-          print(paste("Running detector for",m))
+          print(paste("Running detector for",combname))
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
           resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
           resltVar$detector<-r
@@ -1310,7 +1327,7 @@ for(m in allMoorings){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
-        print(paste("Running detector for",m))
+        print(paste("Running detector for",combname))
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
         resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVar$detector<-n
@@ -1369,40 +1386,65 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
 }
 
-data<-MoorTab
-data$detectionType<-0
+findata<-MoorTab
+findata$probs<-0
 
 #make interference columns into factors
-if(length(data)>10){
-  for(n in 11:length(data)){
-    data[,n]<-as.factor(data[,n])
+if(length(findata)>10){
+  for(n in 11:length(findata)){
+    findata[,n]<-as.factor(findata[,n])
   }
 }
 
-data<-spectral_features()
+findata<-spectral_features(data,2)
 
+#Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
+data2<-data[,9:length(data)]
+data2$detectionType<-as.factor(data2$detectionType)
+
+my.xval = list()
+my.xval$predictions = list()
+my.xval$labels = list()
+
+CV=30
+
+AUC_avg<-c()
+#generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
+f=1
+for(p in 1:CV){
+  print(paste("model",p))
+  train<-splitdf(data2,weight = 2/3)
+  data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
+  pred<-predict(data.rf,findata[,10:length(findata)],type="prob")
+
+  if(f=1){
+    probstab<-pred[,2]
+  }else{
+    probstab<-data.frame(probstab,pred[,2])
+  }  
+  f=f+1
+}
+
+probmean<-mean(probstab[,2])
+probstderr<-std.error(probstab[,2])
+
+findata<-cbind(findata,probmean,probstderr)
+
+findata$detectionType<-ifelse(findata$probmean>cutoff,"TP","FP")
+
+#apply models and average probabilities. 
 MoorVar<-NULL
-for(v in 1:length(unique(data$sound.files))){
+for(v in 1:length(unique(findata$sound.files))){
   
-  MoorVar<-data[which(data$sound.files==sort(unique(data$sound.files))[v]),]
   
-  MoorVar2<-MoorVar[,10:length(MoorVar)]
+
+  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$ound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
-  pred<-predict(data.rf,MoorVar2,type="prob")
-  hist(pred)
-  MoorVar$detectionType<-ifelse(pred[,2]>0.2,"TP","FP") #threshold of 0.2
   
-  MoorVar<-MoorVar[,c(2:8,10)]
-  
-  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(data$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
- 
-  MoorVar<-MoorVar[,1:9]
-  
-  MoorVar$detectionType<-pred[,2] #just the probabilities
-  
-  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(data$sound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
 }
   
+
 
   
