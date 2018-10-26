@@ -1448,7 +1448,7 @@ CUTmean<-mean(CUT)
 CUTstd.err<-std.error(CUT)
   
 findata<-cbind(findata,probmean,probstderr)
-
+findata[,1]<-substr(findata$sound.files,1,11)
 TPtottab<-data.frame(TPtot,MoorCor)
 
 #apply models and average probabilities. 
@@ -1460,7 +1460,7 @@ for(v in 1:length(unique(findata$sound.files))){
   MoorVar1$detectionType<-ifelse(MoorVar1$probmean>CUTmean,"RFselected","RFrejected")
   MoorVar1<-MoorVar1[which(MoorVar1$detectionType=="RFselected"),]
   
-  numTP<-TPtottab[which(TPtottab$MoorCor==),1]*TPRthresh
+  numTP<-TPtottab[which(TPtottab$MoorCor==sort(unique(findata$sound.files))[v]),1]*TPRthresh
   detTotal<-nrow(MoorVar1)
   numFP<-detTotal-numTP
   
