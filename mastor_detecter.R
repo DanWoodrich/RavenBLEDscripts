@@ -1215,8 +1215,8 @@ varImpPlot(data.rf,
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
-#set cutoff based on results of GT run
-cutoff<-0.2
+#set desired TPR threshold
+TPRthresh<-.95
 
 #run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
 #about the same for second .25 sampling of data. 
@@ -1392,7 +1392,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 }
 
 findata<-MoorTab
-findata$probs<-0
+findata$detectionType<-0
 
 #make interference columns into factors
 if(length(findata)>10){
@@ -1401,28 +1401,35 @@ if(length(findata)>10){
   }
 }
 
-findata<-spectral_features(data,2)
+findata<-spectral_features(findata,2)
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
-data2<-data[,9:length(data)]
+findata$detectionType<-as.factor(findata$detectionType)
 data2$detectionType<-as.factor(data2$detectionType)
-
-my.xval = list()
-my.xval$predictions = list()
-my.xval$labels = list()
-
 CV=30
 
 AUC_avg<-c()
 #generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
 f=1
+CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
+  #apply model to data
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
   pred<-predict(data.rf,findata[,10:length(findata)],type="prob")
+  #assess same model performance on GT data 
+  pred2<-predict(data.rf,train[[2]],type="prob")
+  ROCRpred<-prediction(pred2[,2],train[[2]]$detectionType)
+  perf = performance(ROCRpred, "tpr","fpr")
+  
+  TPR<-NULL
+  TPR <- data.frame(cut=perf@alpha.values[[1]], tpr=perf@y.values[[1]])
+  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  CUTvec<-c(CUTvec,CUT)
+  
 
-  if(f=1){
+  if(f==1){
     probstab<-pred[,2]
   }else{
     probstab<-data.frame(probstab,pred[,2])
@@ -1430,12 +1437,17 @@ for(p in 1:CV){
   f=f+1
 }
 
-probmean<-mean(probstab[,2])
-probstderr<-std.error(probstab[,2])
+probmean<-NULL
+probstderr<-NULL
+for(x in 1:nrow(probstab)){
+probmean[x]<-mean(as.numeric(probstab[x,]))
+probstderr[x]<-std.error(as.numeric(probstab[x,]))
+}
 
+CUTmean<-mean(CUT)
+CUTstd.err<-std.error(CUT)
+  
 findata<-cbind(findata,probmean,probstderr)
-
-findata$detectionType<-ifelse(findata$probmean>cutoff,"TP","FP")
 
 TPtottab<-data.frame(TPtot,MoorCor)
 
@@ -1443,12 +1455,35 @@ TPtottab<-data.frame(TPtot,MoorCor)
 MoorVar<-NULL
 for(v in 1:length(unique(findata$sound.files))){
   
+  MoorVar1<-findata[which(findata$sound.files==sort(unique(findata$sound.files))[v]),]
   
-
-  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-  write.table(MoorVar,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$ound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  MoorVar1$detectionType<-ifelse(MoorVar1$probmean>CUTmean,"RFselected","RFrejected")
+  MoorVar1<-MoorVar1[which(MoorVar1$detectionType=="RFselected"),]
   
+  numTP<-TPtottab[which(TPtottab$MoorCor==),1]*TPRthresh
+  detTotal<-nrow(MoorVar1)
+  numFP<-detTotal-numTP
   
+  TPdivFP<- numTP/numFP
+  
+  #save stats and parameters to excel file
+  detecEval<-detecEvalFinal[0,]
+  if(dettype=="spread"|dettype=="combined"){
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,NA,NA,NA,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  }else{
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,NA,NA,NA,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+  }
+  
+  detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
+  detecEvalFinal<-rbind(detecEval2,detecEval)
+  write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
+  
+  MoorVar1<-MoorVar1[,c(2:8)]
+  
+  MoorVar2<-findata[which(findata$sound.files==sort(unique(findata$sound.files))[v]),][,c(2:8,35,36)]
+  
+  write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.table(MoorVar2,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(findata$ound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
 }
   
