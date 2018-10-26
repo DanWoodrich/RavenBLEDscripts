@@ -144,7 +144,7 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-spectral_features<- function(specdata,whichRun=1){
+spectral_features<- function(specdata,whichRun){
   if(whichRun==1){
     if(whiten=="y"){
       specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,"/",sep="")
@@ -916,6 +916,7 @@ colClasses = c("character","character","character","character","character","nume
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
   GTtot=0
+  GTtot2=0
   TPtot=0
   MoorCor=0
 for(v in 1:length(unique(DetecTab2$Mooring))){
@@ -1040,6 +1041,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
   MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
+  GTtot2<-c(GTtot2,GTtot)
   
   TPhitRate <- numTP/numTPtruth*100
   TPR <- numTP/(numTP+numFN)
@@ -1229,7 +1231,7 @@ TPRthresh<-.95
 ################################################
 
 allDataPath<-"E:/Datasets"
-allMoorings<-dir(allDataPath)[1]
+allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 fileSizeInt<-300
 
@@ -1449,7 +1451,7 @@ CUTstd.err<-std.error(CUT)
   
 findata<-cbind(findata,probmean,probstderr)
 findata[,1]<-substr(findata$sound.files,1,11)
-TPtottab<-data.frame(TPtot,MoorCor)
+TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
 #apply models and average probabilities. 
 MoorVar<-NULL
@@ -1461,17 +1463,21 @@ for(v in 1:length(unique(findata$sound.files))){
   MoorVar1<-MoorVar1[which(MoorVar1$detectionType=="RFselected"),]
   
   numTP<-TPtottab[which(TPtottab$MoorCor==sort(unique(findata$sound.files))[v]),1]*TPRthresh
+  numTPtruth<-TPtottab[which(TPtottab$MoorCor==sort(unique(findata$sound.files))[v]),2]
   detTotal<-nrow(MoorVar1)
   numFP<-detTotal-numTP
+  numFN<-numTPtruth-numTP
   
+  TPhitRate <- numTP/numTPtruth*100
+  TPR <- numTP/(numTP+numFN)
   TPdivFP<- numTP/numFP
   
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,NA,NA,NA,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,TPhitRate,TPR,NA,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,NA,NA,NA,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,TPhitRate,TPR,NA,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   
   detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
