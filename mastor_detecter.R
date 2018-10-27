@@ -646,21 +646,21 @@ detectorssinshort<- detectorssin
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
-Maxdur<-3
-Mindur<-0.5
+Maxdur<-3.5
+Mindur<-0.2
 
 ############################Combine detector  parameters
-timediffself<-1
+timediffself<-2
 
 #multiple detectors
 freqdiff<-100
-timediff<-0.5
+timediff<-1.5
 
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"n"
+whiten<-"7"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -1453,7 +1453,7 @@ findata<-cbind(findata,probmean,probstderr)
 findata[,1]<-substr(findata$sound.files,1,11)
 TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
-#apply models and average probabilities. 
+#apply models and average probabilities. ASSUMPTIONS for stats to make sense: Full mooring is run, and all HG data is included in GT. 
 MoorVar<-NULL
 for(v in 1:length(unique(findata$sound.files))){
   
