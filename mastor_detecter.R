@@ -144,6 +144,23 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
+duration_store<- function(sound_filesfullpath,combname){
+  durVar<-NULL
+  durVar<-data.frame(SF=character(),
+                     Duration=numeric(), 
+                     CombSF=character(), 
+                     stringsAsFactors=FALSE) 
+for(f in 1:length(sound_filesfullpath)){
+  durVar[f,1]<-sound_filesfullpath[f]
+  audio<-readWave(sound_filesfullpath[f], header=TRUE)
+  durVar[f,2]<-round(audio$samples / audio$sample.rate, 2)
+  durVar[f,3]<-combname
+}
+
+durTab<-rbind(durTab,durVar)
+
+}
+
 spectral_features<- function(specdata,whichRun){
   if(whichRun==1){
     if(whiten=="y"){
@@ -593,7 +610,7 @@ outputpath<-"E:/DetectorRunOutput/"
 allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
 allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
 allmooringsSF[[1]]<-c(1,104)
-allmooringsSF[[2]]<-c(1,96)
+allmooringsSF[[2]]<-c(1,179)
 allmooringsSF[[3]]<-c(1,217)
 allmooringsSF[[4]]<-c(1,204)
 allmooringsSF[[5]]<-c(1,175)
@@ -643,6 +660,9 @@ detectorssin <- c(dir(BLEDpath)[1]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
+##################Sampling rate of sound files
+
+samplingRate<-16384 #hz
 
 ##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
 
@@ -660,7 +680,7 @@ timediff<-1.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"7"
+whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -1091,6 +1111,14 @@ beep(10)
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
+###################
+#MAYBE TEMPORARY- Save dataset for next steps so don't have to rerun after crash
+
+write.csv(DetecTab2,paste(outputpath,"DetecTab2.csv",sep=""),row.names=FALSE)
+
+
+###################
+
 ###############################################
 
 
@@ -1102,7 +1130,7 @@ runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
-samplingRate<-16384 #hz
+
 yminn<-0 #for spec plotting. Should be the same as detector window preset
 ymaxx<-1000 #" "
 
@@ -1223,6 +1251,10 @@ TPRthresh<-.95
 #run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
 #about the same for second .25 sampling of data. 
 #.95 tpr .7 fpr seems more consistently on curve line than .9/.5. 
+
+
+
+
 ###############################################
 
 
@@ -1268,6 +1300,10 @@ for(m in allMoorings){
         sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
       }
       
+      duration_store()
+      
+      filePath<- paste(startcombpath,spec,whiten2,sep="")
+      
     }else if(whiten=="n" & moorType!="HG"){
       whiten2<-"Entire_full_No_whiten"
       
@@ -1279,26 +1315,30 @@ for(m in allMoorings){
         sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
       }
       
+      duration_store()
+      
+      filePath<- paste(startcombpath,whiten2,sep="")
     }
 
     if(whiten=="y" & moorType=="HG"){
-      whiten2 <- paste("/Entire_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+      whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      filePath<- paste(startcombpath,spec,whiten2,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      whiten2 <- paste("/Entire_full_Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+      whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      filePath<- paste(startcombpath,whiten2,sep="")
     }
   }
-
   
-  if(moorType=="HG"){
-  filePath<- paste(startcombpath,spec,"/",whiten2,sep="")
-  }else{
-  filePath<- paste(startcombpath,"/",whiten2,sep="")
+  if(whiten=="y"){
+    durTab <-read.csv(paste(filePath,"/SFiles_and_durations.csv",sep=""))
   }
+
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
+      durVar <-durTab[which(durTab[,3]==combname)]
       for(i in interfereVec){
         print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
@@ -1346,6 +1386,9 @@ for(m in allMoorings){
     }  
   }
 }
+
+#write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
+write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 DetecTab2<-process_data()
 
