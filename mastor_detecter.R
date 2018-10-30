@@ -603,6 +603,9 @@ DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
 
 DetecTab2$remove<-NULL
 
+#define it here so dont have to change indexing later
+DetecTab2$detectionType<-0
+
 #add information on original sound files and calculate time since file start
 DetecTab2$File<-""
 DetecTab2$FileStartSec<-0
@@ -664,7 +667,7 @@ runtype<-"spf"
 dettype<- "spread" 
 
 #enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
-moorType<-"FULL"
+moorType<-"HG"
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -679,7 +682,7 @@ interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[15:32] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[24:28] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -709,7 +712,7 @@ timediff<-1.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"n"
+whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -901,7 +904,7 @@ for(m in moorings){
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
-    durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"SFiles_and_durations.csv",sep=""))   
+    durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))   
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
@@ -962,7 +965,7 @@ if(dettype=="single"|dettype=="combined"){
 }
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
+write.csv(durTab,paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data()
@@ -985,7 +988,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   write.table(MoorVar[,1:7],paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   #Define useful comlumns in both MoorVar and GT
-  MoorVar$detectionType<-0
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
   GT[[v]]$View<-as.character(GT[[v]]$View)
   GT[[v]]$detectionType<-0
@@ -1150,7 +1152,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 ###################
 #MAYBE TEMPORARY- Save dataset for next steps so don't have to rerun after crash
 
-write.csv(DetecTab2,paste(outputpath,"DetecTab2.csv",sep=""),row.names=FALSE)
+#write.csv(DetecTab2,paste(outputpath,"DetecTab2.csv",sep=""),row.names=FALSE)
 
 
 ###################
@@ -1166,7 +1168,6 @@ runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
-
 yminn<-0 #for spec plotting. Should be the same as detector window preset
 ymaxx<-1000 #" "
 
@@ -1435,18 +1436,17 @@ MoorVar<-NULL
 for(v in 1:length(unique(DetecTab2$Mooring))){
   print(paste("Adding interference detector variables to",sort(unique(DetecTab2$Mooring))[v]))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-  MoorVar$Selection<-seq(1:nrow(MoorVar))
-  #Define useful comlumns in both MoorVar and GT
   
+  #Define useful comlumns in MoorVar
   sound.files <- MoorVar[,12]
-  MoorVar <- MoorVar[,c(1:7,13)]
+  MoorVar <- MoorVar[,c(1:7,13,15:18)]
   MoorVar<-cbind(sound.files,MoorVar)
   
     #compare detections to sources of interference
     if(interfere=="y"){
       for(n in 1:max(resltsTabInt$detectorCount)){
         MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-        MoorVar[,n+10]<-0
+        MoorVar[,n+14]<-0
         colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
@@ -1455,7 +1455,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
           if(length(hvec>0)){
           for(h in min(hvec):max(hvec)){
             if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
-              MoorVar[g,n+10]<-1
+              MoorVar[g,n+14]<-1
             }
           }
         }
@@ -1470,11 +1470,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 }
 
 findata<-MoorTab
-findata$detectionType<-0
 
 #make interference columns into factors
-if(length(findata)>10){
-  for(n in 11:length(findata)){
+if(length(findata)>14){
+  for(n in 15:length(findata)){
     findata[,n]<-as.factor(findata[,n])
   }
 }
@@ -1565,7 +1564,7 @@ for(v in 1:length(unique(findata$sound.files))){
   MoorVar2<-findata[which(findata$sound.files==sort(unique(findata$sound.files))[v]),][,c(2:8,35,36)]
   
   write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(findata$sound.files))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-  write.table(MoorVar2,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(findata$ound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.table(MoorVar2,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(findata$sound.files))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
 }
   
