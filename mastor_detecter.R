@@ -144,21 +144,27 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-duration_store<- function(sound_filesfullpath,combname){
+duration_store<- function(){
   durVar<-NULL
-  durVar<-data.frame(SF=character(),
+  durVar<-data.frame(SFfp=character(),
+                     SFsh=character(),
                      Duration=numeric(), 
+                     CumDur=numeric(),
                      CombSF=character(), 
+                     Mooring=character(),
                      stringsAsFactors=FALSE) 
 for(f in 1:length(sound_filesfullpath)){
   durVar[f,1]<-sound_filesfullpath[f]
+  durVar[f,2]<-sound_files[f]
   audio<-readWave(sound_filesfullpath[f], header=TRUE)
-  durVar[f,2]<-round(audio$samples / audio$sample.rate, 2)
-  durVar[f,3]<-combname
+  durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
+  durVar[,4]<-cumsum(durVar$Duration)
+  durVar[,5]<-combSound
+  durVar[,6]<-m
 
 durTab<-rbind(durTab,durVar)
-
+return(durTab)
 }
 
 spectral_features<- function(specdata,whichRun){
@@ -597,6 +603,29 @@ DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
 
 DetecTab2$remove<-NULL
 
+#add information on original sound files and calculate time since file start
+DetecTab2$File<-""
+DetecTab2$FileStartSec<-0
+DetecTab2$FileOffsetBegin<-0
+DetecTab2$FileOffsetEnd<-0
+for(w in unique(DetecTab2$Mooring)){
+  DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
+  durVar<-durTab[which(durTab$Mooring==w),]
+  for(c in 1:nrow(DetecVar)){
+    DetecVar$File[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),2]
+    DetecVar$FileStartSec[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),4]
+  }
+  DetecVar$FileStartSec<-DetecVar$FileStartSec-DetecVar$FileStartSec[1]
+  DetecVar$FileOffsetBegin<-DetecVar$`Begin Time (s)`-DetecVar$FileStartSec
+  DetecVar$FileOffsetEnd<-DetecVar$`End Time (s)`-DetecVar$FileStartSec  
+  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==w),]
+  DetecTab2<-rbind(DetecTab2,DetecVar)
+  
+}
+
+DetecTab2$FileStartSec<-NULL
+DetecTab2$Selection<-seq(1,nrow(DetecTab2))
+
 return(DetecTab2)
 }
 
@@ -629,7 +658,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "function test full mooring"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -680,7 +709,7 @@ timediff<-1.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"y"
+whiten<-"n"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -863,22 +892,27 @@ if(dettype=="single"|dettype=="combined"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
-
+durTab<-NULL
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
   sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sound_files,sep = "")
+  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
+    durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"SFiles_and_durations.csv",sep=""))   
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
     sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+    durTab<-duration_store()
   }
+  
+  
   }else{
   whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))
   }
 
   combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
@@ -927,6 +961,8 @@ if(dettype=="single"|dettype=="combined"){
   }
 }
 
+#write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
+write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data()
@@ -1277,6 +1313,7 @@ if(moorType=="HG"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
+durTab<-NULL
 for(m in allMoorings){
   sound_files <- dir(sfpath) #
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
@@ -1298,9 +1335,8 @@ for(m in allMoorings){
         dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
         print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
         sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+        durTab<-duration_store()
       }
-      
-      duration_store()
       
       filePath<- paste(startcombpath,spec,whiten2,sep="")
       
@@ -1313,9 +1349,8 @@ for(m in allMoorings){
         dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
         print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
         sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+        durTab<-duration_store()
       }
-      
-      duration_store()
       
       filePath<- paste(startcombpath,whiten2,sep="")
     }
@@ -1329,16 +1364,14 @@ for(m in allMoorings){
     }
   }
   
-  if(whiten=="y"){
+  if(is.null(durTab)){
     durTab <-read.csv(paste(filePath,"/SFiles_and_durations.csv",sep=""))
   }
-
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
     for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
-      durVar <-durTab[which(durTab[,3]==combname)]
       for(i in interfereVec){
         print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
