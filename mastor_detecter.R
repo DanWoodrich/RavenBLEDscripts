@@ -1307,7 +1307,7 @@ TPRthresh<-.95
 allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
-fileSizeInt<-325
+fileSizeInt<-345
 
 if(moorType=="HG"){
   sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
@@ -1328,7 +1328,7 @@ for(m in allMoorings){
   #if end of file happens to end on last break make sure its not redundant
   if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
     bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]}
-  for(b in 1:(length(bigFile_breaks[1:2])-1)){
+  for(b in 1:(length(bigFile_breaks)-1)){
     sound_files <- dir(sfpath)[bigFile_breaks[b]:bigFile_breaks[b+1]]
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
