@@ -499,7 +499,7 @@ for(w in unique(DetecTab$Mooring)){
       j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
       print(paste("      Average detectors",i[1,9],"and",j[1,9]))
       for(y in 1:nrow(i)){
-        jvec <- which(j$meantime<(i$meantime+2)|j$meantime>(i$meantime-2))
+        jvec <- which(j$meantime<(i$meantime+2)&j$meantime>(i$meantime-2))
         if(length(jvec)>0){
         for(z in min(jvec):max(jvec)){
           if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
@@ -658,16 +658,16 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "function test full mooring"
+runname<- "combine sound files"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
+dettype<- "single" 
 
 #enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
-moorType<-"HG"
+moorType<-"FULL"
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 spec <- "RW"
@@ -688,7 +688,7 @@ detectorssprshort<- detectorsspr
 }
 
 if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[1]
+detectorssin <- c(dir(BLEDpath)[25]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
@@ -712,7 +712,7 @@ timediff<-1.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"y"
+whiten<-"n"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -1008,7 +1008,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
-    for(g in 1:nrow(GT[[v]])){
+    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+2)&GT[[v]]$meantime>(MoorVar$meantime[h]-2))
+    if(length(gvec)>0){
+    for(g in min(gvec):max(gvec)){
       if((MoorVar[h,13]>GT[[v]][g,4]) & (MoorVar[h,13]<GT[[v]][g,5])){
         OutputCompare[p,]<-MoorVar[h,c(1:7,13,15)]
         OutputCompare[p,9]<-"TP"
@@ -1016,7 +1018,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       }
     }
   }
-  
+  }
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   if(nrow(OutputCompare)>0){
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,13,15)])
@@ -1026,13 +1028,16 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Add rows where GT meantime was in between 
   p=1
   for(h in 1:nrow(GT[[v]])){
-    for(g in 1:nrow(MoorVar)){
+    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+2)&MoorVar$meantime>(GT[[v]]$meantime[h]-2))
+    if(length(gvec)>0){
+    for(g in min(gvec):max(gvec)){
       if(GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5]){
         OutputCompare2[p,]<-GT[[v]][h,]
         OutputCompare2[p,9]<-"TP truth"
         p=p+1
       }
     }
+  }
   }
   
   #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
@@ -1057,7 +1062,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
       MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
       print(paste("       Compare with detector",MoorInt[1,10]))   
       for(g in 1:nrow(OutputCompare)){
-        hvec <- which(MoorInt$meantime<(OutputCompare$meantime[g]+2)|MoorInt$meantime>(OutputCompare$meantime[g]-2))
+        hvec <- which(MoorInt$meantime<(OutputCompare$meantime[g]+2)&MoorInt$meantime>(OutputCompare$meantime[g]-2))
         if(length(hvec)>0){
         for(h in min(hvec):max(hvec)){
           if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
@@ -1302,7 +1307,7 @@ TPRthresh<-.95
 allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
-fileSizeInt<-300
+fileSizeInt<-325
 
 if(moorType=="HG"){
   sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
@@ -1323,7 +1328,7 @@ for(m in allMoorings){
   #if end of file happens to end on last break make sure its not redundant
   if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
     bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]}
-  for(b in 1:(length(bigFile_breaks)-1)){
+  for(b in 1:(length(bigFile_breaks[1:2])-1)){
     sound_files <- dir(sfpath)[bigFile_breaks[b]:bigFile_breaks[b+1]]
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
@@ -1363,10 +1368,6 @@ for(m in allMoorings){
       whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
       filePath<- paste(startcombpath,whiten2,sep="")
     }
-  }
-  
-  if(is.null(durTab)){
-    durTab <-read.csv(paste(filePath,"/SFiles_and_durations.csv",sep=""))
   }
   
   #run pulse and fin/mooring detector, if selected:
@@ -1451,7 +1452,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
         MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
         print(paste("       Compare with detector",MoorInt[1,10]))   
         for(g in 1:nrow(MoorVar)){
-          hvec <- which(MoorInt$meantime<(MoorVar$meantime[g]+2)|MoorInt$meantime>(MoorVar$meantime[g]-2))
+          hvec <- which(MoorInt$meantime<(MoorVar$meantime[g]+2)&MoorInt$meantime>(MoorVar$meantime[g]-2))
           if(length(hvec>0)){
           for(h in min(hvec):max(hvec)){
             if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
