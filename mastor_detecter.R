@@ -665,10 +665,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "test full function"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "spread" 
 
 #enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
 moorType<-"FULL"
@@ -686,7 +686,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[24:28] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -716,7 +716,7 @@ timediff<-1.5
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or no)
-whiten<-"n"
+whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -725,7 +725,7 @@ LMS<-.10 #LMS step size
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(3)
+grpsize<-c(4)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
@@ -908,18 +908,15 @@ for(m in moorings){
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
-    durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))   
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
     sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-    durTab<-duration_store()
   }
   
   
   }else{
   whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
-  durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))
   }
 
   combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
@@ -933,7 +930,7 @@ if(interfere=="y"){
     resltVarInt$detector<-i
     resltVarInt$detectorType<-"intereference"
     resltVarInt$detectorCount<-which(interfereVec==i)
-    if(is.null(nrow(resltVarInt)==FALSE)){
+    if(is.null(nrow(resltVarInt))==FALSE){
     resltsTabInt<-rbind(resltsTabInt,resltVarInt)
     }
     resltVarInt<-NULL
@@ -950,7 +947,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
       resltVar$detectorCount<-q
-      if(is.null(nrow(resltVar)==FALSE)){
+      if(is.null(nrow(resltVar))==FALSE){
       resltsTab<- rbind(resltsTab,resltVar)
       }
       resltVar<-NULL 
@@ -966,16 +963,13 @@ if(dettype=="single"|dettype=="combined"){
     resltVar$detector<-n
     resltVar$detectorType<-"single"
     resltVar$detectorCount<-which(detectorssinshort==n)
-    if(is.null(nrow(resltVar)==FALSE)){
+    if(is.null(nrow(resltVar))==FALSE){
     resltsTab<- rbind(resltsTab,resltVar)
     }
     resltVar<-NULL
     }
   }
 }
-
-#write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-write.csv(durTab,paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data(1)
@@ -1254,7 +1248,7 @@ my.xval = list()
 my.xval$predictions = list()
 my.xval$labels = list()
 
-CV=30
+CV=500
 
 AUC_avg<-c()
 #how many cross validation runs you want
@@ -1397,9 +1391,9 @@ for(m in allMoorings){
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
-        #if(is.null(nrow(resltVarInt)==FALSE)){
+        if(is.null(nrow(resltVar))==resltVarInt){
         resltsTabInt<-rbind(resltsTabInt,resltVarInt)
-        #}
+        }
         resltVarInt<-NULL
         }
       }
@@ -1416,9 +1410,9 @@ for(m in allMoorings){
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
-          #if(is.null(nrow(resltVar)==FALSE)){
+          if(is.null(nrow(resltVar))==FALSE){
           resltsTab<- rbind(resltsTab,resltVar)
-          #}
+          }
           resltVar<-NULL 
         }
       }  
@@ -1435,9 +1429,9 @@ for(m in allMoorings){
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
-        #if(is.null(nrow(resltVar)==FALSE)){
+        if(is.null(nrow(resltVar))==FALSE){
         resltsTab<- rbind(resltsTab,resltVar)
-       # }
+        }
         resltVar<-NULL
       }
     }  
@@ -1511,7 +1505,6 @@ findata<-spectral_features(findata,2)
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
 data2$detectionType<-as.factor(data2$detectionType)
-CV=30
 
 AUC_avg<-c()
 #generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
@@ -1564,6 +1557,7 @@ for(v in 1:length(unique(findata$sound.files))){
   
   MoorVar1<-findata[which(findata$sound.files==sort(unique(findata$sound.files))[v]),]
   
+  #MoorVar1$detectionType<-ifelse(((MoorVar1$probstderr<CUTstd.err)&(MoorVar1$probstmean>CUTmean)),"RFselected","RFrejected")
   MoorVar1$detectionType<-ifelse(MoorVar1$probmean>CUTmean,"RFselected","RFrejected")
   MoorVar1<-MoorVar1[which(MoorVar1$detectionType=="RFselected"),]
   
@@ -1603,6 +1597,16 @@ for(v in 1:length(unique(findata$sound.files))){
 
 #After we save and report the stats, could make a section here for analyzing probabilites and variance. 
   
+#no avg
+colfunc <- colorRampPalette(c("red", "green"))
+
+plot(as.numeric(probmean),probstderr, col = ifelse(as.numeric(probstderr) > CUTstd.err,'red','green'))
+plot(as.numeric(probmean),probstderr, col = ifelse(as.numeric(probmean) < CUTmean,'red','green'))
+
+#this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
+plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
+
+cor.test(as.numeric(probmean),probstderr)
 
 
   
