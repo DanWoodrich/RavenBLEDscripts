@@ -225,7 +225,7 @@ for(z in 1:nrow(specdata)){
   return(specdata)
 }
 
-process_data<-function(pdata,whichRun){
+process_data<-function(whichRun){
 #Combine and configure spread detectors. 
 l=1
 DetecTab<-NULL
@@ -450,6 +450,7 @@ for(o in unique(DetecTab$Mooring)){
     print(paste("       Average within detector",AvgTab$DetectorName[1]))
     newrow<-AvgTab[0,]
     IDvec<-NULL
+    if(nrow(AvgTab)>1){
     for(q in 1:(nrow(AvgTab)-1)){
       if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
         
@@ -466,6 +467,7 @@ for(o in unique(DetecTab$Mooring)){
         newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
         r=r+1
       }
+    }
     }
     if(r>0){
       AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
@@ -552,6 +554,7 @@ for(o in unique(DetecTab2$Mooring)){
     
     newrow<-AvgTab[0,]
     IDvec<-NULL
+    if(nrow(AvgTab)>1){
     for(q in 1:(nrow(AvgTab)-1)){
       if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
         
@@ -568,6 +571,7 @@ for(o in unique(DetecTab2$Mooring)){
         newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
         r=r+1
       }
+    }
     }
     if(r>0){
       AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
@@ -612,9 +616,9 @@ DetecTab2$FileOffsetEnd<-0
 for(w in unique(DetecTab2$Mooring)){
   print(paste("calculate file ID and begin time and end time relative to file for mooring",w))
   DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
-  durVar<-durTab[which(durTab$Mooring==w),]
+  durVar<-durTab[which(durTab$CombSF==w),]
   for(c in 1:nrow(DetecVar)){
-    DetecVar$File[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),2]
+    DetecVar$File[c]<-as.character(durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),2])
     DetecVar$FileStartSec[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),4]
   }
   DetecVar$FileStartSec<-DetecVar$FileStartSec-DetecVar$FileStartSec[1]
@@ -929,7 +933,9 @@ if(interfere=="y"){
     resltVarInt$detector<-i
     resltVarInt$detectorType<-"intereference"
     resltVarInt$detectorCount<-which(interfereVec==i)
+    if(is.null(nrow(resltVarInt)==FALSE)){
     resltsTabInt<-rbind(resltsTabInt,resltVarInt)
+    }
     resltVarInt<-NULL
   }
   
@@ -944,7 +950,9 @@ if(dettype=="spread"|dettype=="combined"){
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
       resltVar$detectorCount<-q
+      if(is.null(nrow(resltVar)==FALSE)){
       resltsTab<- rbind(resltsTab,resltVar)
+      }
       resltVar<-NULL 
     }
     }
@@ -958,7 +966,9 @@ if(dettype=="single"|dettype=="combined"){
     resltVar$detector<-n
     resltVar$detectorType<-"single"
     resltVar$detectorCount<-which(detectorssinshort==n)
+    if(is.null(nrow(resltVar)==FALSE)){
     resltsTab<- rbind(resltsTab,resltVar)
+    }
     resltVar<-NULL
     }
   }
@@ -968,7 +978,9 @@ if(dettype=="single"|dettype=="combined"){
 write.csv(durTab,paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 #Combine and configure spread detectors. 
-DetecTab2<-process_data(DetecTab2,1)
+DetecTab2<-process_data(1)
+
+DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -1336,6 +1348,7 @@ for(m in allMoorings){
       
       combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(combSound)){
+        durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
       }else{
         dir.create(paste(startcombpath,spec,sep=""))
         dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
@@ -1351,6 +1364,7 @@ for(m in allMoorings){
       
       combSound<-paste(startcombpath,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(combSound)){
+        durTab <-read.csv(paste(startcombpath,whiten2,"/SFiles_and_durations.csv",sep=""))   
       }else{
         dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
         print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
@@ -1364,9 +1378,11 @@ for(m in allMoorings){
     if(whiten=="y" & moorType=="HG"){
       whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
       filePath<- paste(startcombpath,spec,whiten2,sep="")
+      durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
     }else if(whiten=="y" & moorType!="HG"){
       whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
       filePath<- paste(startcombpath,whiten2,sep="")
+      durTab <-read.csv(paste(startcombpath,whiten2,"/SFiles_and_durations.csv",sep=""))  
     }
   }
   
@@ -1381,7 +1397,9 @@ for(m in allMoorings){
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
+        #if(is.null(nrow(resltVarInt)==FALSE)){
         resltsTabInt<-rbind(resltsTabInt,resltVarInt)
+        #}
         resltVarInt<-NULL
         }
       }
@@ -1398,7 +1416,9 @@ for(m in allMoorings){
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
+          #if(is.null(nrow(resltVar)==FALSE)){
           resltsTab<- rbind(resltsTab,resltVar)
+          #}
           resltVar<-NULL 
         }
       }  
@@ -1415,7 +1435,9 @@ for(m in allMoorings){
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
+        #if(is.null(nrow(resltVar)==FALSE)){
         resltsTab<- rbind(resltsTab,resltVar)
+       # }
         resltVar<-NULL
       }
     }  
@@ -1425,7 +1447,7 @@ for(m in allMoorings){
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
-DetecTab2<-process_data(DetecTab2,2)
+DetecTab2<-process_data(2)
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -1440,7 +1462,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   
   #Define useful comlumns in MoorVar
   sound.files <- MoorVar[,12]
-  MoorVar <- MoorVar[,c(1:7,13,15:18)]
+  MoorVar <- MoorVar[,c(1:7,13,14:17)]
   MoorVar<-cbind(sound.files,MoorVar)
   
     #compare detections to sources of interference
@@ -1476,7 +1498,7 @@ findata<-MoorTab
 findata$probmean<-0
 findata$probstderr<-0
 findata$probn<-0
-DetecTab2$detectionType<-0
+findata$detectionType<-0
 
 #make interference columns into factors
 if(length(findata)>17){
@@ -1527,12 +1549,12 @@ probmean[x]<-mean(as.numeric(probstab[x,]))
 probstderr[x]<-std.error(as.numeric(probstab[x,]))
 }
 
-CUTmean<-mean(CUT)
-CUTstd.err<-std.error(CUT)
+CUTmean<-mean(CUTvec)
+CUTstd.err<-std.error(CUTvec)
 
 findata$probmean<-probmean
 findata$probstderr<-probstderr
-findata$probn<-probn
+findata$probn<-CV
 findata[,1]<-substr(findata$sound.files,1,11)
 TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
@@ -1558,9 +1580,9 @@ for(v in 1:length(unique(findata$sound.files))){
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,TPhitRate,TPR,NA,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,NA,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,TPhitRate,TPR,NA,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,paste("full",sort(unique(findata$sound.files))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,NA,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   
   detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
