@@ -160,7 +160,7 @@ for(f in 1:length(sound_filesfullpath)){
   durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
   durVar[,4]<-cumsum(durVar$Duration)
-  durVar[,5]<-combSound
+  durVar[,5]<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
   durVar[,6]<-m
 
 durTab<-rbind(durTab,durVar)
@@ -225,7 +225,7 @@ for(z in 1:nrow(specdata)){
   return(specdata)
 }
 
-process_data<-function(){
+process_data<-function(pdata,whichRun){
 #Combine and configure spread detectors. 
 l=1
 DetecTab<-NULL
@@ -539,7 +539,7 @@ for(w in unique(DetecTab$Mooring)){
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
-#average detections within combined detector using timediffself parameter (again,again,again,again)
+#average detections within combined detector using timediffself parameter (3x)
 for(a in 1:3){
 n=0
 for(o in unique(DetecTab2$Mooring)){
@@ -548,7 +548,7 @@ for(o in unique(DetecTab2$Mooring)){
   for(p in unique(Tab$DetectorCount)){
     r=0
     AvgTab<- Tab[which(Tab$DetectorCount==p),]
-    print("       Average combined detector")
+    print(paste("       Average combined detector for time number",a))
     
     newrow<-AvgTab[0,]
     IDvec<-NULL
@@ -603,15 +603,14 @@ DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
 
 DetecTab2$remove<-NULL
 
-#define it here so dont have to change indexing later
-DetecTab2$detectionType<-0
-
 #add information on original sound files and calculate time since file start
+if(whichRun==2){
 DetecTab2$File<-""
 DetecTab2$FileStartSec<-0
 DetecTab2$FileOffsetBegin<-0
 DetecTab2$FileOffsetEnd<-0
 for(w in unique(DetecTab2$Mooring)){
+  print(paste("calculate file ID and begin time and end time relative to file for mooring",w))
   DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
   durVar<-durTab[which(durTab$Mooring==w),]
   for(c in 1:nrow(DetecVar)){
@@ -627,6 +626,7 @@ for(w in unique(DetecTab2$Mooring)){
 }
 
 DetecTab2$FileStartSec<-NULL
+}
 DetecTab2$Selection<-seq(1,nrow(DetecTab2))
 
 return(DetecTab2)
@@ -644,7 +644,7 @@ allmooringsSF<-list()#list sound file range for comleted GT of each mooring
 allmooringsSF[[1]]<-c(1,104)
 allmooringsSF[[2]]<-c(1,179)
 allmooringsSF[[3]]<-c(1,217)
-allmooringsSF[[4]]<-c(1,204)
+allmooringsSF[[4]]<-c(1,304)
 allmooringsSF[[5]]<-c(1,175)
 allmooringsSF[[6]]<-c(1,62)
 allmooringsSF[[7]]<-c(1,160)
@@ -658,7 +658,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "combine sound files"
+runname<- "test full function"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"spf"
@@ -675,7 +675,7 @@ spec <- "RW"
 #compare detections with pulses and fin/mooring noise, other sources of intereference y or n
 interfere<-"n"
 
-interfereVec<-c(dir(BLEDpath)[7],dir(BLEDpath)[40])
+interfereVec<-c(dir(BLEDpath)[6])
 
 
 
@@ -688,7 +688,7 @@ detectorssprshort<- detectorsspr
 }
 
 if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[25]
+detectorssin <- c(dir(BLEDpath)[1]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
@@ -968,7 +968,7 @@ if(dettype=="single"|dettype=="combined"){
 write.csv(durTab,paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 #Combine and configure spread detectors. 
-DetecTab2<-process_data()
+DetecTab2<-process_data(DetecTab2,1)
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -1425,7 +1425,7 @@ for(m in allMoorings){
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
-DetecTab2<-process_data()
+DetecTab2<-process_data(DetecTab2,2)
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -1472,9 +1472,15 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
 findata<-MoorTab
 
+#create columns to be used later 
+findata$probmean<-0
+findata$probstderr<-0
+findata$probn<-0
+DetecTab2$detectionType<-0
+
 #make interference columns into factors
-if(length(findata)>14){
-  for(n in 15:length(findata)){
+if(length(findata)>17){
+  for(n in 18:length(findata)){
     findata[,n]<-as.factor(findata[,n])
   }
 }
@@ -1482,7 +1488,6 @@ if(length(findata)>14){
 findata<-spectral_features(findata,2)
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
-findata$detectionType<-as.factor(findata$detectionType)
 data2$detectionType<-as.factor(data2$detectionType)
 CV=30
 
@@ -1495,7 +1500,7 @@ for(p in 1:CV){
   train<-splitdf(data2,weight = 2/3)
   #apply model to data
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
-  pred<-predict(data.rf,findata[,10:length(findata)],type="prob")
+  pred<-predict(data.rf,findata[,17:length(findata)],type="prob")
   #assess same model performance on GT data 
   pred2<-predict(data.rf,train[[2]],type="prob")
   ROCRpred<-prediction(pred2[,2],train[[2]]$detectionType)
@@ -1524,8 +1529,10 @@ probstderr[x]<-std.error(as.numeric(probstab[x,]))
 
 CUTmean<-mean(CUT)
 CUTstd.err<-std.error(CUT)
-  
-findata<-cbind(findata,probmean,probstderr)
+
+findata$probmean<-probmean
+findata$probstderr<-probstderr
+findata$probn<-probn
 findata[,1]<-substr(findata$sound.files,1,11)
 TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
