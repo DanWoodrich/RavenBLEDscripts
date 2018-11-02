@@ -1222,7 +1222,6 @@ data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features(data,1)
 
-
 data2<-data[,9:length(data)]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
@@ -1231,7 +1230,11 @@ my.xval = list()
 my.xval$predictions = list()
 my.xval$labels = list()
 
-CV=500
+#number of iterations 
+CV=150
+
+#set desired TPR threshold
+TPRthresh<-.95
 
 AUC_avg<-c()
 #how many cross validation runs you want
@@ -1246,8 +1249,23 @@ for(p in 1:CV){
   
   my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
   my.xval$labels[[p]] = ROCRpred@labels[[1]]
+  
+  prob.perf = performance(ROCRpred, "tpr","fpr")
+  
+  TPR<-NULL
+  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  CUTvec<-c(CUTvec,CUT)
+  
+  if(f==1){
+    probstab<-pred[,2]
+  }else{
+    probstab<-data.frame(probstab,pred[,2])
+  }  
+  f=f+1
 }
 
+#first round of graphs: maybe could merge this section and the next, but mainly copied this code so keep seperate for now 
 pp = my.xval$predictions
 ll = my.xval$labels
 predd = prediction(pp, ll)
@@ -1266,8 +1284,6 @@ plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
 abline(a=0, b= 1)
 print(mean(AUC_avg))
 
-
-
 varImpPlot(data.rf,  
            sort = 27,
            n.var=27,
@@ -1276,8 +1292,39 @@ varImpPlot(data.rf,
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
-#set desired TPR threshold
-TPRthresh<-.95
+#Graph std error and probability rates, with true detection included 
+probmean<-NULL
+probstderr<-NULL
+for(x in 1:nrow(probstab)){
+  probmean[x]<-mean(as.numeric(probstab[x,]))
+  probstderr[x]<-std.error(as.numeric(probstab[x,]))
+}
+
+CUTmean<-mean(CUTvec)
+CUTstd.err<-std.error(CUTvec)
+
+data3<- data2
+
+#assuming $detection type is already in this data 
+data3$probmean<-probmean
+data3$probstderr<-probstderr
+data3$probn<-CV
+
+#no avg
+colfunc <- colorRampPalette(c("red", "green"))
+
+plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
+abline(h=CUTstd.err)
+abline(v=CUTmean)
+
+#this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
+plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
+
+cor.test(as.numeric(probmean),probstderr)
+
+
+
+
 
 #run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
 #about the same for second .25 sampling of data. 
