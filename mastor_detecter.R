@@ -244,9 +244,14 @@ if(dettype=="spread"|dettype=="combined"){
       colnames(resltsTSPV)[13] <- "detectorRank"
       resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
       resltsTSPV$group[1]<-1
+      
+      #make sure these values are what they say they are- encountered some behaviors to suggest there was some behind the scenes decimals earlier. This may not be necessary. 
+      resltsTSPV$start<-as.numeric(as.character(resltsTSPV$start))
+      resltsTSPV$end<-as.numeric(as.character(resltsTSPV$end))
       resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
-      #need to order chronologically. Test: order so highest comes first? could help out in situations with stacked boxes. 
-      resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime,resltsTSPV$top.freq),]
+      
+      #need to order chronologically. 
+      resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime,resltsTSPV$bottom.freq),]
       
       #assign groups based on groupInt value
       f<-1
@@ -291,15 +296,31 @@ if(dettype=="spread"|dettype=="combined"){
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(RM>=grpvec[h+1]|RM+detskip[d]<grpvec[h+1]){
-              groupdat[h+1,16+g]<-0
-            }else if(groupdat[h,15]==groupdat[h+1,15]){
-              groupdat[h+1,16+g]<-99
-            }else{
+            #if(RM>=grpvec[h+1]|RM+detskip[d]<grpvec[h+1]){
+            #  groupdat[h+1,16+g]<-0
+            #}else if(groupdat[h,15]==groupdat[h+1,15]){
+            #  groupdat[h+1,16+g]<-99
+            #}else{
+            #  groupdat[h+1,16+g]<-1
+            #  skipvec<-c(skipvec,(grpvec[h+1]-RM))
+            #  RM<-grpvec[h+1]
+            #}
+            
+            if(RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
               groupdat[h+1,16+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
+            }else if(groupdat[h,15]!=groupdat[h+1,15]){
+              groupdat[h+1,16+g]<-0
             }
+            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,16+g]==0&RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]){
+              groupdat[h+1,16+g]<-1
+              skipvec<-c(skipvec,(grpvec[h+1]-RM))
+              RM<-grpvec[h+1]
+            }else if(groupdat[h,15]==groupdat[h+1,15]){
+              groupdat[h+1,16+g]<-99
+            }
+            
           }
           runsum[g,1]<-g
           runsum[g,2]<-sum(rsltvec==1)
