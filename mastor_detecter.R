@@ -283,20 +283,20 @@ if(dettype=="spread"|dettype=="combined"){
         
         for(g in 1:(nrow(groupdat)-1)){
           RM<-groupdat[g,13]
-          groupdat[,13+g]<-99
-          groupdat[g,13+g]<-2
+          groupdat[,16+g]<-99
+          groupdat[g,16+g]<-2
           skipvec<-0
           for(h in g:(nrow(groupdat)-1)){
-            rsltvec0s<-rle(rsltvec)
+            rsltvec0s<-rle(groupdat[,16+g])
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
             if(RM>=grpvec[h+1]|RM+detskip[d]<grpvec[h+1]){
-              rsltvec[h+1]<-0
+              groupdat[h+1,16+g]<-0
             }else if(groupdat[h,15]==groupdat[h+1,15]){
-              rsltvec[h+1]<-99
+              groupdat[h+1,16+g]<-99
             }else{
-              rsltvec[h+1]<-1
+              groupdat[h+1,16+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }
@@ -313,38 +313,17 @@ if(dettype=="spread"|dettype=="combined"){
         runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
         runsum<-runsum[1,] #choose first one
         
-        groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
+        #groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
         
+        groupdat<-groupdat[,c(1:15,16+runsum[1,1])]
+        groupdat<-groupdat[which(groupdat[,16+runsum[1,1]]==2|groupdat[,16+runsum[1,1]]==1),]
+        groupdat<-groupdat[,c(1:15)]
         
         resltsTSPV<- subset(resltsTSPV,group!=f)
+        if(nrow(groupdat)> (grpsize[d]-1)){ #only rbind if group is above minimum groupdat size after processing 
         resltsTSPV<-rbind(resltsTSPV,groupdat)
-      }
-      
-      #add direction column
-      resltsTSPV$direction<-2
-      
-      Rolling_max <- resltsTSPV[1,13]
-      #assign direction for each row in group, to remove boxes that are out of direction later
-      print("assigning direction for each row")
-      for(r in 1:(nrow(resltsTSPV)-1)){
-        if(resltsTSPV[r+1,14]==resltsTSPV[r,14]){
-          if(resltsTSPV[r+1,13]>Rolling_max & resltsTSPV[r+1,13]<Rolling_max+detskip[d]){
-            Rolling_max <- resltsTSPV[r+1,13]
-            resltsTSPV[r+1,16]<-1
-          }else{
-            resltsTSPV[r+1,16]<-0
-          }
-        }else{
-          Rolling_max <- resltsTSPV[r+1,13]
-          resltsTSPV[r+1,16]<-2
         }
       }
-      #remove boxes that are not in direction. 
-      resltsTSPV<- subset(resltsTSPV,direction!=0)
-      
-      #remove groups based on grpsize value (again)
-      removegrp <- table(resltsTSPV$group)
-      resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
