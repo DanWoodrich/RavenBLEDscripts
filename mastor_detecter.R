@@ -283,20 +283,21 @@ if(dettype=="spread"|dettype=="combined"){
         
         for(g in 1:(nrow(groupdat)-1)){
           RM<-groupdat[g,13]
-          rsltvec<-NULL
-          rsltvec<-rep(2,(g-1))
-          rsltvec[g]<-2
-          for(h in g:(length(grpvec)-1)){
+          groupdat[,13+g]<-99
+          groupdat[g,13+g]<-2
+          skipvec<-0
+          for(h in g:(nrow(groupdat)-1)){
             rsltvec0s<-rle(rsltvec)
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(RM>=grpvec[h+1] | groupdat[h,15]==groupdat[h+1,15]){
+            if(RM>=grpvec[h+1]|RM+detskip[d]<grpvec[h+1]){
               rsltvec[h+1]<-0
-            }else if(RM+detskip[d]<grpvec[h+1]){
-              rsltvec[h+1]<-0
+            }else if(groupdat[h,15]==groupdat[h+1,15]){
+              rsltvec[h+1]<-99
             }else{
               rsltvec[h+1]<-1
+              skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }
           }
@@ -304,13 +305,16 @@ if(dettype=="spread"|dettype=="combined"){
           runsum[g,2]<-sum(rsltvec==1)
           runsum[g,3]<-sum(rsltvec==0)
           runsum[g,4]<-(sum(rsltvec==1)+sum(rsltvec==0)+1)
+          runsum[g,5]<-max(skipvec)
         }
         runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
-        runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least os
+        runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
+        runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
         runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
         runsum<-runsum[1,] #choose first one
         
         groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
+        
         
         resltsTSPV<- subset(resltsTSPV,group!=f)
         resltsTSPV<-rbind(resltsTSPV,groupdat)
@@ -662,7 +666,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "test full function"
+runname<- "Decent detector test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -1175,7 +1179,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-runname
+runname<-"Decent detector test_20181101155952"
 spec<-spec
 #Which data would you like to evaluate?
 #species
