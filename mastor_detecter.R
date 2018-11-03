@@ -286,7 +286,7 @@ if(dettype=="spread"|dettype=="combined"){
         colClasses = c("numeric","numeric","numeric","numeric")
         runsum<- read.csv(text="start, ones, zeros, length", colClasses = colClasses)
         
-        for(g in 1:(nrow(groupdat)-1)){
+        for(g in 1:(nrow(groupdat)-(grpsize[d]-1))){
           RM<-groupdat[g,13]
           groupdat[,16+g]<-99
           groupdat[g,16+g]<-2
@@ -296,16 +296,6 @@ if(dettype=="spread"|dettype=="combined"){
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            #if(RM>=grpvec[h+1]|RM+detskip[d]<grpvec[h+1]){
-            #  groupdat[h+1,16+g]<-0
-            #}else if(groupdat[h,15]==groupdat[h+1,15]){
-            #  groupdat[h+1,16+g]<-99
-            #}else{
-            #  groupdat[h+1,16+g]<-1
-            #  skipvec<-c(skipvec,(grpvec[h+1]-RM))
-            #  RM<-grpvec[h+1]
-            #}
-            
             if(RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
               groupdat[h+1,16+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
@@ -320,7 +310,6 @@ if(dettype=="spread"|dettype=="combined"){
             }else if(groupdat[h,15]==groupdat[h+1,15]){
               groupdat[h+1,16+g]<-99
             }
-            
           }
           runsum[g,1]<-g
           runsum[g,2]<-sum(rsltvec==1)
@@ -710,11 +699,11 @@ Maxdur<-3.5
 Mindur<-0.2
 
 ############################Combine detector  parameters
-timediffself<-2
+timediffself<-1.25
 
 #multiple detectors
 freqdiff<-100
-timediff<-1.5
+timediff<-1.25
 
 
 ############################Whiten parameters (need to have done this in Raven previously)
@@ -738,7 +727,7 @@ allowedZeros<-c(2)
 detskip<-c(5)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.5)
+groupInt<-c(0.35)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
