@@ -288,33 +288,33 @@ if(dettype=="spread"|dettype=="combined"){
         
         for(g in 1:(nrow(groupdat)-(grpsize[d]-1))){
           RM<-groupdat[g,13]
-          groupdat[,16+g]<-99
-          groupdat[g,16+g]<-2
+          groupdat[,15+g]<-99
+          groupdat[g,15+g]<-2
           skipvec<-0
           for(h in g:(nrow(groupdat)-1)){
-            rsltvec0s<-rle(groupdat[,16+g])
+            rsltvec0s<-rle(groupdat[,15+g])
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
             if(RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
-              groupdat[h+1,16+g]<-1
+              groupdat[h+1,15+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }else if(groupdat[h,15]!=groupdat[h+1,15]){
-              groupdat[h+1,16+g]<-0
+              groupdat[h+1,15+g]<-0
             }
-            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,16+g]==0&RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]){
-              groupdat[h+1,16+g]<-1
+            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]){
+              groupdat[h+1,15+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }else if(groupdat[h,15]==groupdat[h+1,15]){
-              groupdat[h+1,16+g]<-99
+              groupdat[h+1,15+g]<-99
             }
           }
           runsum[g,1]<-g
-          runsum[g,2]<-sum(rsltvec==1)
-          runsum[g,3]<-sum(rsltvec==0)
-          runsum[g,4]<-(sum(rsltvec==1)+sum(rsltvec==0)+1)
+          runsum[g,2]<-sum(groupdat[,15+g]==1)
+          runsum[g,3]<-sum(groupdat[,15+g]==0)
+          runsum[g,4]<-(sum(groupdat[,15+g]==1)+sum(groupdat[,15+g]==0)+1)
           runsum[g,5]<-max(skipvec)
         }
         runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
@@ -325,8 +325,8 @@ if(dettype=="spread"|dettype=="combined"){
         
         #groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
         
-        groupdat<-groupdat[,c(1:15,16+runsum[1,1])]
-        groupdat<-groupdat[which(groupdat[,16+runsum[1,1]]==2|groupdat[,16+runsum[1,1]]==1),]
+        groupdat<-groupdat[,c(1:15,15+runsum[1,1])]
+        groupdat<-groupdat[which(groupdat[,15+runsum[1,1]]==2|groupdat[,16+runsum[1,1]]==1),]
         groupdat<-groupdat[,c(1:15)]
         
         resltsTSPV<- subset(resltsTSPV,group!=f)
@@ -1247,6 +1247,8 @@ CV=150
 TPRthresh<-.95
 
 AUC_avg<-c()
+f=1
+CUTvec=NULL
 #how many cross validation runs you want
 for(p in 1:CV){
   print(paste("model",p))
@@ -1260,19 +1262,19 @@ for(p in 1:CV){
   my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
   my.xval$labels[[p]] = ROCRpred@labels[[1]]
   
-  prob.perf = performance(ROCRpred, "tpr","fpr")
+#  prob.perf = performance(ROCRpred, "tpr","fpr")
   
-  TPR<-NULL
-  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
-  CUTvec<-c(CUTvec,CUT)
+#  TPR<-NULL
+#  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+#  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+#  CUTvec<-c(CUTvec,CUT)
   
-  if(f==1){
-    probstab<-pred[,2]
-  }else{
-    probstab<-data.frame(probstab,pred[,2])
-  }  
-  f=f+1
+#  if(f==1){
+#    probstab<-pred[,2]
+#  }else{
+#    probstab<-data.frame(probstab,pred[,2])
+#  }  
+#  f=f+1
 }
 
 #first round of graphs: maybe could merge this section and the next, but mainly copied this code so keep seperate for now 
@@ -1302,35 +1304,35 @@ varImpPlot(data.rf,
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
-#Graph std error and probability rates, with true detection included 
-probmean<-NULL
-probstderr<-NULL
-for(x in 1:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,]))
-  probstderr[x]<-std.error(as.numeric(probstab[x,]))
-}
+##Graph std error and probability rates, with true detection included 
+#probmean<-NULL
+#probstderr<-NULL
+#for(x in 1:nrow(probstab)){
+#  probmean[x]<-mean(as.numeric(probstab[x,]))
+#  probstderr[x]<-std.error(as.numeric(probstab[x,]))
+#}
 
-CUTmean<-mean(CUTvec)
-CUTstd.err<-std.error(CUTvec)
+#CUTmean<-mean(CUTvec)
+#CUTstd.err<-std.error(CUTvec)
 
-data3<- data2
+#data3<- data2
 
-#assuming $detection type is already in this data 
-data3$probmean<-probmean
-data3$probstderr<-probstderr
-data3$probn<-CV
+##assuming $detection type is already in this data NOTE not 
+#data3$probmean<-probmean
+#data3$probstderr<-probstderr
+#data3$probn<-CV
 
-#no avg
-colfunc <- colorRampPalette(c("red", "green"))
+##no avg
+#colfunc <- colorRampPalette(c("red", "green"))
 
-plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
-abline(h=CUTstd.err)
-abline(v=CUTmean)
+#plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
+#abline(h=CUTstd.err)
+#abline(v=CUTmean)
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
-plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
+#plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
 
-cor.test(as.numeric(probmean),probstderr)
+#cor.test(as.numeric(probmean),probstderr)
 
 
 
