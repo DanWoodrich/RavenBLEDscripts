@@ -276,15 +276,16 @@ if(dettype=="spread"|dettype=="combined"){
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-      
+      maxgrp<-max(resltsTSPV[,14])
       
       #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
       print(paste("calculating best runs for each group"))
       for(f in unique(resltsTSPV[,14])){
+        print(paste("calculating run for",f,"of",maxgrp))
         groupdat<- subset(resltsTSPV,group==f)
         grpvec<-groupdat[,13]
-        colClasses = c("numeric","numeric","numeric","numeric")
-        runsum<- read.csv(text="start, ones, zeros, length", colClasses = colClasses)
+        colClasses = c("numeric","numeric","numeric","numeric","numeric")
+        runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
         
         for(g in 1:(nrow(groupdat)-(grpsize[d]-1))){
           RM<-groupdat[g,13]
@@ -296,19 +297,19 @@ if(dettype=="spread"|dettype=="combined"){
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
+            if(RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
               groupdat[h+1,15+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }else if(groupdat[h,15]!=groupdat[h+1,15]){
               groupdat[h+1,15+g]<-0
             }
-            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+detskip[d]>grpvec[h+1]){
+            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
               groupdat[h+1,15+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }else if(groupdat[h,15]==groupdat[h+1,15]){
-              groupdat[h+1,15+g]<-99
+              groupdat[h+1,15+g]<-98
             }
           }
           runsum[g,1]<-g
@@ -321,12 +322,12 @@ if(dettype=="spread"|dettype=="combined"){
         runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
         runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
         runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
-        runsum<-runsum[1,] #choose first one
+        runsum<-runsum[1,1] #choose first one
         
         #groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
         
-        groupdat<-groupdat[,c(1:15,15+runsum[1,1])]
-        groupdat<-groupdat[which(groupdat[,15+runsum[1,1]]==2|groupdat[,16+runsum[1,1]]==1),]
+        groupdat<-groupdat[,c(1:15,15+runsum)]
+        groupdat<-groupdat[which(groupdat[,16]==2|groupdat[,16]==1),]
         groupdat<-groupdat[,c(1:15)]
         
         resltsTSPV<- subset(resltsTSPV,group!=f)
