@@ -1224,26 +1224,23 @@ data$detectionType<-as.numeric(data$detectionType)
 #######1 mooring test######
 #data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#add in detector rank to data
-for(f in 1:length(unique(data[,7]))){
-  data[data[,7]==unique(data[,7])[f],10]<-f
-}
-colnames(resltsTSPV)[13] <- "detectorRank"
-resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
+#add frequency stats to data 
+data$meanfreq<- (data$Low.Freq..Hz.+data$High.Freq..Hz.)/2
+data$freqrange<- (data$High.Freq..Hz.-data$Low.Freq..Hz.)
 
 #make interference columns into factors
-if(length(data)>10){
-  for(n in 11:length(data)){
+if(length(data)>11){
+  for(n in 12:length(data)){
     data[,n]<-as.factor(data[,n])
   }
 }
-
+data$Selection<-seq(1,nrow(data))
 
 data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features(data,1)
 
-data2<-data[,10:length(data)]
+data2<-data[,c(2,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
 
@@ -1264,8 +1261,9 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=7)
   pred<-predict(data.rf,train[[2]],type="prob")
+  pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
   auc.perf = performance(ROCRpred, measure = "auc",plot=F)
   AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
@@ -1273,19 +1271,26 @@ for(p in 1:CV){
   my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
   my.xval$labels[[p]] = ROCRpred@labels[[1]]
   
-#  prob.perf = performance(ROCRpred, "tpr","fpr")
+  prob.perf = performance(ROCRpred, "tpr","fpr")
   
-#  TPR<-NULL
-#  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-#  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
-#  CUTvec<-c(CUTvec,CUT)
+  TPR<-NULL
+  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  CUTvec<-c(CUTvec,CUT)
   
-#  if(f==1){
-#    probstab<-pred[,2]
-#  }else{
-#    probstab<-data.frame(probstab,pred[,2])
-#  }  
-#  f=f+1
+  if(f==1){
+    probstab<-data.frame(data2$Selection)
+    probstab[,f]<-NA
+    for(n in 1:nrow(pred)){
+      probstab[which(probstab$data2.Selection==pred[n,3]),f]<-pred[n,2]
+    }
+  }else{
+    probstab[,f]<-NA
+    for(n in 1:nrow(pred)){
+      probstab[which(probstab$data2.Selection==pred[n,3]),f]<-pred[n,2]
+    }
+  }  
+  f=f+1
 }
 
 #first round of graphs: maybe could merge this section and the next, but mainly copied this code so keep seperate for now 
