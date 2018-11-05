@@ -239,7 +239,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV<-resltsTSPVd[which(resltsTSPVd$Mooring==e),]
       print(paste("    ",e))
       for(f in 1:length(unique(resltsTSPV$bottom.freq))){
-        resltsTSPV[resltsTSPV$bottom.freq==unique(resltsTSPV$bottom.freq)[f],13]<-f
+        resltsTSPV[resltsTSPV$bottom.freq==sort(unique(resltsTSPV$bottom.freq))[f],13]<-f
       }
       colnames(resltsTSPV)[13] <- "detectorRank"
       resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
@@ -1169,7 +1169,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-runname
+runname<-"Decent detector test_20181103160905"
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1220,20 +1220,30 @@ data[which(data$detectionType=="FN"),9]<-2
 data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
 
+
+#######1 mooring test######
+#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+
+#add in detector rank to data
+for(f in 1:length(unique(data[,7]))){
+  data[data[,7]==unique(data[,7])[f],10]<-f
+}
+colnames(resltsTSPV)[13] <- "detectorRank"
+resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
+
 #make interference columns into factors
-if(length(data)>9){
-  for(n in 10:length(data)){
+if(length(data)>10){
+  for(n in 11:length(data)){
     data[,n]<-as.factor(data[,n])
   }
 }
-#######1 mooring test######
-#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+
 
 data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features(data,1)
 
-data2<-data[,9:length(data)]
+data2<-data[,10:length(data)]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
 
