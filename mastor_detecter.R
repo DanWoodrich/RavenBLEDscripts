@@ -276,12 +276,12 @@ if(dettype=="spread"|dettype=="combined"){
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-      maxgrp<-max(resltsTSPV[,14])
+      #maxgrp<-max(resltsTSPV[,14])
       
       #section for new algorithm, to precede previous RM method. Picks best sequence and subsets data. 
       print(paste("calculating best runs for each group"))
       for(f in unique(resltsTSPV[,14])){
-        print(paste("calculating run for",f,"of",maxgrp))
+        #print(paste("calculating run for",f,"of",maxgrp))
         groupdat<- subset(resltsTSPV,group==f)
         grpvec<-groupdat[,13]
         colClasses = c("numeric","numeric","numeric","numeric","numeric")
@@ -700,11 +700,11 @@ Maxdur<-3.5
 Mindur<-0.2
 
 ############################Combine detector  parameters
-timediffself<-1.25
+timediffself<-1
 
 #multiple detectors
 freqdiff<-100
-timediff<-1.25
+timediff<-1
 
 
 ############################Whiten parameters (need to have done this in Raven previously)
@@ -1169,7 +1169,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-"Decent detector test_20181101155952"
+runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1356,7 +1356,11 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
+if(whiten!="y"){
 fileSizeInt<-345
+}else{
+fileSizeInt<-(345*3) #whitened files are smaller so still under 6 gigs. 
+}
 
 if(moorType=="HG"){
   sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
