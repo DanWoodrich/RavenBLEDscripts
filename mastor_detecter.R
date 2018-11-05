@@ -1249,7 +1249,7 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #number of iterations 
-CV=150
+CV=50
 
 #set desired TPR threshold
 TPRthresh<-.95
@@ -1280,14 +1280,14 @@ for(p in 1:CV){
   
   if(f==1){
     probstab<-data.frame(data2$Selection)
-    probstab[,f]<-NA
+    probstab[,f+1]<-NA
     for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f]<-pred[n,2]
+      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
     }
   }else{
-    probstab[,f]<-NA
+    probstab[,f+1]<-NA
     for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f]<-pred[n,2]
+      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
     }
   }  
   f=f+1
@@ -1323,10 +1323,11 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 ##Graph std error and probability rates, with true detection included 
 probmean<-NULL
 probstderr<-NULL
-for(x in 2:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,]),na.rm=T)
-  probstderr[x]<-std.error(as.numeric(probstab[x,]),na.rm=T)
-  probn[x]<-length(as.numeric(probstab[x,]),na.rm=T)
+n<-NULL
+for(x in 1:nrow(probstab)){
+  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  probn[x]<-length(which(is.na(probstab[x,2:length(probstab)])))
 }
 
 CUTmean<-mean(CUTvec)
@@ -1337,10 +1338,10 @@ data3<- data2
 ##assuming $detection type is already in this data NOTE not 
 data3$probmean<-probmean
 data3$probstderr<-probstderr
-data3$probn<-probn
+data3$n<-n
 
 ##no avg
-colfunc <- colorRampPalette(c("red", "green"))
+#colfunc <- colorRampPalette(c("red", "green"))
 
 plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
 abline(h=CUTstd.err)
