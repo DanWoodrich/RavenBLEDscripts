@@ -1321,34 +1321,35 @@ varImpPlot(data.rf,
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 ##Graph std error and probability rates, with true detection included 
-#probmean<-NULL
-#probstderr<-NULL
-#for(x in 1:nrow(probstab)){
-#  probmean[x]<-mean(as.numeric(probstab[x,]))
-#  probstderr[x]<-std.error(as.numeric(probstab[x,]))
-#}
+probmean<-NULL
+probstderr<-NULL
+for(x in 2:nrow(probstab)){
+  probmean[x]<-mean(as.numeric(probstab[x,]),na.rm=T)
+  probstderr[x]<-std.error(as.numeric(probstab[x,]),na.rm=T)
+  probn[x]<-length(as.numeric(probstab[x,]),na.rm=T)
+}
 
-#CUTmean<-mean(CUTvec)
-#CUTstd.err<-std.error(CUTvec)
+CUTmean<-mean(CUTvec)
+CUTstd.err<-std.error(CUTvec)
 
-#data3<- data2
+data3<- data2
 
 ##assuming $detection type is already in this data NOTE not 
-#data3$probmean<-probmean
-#data3$probstderr<-probstderr
-#data3$probn<-CV
+data3$probmean<-probmean
+data3$probstderr<-probstderr
+data3$probn<-probn
 
 ##no avg
-#colfunc <- colorRampPalette(c("red", "green"))
+colfunc <- colorRampPalette(c("red", "green"))
 
-#plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
-#abline(h=CUTstd.err)
-#abline(v=CUTmean)
+plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
+abline(h=CUTstd.err)
+abline(v=CUTmean)
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
-#plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
+plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
 
-#cor.test(as.numeric(probmean),probstderr)
+cor.test(as.numeric(probmean),probstderr)
 
 
 
