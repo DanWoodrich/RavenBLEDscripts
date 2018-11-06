@@ -386,16 +386,67 @@ if(dettype=="spread"|dettype=="combined"){
         runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
         runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
         runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
-        runsum<-runsum[1,1] #choose first one
+        runsum<-runsum[1,] #choose first one
         
-        #groupdat<-groupdat[runsum[1,1]:as.numeric((runsum[1,1]+runsum[4]-1)),]
-        
-        groupdat<-groupdat[,c(1:15,15+runsum)]
-        groupdat<-groupdat[which(groupdat[,16]==2|groupdat[,16]==1),]
-        groupdat<-groupdat[,c(1:15)]
+        #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
+        kill="n"
+        if((runsum[2]+1)<=grpsize[d]){
+          kill="y"
+        }
+        if(((runsum[2]+1)*3)<nrow(groupdat)&kill=="n"){
+          groupdat2<- subset(resltsTSPV,group==f)
+          grpvec2<-groupdat[,13]
+          colClasses = c("numeric","numeric","numeric","numeric","numeric")
+          runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+          for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
+            RM2<-groupdat2[g,13]
+            groupdat2<-groupdat2[order(groupdat2$meantime,rev(groupdat2$bottom.freq)),]#reverse the order it counts stacks detections
+            groupdat2[,15+g]<-99
+            groupdat2[g,15+g]<-2
+            skipvec2<-0
+            for(h in g:(nrow(groupdat2)-1)){
+              rsltvec0s2<-rle(groupdat2[,15+g])
+              if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
+                break
+              }  
+              if(RM2>grpvec2[h+1]&RM-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,15]!=groupdat2[h+1,15]){
+                groupdat2[h+1,15+g]<-1
+                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM))
+                RM<-grpvec2[h+1]
+              }else if(groupdat2[h,15]!=groupdat2[h+1,15]){
+                groupdat2[h+1,15+g]<-0
+              }
+              if(groupdat2[h,15]==groupdat2[h+1,15]&groupdat2[h,15+g]==0&RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]){
+                groupdat2[h+1,15+g]<-1
+                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM))
+                RM<-grpvec2[h+1]
+              }else if(groupdat2[h,15]==groupdat2[h+1,15]){
+                groupdat2[h+1,15+g]<-98
+              }
+            }
+            runsum2[g,1]<-g
+            runsum2[g,2]<-sum(groupdat2[,15+g]==1)
+            runsum2[g,3]<-sum(groupdat2[,15+g]==0)
+            runsum2[g,4]<-(sum(groupdat2[,15+g]==1)+sum(groupdat2[,15+g]==0)+1)
+            runsum2[g,5]<-max(-skipvec2)
+          }
+          runsum2<-runsum2[which(runsum[,2]==max(runsum2[,2])),] #choose w most ones
+          runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
+          runsum2<-runsum2[which(runsum[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
+          runsum2<-runsum2[which(runsum[,4]==min(runsum2[,4])),] #choose w least length
+          runsum2<-runsum2[1,] #choose first one
+          if(runsum2[,2]>=runsum[,2]){
+            kill="y"
+          }else{
+            kill="n"
+          }
+        }
         
         resltsTSPV<- subset(resltsTSPV,group!=f)
-        if(nrow(groupdat)> (grpsize[d]-1)){ #only rbind if group is above minimum groupdat size after processing 
+        if(kill=="n"){
+        groupdat<-groupdat[,c(1:15,15+runsum[,1])]
+        groupdat<-groupdat[which(groupdat[,16]==2|groupdat[,16]==1),]
+        groupdat<-groupdat[,c(1:15)]
         resltsTSPV<-rbind(resltsTSPV,groupdat)
         }
       }
@@ -720,10 +771,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "Decent detector test"
+runname<- "algo downsweep test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -1386,8 +1437,6 @@ data3<-adaptive_compare(data3,1)
 
 #number of TPs in data3
 sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
-
-#
 
 #comparison dataset to data3
 data4$probmean<-probmean
