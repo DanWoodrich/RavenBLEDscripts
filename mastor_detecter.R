@@ -182,7 +182,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           newrow[r+1,]<-spectral_features(newrow[r+1,],specfeatrun)
           
           newrow[r+1,]$probmean<-mean(newdat$probmean)
-          newrow[r+1,]$stderror<-mean(newdat$probstderr)
+          newrow[r+1,]$probstderr<-mean(newdat$probstderr)
           newrow[r+1,]$n<-mean(newdat$n)
                                    
           r=r+1
@@ -1373,6 +1373,7 @@ CUTmean<-mean(CUTvec)
 CUTstd.err<-std.error(CUTvec)
 
 data3<- data2
+data4<- data2
 
 ##assuming $detection type is already in this data NOTE not 
 data3$probmean<-probmean
@@ -1382,6 +1383,21 @@ data3$n<-n
 ######################
 #adaptively combine detections based on probability
 data3<-adaptive_compare(data3,1)
+
+#number of TPs in data3
+sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
+
+#
+
+#comparison dataset to data3
+data4$probmean<-probmean
+data4$probstderr<-probstderr
+data4$n<-n
+
+#number of TPs in data4
+sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
+
+
 
 ######################
 plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
@@ -1679,6 +1695,9 @@ CUTstd.err<-std.error(CUTvec)
 findata$probmean<-probmean
 findata$probstderr<-probstderr
 findata$probn<-CV
+#combine or eliminate detections within timediffself parameter
+findata<-adaptive_compare(findata,2)
+
 findata[,1]<-substr(findata$sound.files,1,11)
 TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
