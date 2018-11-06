@@ -198,7 +198,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
         n=n+1
       }
     if(n>0){
-      Compdata<-Compdata[-which(Compdata$Mooring==o),]
+      Compdata<-Compdata[-which(Compdata$`soundfiles[n]`==o),]
       Compdata<-rbind(Compdata,CompVar)      
     }
 
@@ -763,8 +763,8 @@ Maxdur<-3.5
 Mindur<-0.2
 
 ############################Combine detector  parameters
-timediffself<-5
-probdist<-.3 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
+timediffself<-1.25
+probdist<-.25 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
 
 #multiple detectors
 freqdiff<-100
