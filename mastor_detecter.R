@@ -145,40 +145,45 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
+  for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata$`soundfiles[n]`)){
     CompVar<-Compdata[which(Compdata$`soundfiles[n]`==o),]
+    CompVar<-CompVar[order(CompVar$meantime),]
     print(paste("For mooring",o))
     r=0
+    n=0
     newrow<-CompVar[0,]
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar$meantime[q+1]<=(CompVar$meatime[q]+timediffself)){
+      if(CompVar$meantime[q+1]<=(CompVar$meantime[q]+timediffself)){
         if(CompVar$probmean[q+1]+probdist<CompVar$probmean[q]|CompVar$probmean[q+1]-probdist>CompVar$probmean[q]){#take only the best one
+          print(q)
           newdat<-CompVar[0,]
           newdat[1:2,]<-CompVar[c(q,q+1),]
-          newdat<-sort(order(newdat$probmean))
+          newdat<-newdat[order(newdat$probmean),]
           IDvec<-c(IDvec,newdat$Selection)
-          newrow[r+1]<-newdat[2,]
+          newrow[r+1,]<-newdat[2,]
           r=r+1
         }else{
+          print(q)
           newdat<-CompVar[0,]
           newdat[1:2,]<-CompVar[c(q,q+1),]
           IDvec<-c(IDvec,newdat$Selection)
-          s<-newdat[1,7]
-          e<-newdat[2,8]
-          h<-max(newdat[,9])
-          l<-min(newdat[,10])
-          dt<-max(newdat[,3])
+          s<-as.numeric(min(newdat[,3]))
+          e<-as.numeric(max(newdat[,4]))
+          l<-as.numeric(min(newdat[,5]))
+          h<-as.numeric(max(newdat[,6]))
+          dt<-max(as.numeric(as.character(newdat[,7])))
           mt<-(s+e)/2
           mf<-(h+l)/2
           fr<-(h-l)
           
-          newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],dt,mf,fr,mt,s,e,h,l)
+          newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
           newrow[r+1,]<-spectral_features(newrow[r+1,],specfeatrun)
           
           newrow[r+1,]$probmean<-mean(newdat$probmean)
           newrow[r+1,]$stderror<-mean(newdat$stderror)
-          newrow[r+1,]$stderror<-mean(newdat$n)
+          newrow[r+1,]$n<-mean(newdat$n)
                                    
           r=r+1
         }
@@ -197,6 +202,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
       Compdata<-rbind(Compdata,CompVar)      
     }
 
+  }
   }
 }
 
@@ -246,7 +252,7 @@ spectral_features<- function(specdata,whichRun){
   
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
-  foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata[z,5],specdata[z,6],units="seconds")
+  foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
   foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(yminn,ymaxx))
   foo.specprop <- specprop(foo.spec)
   foo.meanspec = meanspec(foo, plot=FALSE, ovlp=90)#not sure what ovlp parameter does but initially set to 90
@@ -757,7 +763,7 @@ Maxdur<-3.5
 Mindur<-0.2
 
 ############################Combine detector  parameters
-timediffself<-1
+timediffself<-5
 probdist<-.3 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
 
 #multiple detectors
@@ -1227,7 +1233,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-"Decent detector test_20181103160905"
+runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
@@ -1320,7 +1326,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -start -end -top -bot,data=train[[1]],mtry=7)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=7)
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
@@ -1359,7 +1365,7 @@ n<-NULL
 for(x in 1:nrow(probstab)){
   probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
   probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  probn[x]<-length(which(is.na(probstab[x,2:length(probstab)])))
+  n[x]<-length(which(is.na(probstab[x,2:length(probstab)])))
 }
 
 CUTmean<-mean(CUTvec)
