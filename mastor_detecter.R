@@ -182,7 +182,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           newrow[r+1,]<-spectral_features(newrow[r+1,],specfeatrun)
           
           newrow[r+1,]$probmean<-mean(newdat$probmean)
-          newrow[r+1,]$stderror<-mean(newdat$stderror)
+          newrow[r+1,]$stderror<-mean(newdat$probstderr)
           newrow[r+1,]$n<-mean(newdat$n)
                                    
           r=r+1
@@ -204,6 +204,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
 
   }
   }
+ return(Compdata) 
 }
 
   
@@ -1378,22 +1379,21 @@ data3$probmean<-probmean
 data3$probstderr<-probstderr
 data3$n<-n
 
-##no avg
-#colfunc <- colorRampPalette(c("red", "green"))
-
-plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
-abline(v=CUTmean)
-
-#this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
-plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
-
-cor.test(as.numeric(probmean),probstderr)
-
 ######################
 #adaptively combine detections based on probability
 data3<-adaptive_compare(data3,1)
 
 ######################
+plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
+abline(v=CUTmean)
+
+
+#this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
+#plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
+
+cor.test(as.numeric(probmean),probstderr)
+
+
 pp = my.xval$predictions
 ll = my.xval$labels
 predd = prediction(pp, ll)
