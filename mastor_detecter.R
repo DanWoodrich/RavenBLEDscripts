@@ -144,6 +144,63 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
+adaptive_compare<-function(Compdata,specfeatrun){
+  for(o in unique(Compdata$`soundfiles[n]`)){
+    CompVar<-Compdata[which(Compdata$`soundfiles[n]`==o),]
+    print(paste("For mooring",o))
+    r=0
+    newrow<-CompVar[0,]
+    IDvec<-NULL
+    for(q in 1:(nrow(CompVar)-1)){
+      if(CompVar$meantime[q+1]<=(CompVar$meatime[q]+timediffself)){
+        if(CompVar$probmean[q+1]+probdist<CompVar$probmean[q]|CompVar$probmean[q+1]-probdist>CompVar$probmean[q]){#take only the best one
+          newdat<-CompVar[0,]
+          newdat[1:2,]<-CompVar[c(q,q+1),]
+          newdat<-sort(order(newdat$probmean))
+          IDvec<-c(IDvec,newdat$Selection)
+          newrow[r+1]<-newdat[2,]
+          r=r+1
+        }else{
+          newdat<-CompVar[0,]
+          newdat[1:2,]<-CompVar[c(q,q+1),]
+          IDvec<-c(IDvec,newdat$Selection)
+          s<-newdat[1,7]
+          e<-newdat[2,8]
+          h<-max(newdat[,9])
+          l<-min(newdat[,10])
+          dt<-max(newdat[,3])
+          mt<-(s+e)/2
+          mf<-(h+l)/2
+          fr<-(h-l)
+          
+          newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],dt,mf,fr,mt,s,e,h,l)
+          newrow[r+1,]<-spectral_features(newrow[r+1,],specfeatrun)
+          
+          newrow[r+1,]$probmean<-mean(newdat$probmean)
+          newrow[r+1,]$stderror<-mean(newdat$stderror)
+          newrow[r+1,]$stderror<-mean(newdat$n)
+                                   
+          r=r+1
+        }
+          
+        }
+
+      }
+      if(r>0){
+        CompVar<-subset(CompVar,!(CompVar$Selection %in% IDvec))
+        CompVar<-rbind(CompVar,newrow)
+        CompVar<-CompVar[order(CompVar$meantime),]
+        n=n+1
+      }
+    if(n>0){
+      Compdata<-Compdata[-which(Compdata$Mooring==o),]
+      Compdata<-rbind(Compdata,CompVar)      
+    }
+
+  }
+}
+
+  
 duration_store<- function(){
   durVar<-NULL
   durVar<-data.frame(SFfp=character(),
@@ -434,50 +491,50 @@ DetecTab$UniqueID<-seq(1:nrow(DetecTab))
 DetecTab$remove<-0
 
 #average detections within detectors using timediffself parameter
-n=0
-for(o in unique(DetecTab$Mooring)){
-  Tab<-DetecTab[which(DetecTab$Mooring==o),]
-  print(paste("For mooring",o))
-  for(p in 1:max(Tab$DetectorCount)){
-    r=0
-    AvgTab<- Tab[which(Tab$DetectorCount==p),]
-    print(paste("       Average within detector",AvgTab$DetectorName[1]))
-    newrow<-AvgTab[0,]
-    IDvec<-NULL
-    if(nrow(AvgTab)>1){
-    for(q in 1:(nrow(AvgTab)-1)){
-      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
-        
-        newdat<-AvgTab[0,]
-        newdat[1:2,]<-AvgTab[c(q,q+1),]
-        IDvec<-c(IDvec,newdat$UniqueID)
-        s<-mean(newdat[,4])
-        e<-mean(newdat[,5])
-        h<-mean(newdat[,6])
-        l<-mean(newdat[,7])
-        mt<-(s+e)/2
-        mf<-(h+l)/2
-        unqID<-newdat[1,15]
-        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
-        r=r+1
-      }
-    }
-    }
-    if(r>0){
-      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
-      AvgTab<-rbind(AvgTab,newrow)
-      AvgTab<-AvgTab[order(AvgTab$meantime),]
-      Tab<- Tab[-which(Tab$DetectorCount==p),]
-      Tab<-rbind(Tab,AvgTab)
-      n=n+1
-    }
-    
-  }
-  if(n>0){
-    DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
-    DetecTab<-rbind(DetecTab,Tab)
-  }
-}
+#n=0
+#for(o in unique(DetecTab$Mooring)){
+#  Tab<-DetecTab[which(DetecTab$Mooring==o),]
+#  print(paste("For mooring",o))
+#  for(p in 1:max(Tab$DetectorCount)){
+#    r=0
+#    AvgTab<- Tab[which(Tab$DetectorCount==p),]
+#    print(paste("       Average within detector",AvgTab$DetectorName[1]))
+#    newrow<-AvgTab[0,]
+#    IDvec<-NULL
+#    if(nrow(AvgTab)>1){
+#    for(q in 1:(nrow(AvgTab)-1)){
+#      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
+#        
+#        newdat<-AvgTab[0,]
+#        newdat[1:2,]<-AvgTab[c(q,q+1),]
+#        IDvec<-c(IDvec,newdat$UniqueID)
+#        s<-mean(newdat[,4])
+#        e<-mean(newdat[,5])
+#        h<-mean(newdat[,6])
+#        l<-mean(newdat[,7])
+#        mt<-(s+e)/2
+#        mf<-(h+l)/2
+#        unqID<-newdat[1,15]
+#        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
+#        r=r+1
+#      }
+#    }
+#    }
+#    if(r>0){
+#      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
+#      AvgTab<-rbind(AvgTab,newrow)
+#      AvgTab<-AvgTab[order(AvgTab$meantime),]
+#      Tab<- Tab[-which(Tab$DetectorCount==p),]
+#      Tab<-rbind(Tab,AvgTab)
+#      n=n+1
+#    }
+#    
+#  }
+#  if(n>0){
+#    DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
+#    DetecTab<-rbind(DetecTab,Tab)
+#  }
+#}
 
 
 DetecTab<-DetecTab[order(DetecTab$meantime),]
@@ -528,7 +585,7 @@ for(w in unique(DetecTab$Mooring)){
       
       CompareDet$UniqueID<-seq(1:nrow(CompareDet))
       AvgDet<-DetecTab[0,]
-    }
+   }
   }
   DetecTab2<-rbind(DetecTab2,CompareDet)
 }
@@ -536,53 +593,53 @@ for(w in unique(DetecTab$Mooring)){
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
 #average detections within combined detector using timediffself parameter (3x)
-for(a in 1:3){
-n=0
-for(o in unique(DetecTab2$Mooring)){
-  Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
-  print(paste("For mooring",o))   
-  for(p in unique(Tab$DetectorCount)){
-    r=0
-    AvgTab<- Tab[which(Tab$DetectorCount==p),]
-    print(paste("       Average combined detector for time number",a))
+#for(a in 1:3){
+#n=0
+#for(o in unique(DetecTab2$Mooring)){
+#  Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
+#  print(paste("For mooring",o))   
+#  for(p in unique(Tab$DetectorCount)){
+#    r=0
+#    AvgTab<- Tab[which(Tab$DetectorCount==p),]
+#    print(paste("       Average combined detector for time number",a))
+#    
+#    newrow<-AvgTab[0,]
+#    IDvec<-NULL
+#    if(nrow(AvgTab)>1){
+#    for(q in 1:(nrow(AvgTab)-1)){
+#      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
+#        
+#        newdat<-AvgTab[0,]
+#        newdat[1:2,]<-AvgTab[c(q,q+1),]
+#        IDvec<-c(IDvec,newdat$UniqueID)
+#        s<-mean(newdat[,4])
+#        e<-mean(newdat[,5])
+#        h<-mean(newdat[,6])
+#        l<-mean(newdat[,7])
+#        mt<-(s+e)/2
+#        mf<-(h+l)/2
+#       unqID<-newdat[1,15]
+#       newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
+#       r=r+1
+#      }
+#    }
+#    }
+#    if(r>0){
+#      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
+#      AvgTab<-rbind(AvgTab,newrow)
+#      AvgTab<-AvgTab[order(AvgTab$meantime),]
+#      Tab<- Tab[-which(Tab$DetectorCount==p),]
+#      Tab<-rbind(Tab,AvgTab)
+#      n=n+1
+#    }
     
-    newrow<-AvgTab[0,]
-    IDvec<-NULL
-    if(nrow(AvgTab)>1){
-    for(q in 1:(nrow(AvgTab)-1)){
-      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
-        
-        newdat<-AvgTab[0,]
-        newdat[1:2,]<-AvgTab[c(q,q+1),]
-        IDvec<-c(IDvec,newdat$UniqueID)
-        s<-mean(newdat[,4])
-        e<-mean(newdat[,5])
-        h<-mean(newdat[,6])
-        l<-mean(newdat[,7])
-        mt<-(s+e)/2
-        mf<-(h+l)/2
-        unqID<-newdat[1,15]
-        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
-        r=r+1
-      }
-    }
-    }
-    if(r>0){
-      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
-      AvgTab<-rbind(AvgTab,newrow)
-      AvgTab<-AvgTab[order(AvgTab$meantime),]
-      Tab<- Tab[-which(Tab$DetectorCount==p),]
-      Tab<-rbind(Tab,AvgTab)
-      n=n+1
-    }
-    
-  }
-  if(n>0){
-    DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==o),]
-    DetecTab2<-rbind(DetecTab2,Tab)
-  }
-}
-}
+#  }
+#  if(n>0){
+#    DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==o),]
+#    DetecTab2<-rbind(DetecTab2,Tab)
+#  }
+#}
+#}
 
 #remove detections that do not fit min/max duration parameters 
 DetecTab2$UniqueID<-NULL
@@ -701,6 +758,7 @@ Mindur<-0.2
 
 ############################Combine detector  parameters
 timediffself<-1
+probdist<-.3 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
 
 #multiple detectors
 freqdiff<-100
@@ -1227,10 +1285,11 @@ data$detectionType<-as.numeric(data$detectionType)
 #add frequency stats to data 
 data$meanfreq<- (data$Low.Freq..Hz.+data$High.Freq..Hz.)/2
 data$freqrange<- (data$High.Freq..Hz.-data$Low.Freq..Hz.)
+data$meantime<- (data$Begin.Time..s.+data$End.Time..s.)/2
 
 #make interference columns into factors
-if(length(data)>11){
-  for(n in 12:length(data)){
+if(length(data)>12){
+  for(n in 13:length(data)){
     data[,n]<-as.factor(data[,n])
   }
 }
@@ -1240,7 +1299,7 @@ data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features(data,1)
 
-data2<-data[,c(2,9:length(data))]
+data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
 
@@ -1252,7 +1311,7 @@ my.xval$labels = list()
 CV=50
 
 #set desired TPR threshold
-TPRthresh<-.95
+TPRthresh<-.85
 
 AUC_avg<-c()
 f=1
@@ -1261,7 +1320,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=7)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -start -end -top -bot,data=train[[1]],mtry=7)
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
@@ -1293,33 +1352,6 @@ for(p in 1:CV){
   f=f+1
 }
 
-#first round of graphs: maybe could merge this section and the next, but mainly copied this code so keep seperate for now 
-pp = my.xval$predictions
-ll = my.xval$labels
-predd = prediction(pp, ll)
-perff = performance(predd, "tpr", "fpr")
-
-#no avg
-plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
-abline(a=0, b= 1)
-
-#avg. Don't really know what the points on the line mean. 
-plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
-     #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-     lwd = 2, main = paste("Vertical avg w/ std dev\n"))
-plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-      lwd = 2, main = paste("Threshold avg"),colorize=T)
-abline(a=0, b= 1)
-print(mean(AUC_avg))
-
-varImpPlot(data.rf,  
-           sort = 27,
-           n.var=27,
-           main="Top 10 - Variable Importance")
-
-#save last model
-save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
-
 ##Graph std error and probability rates, with true detection included 
 probmean<-NULL
 probstderr<-NULL
@@ -1343,8 +1375,7 @@ data3$n<-n
 ##no avg
 #colfunc <- colorRampPalette(c("red", "green"))
 
-plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'green','red'))
-abline(h=CUTstd.err)
+plot(as.numeric(probmean),probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
@@ -1352,6 +1383,36 @@ plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTm
 
 cor.test(as.numeric(probmean),probstderr)
 
+######################
+#adaptively combine detections based on probability
+data3<-adaptive_compare(data3,1)
+
+######################
+pp = my.xval$predictions
+ll = my.xval$labels
+predd = prediction(pp, ll)
+perff = performance(predd, "tpr", "fpr")
+
+#no avg
+plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
+abline(a=0, b= 1)
+
+#avg. Don't really know what the points on the line mean. 
+plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
+     #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
+     lwd = 2, main = paste("Vertical avg w/ std dev\n"))
+plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
+     lwd = 2, main = paste("Threshold avg"),colorize=T)
+abline(a=0, b= 1)
+print(mean(AUC_avg))
+
+varImpPlot(data.rf,  
+           sort = 27,
+           n.var=27,
+           main="Top 10 - Variable Importance")
+
+#save last model
+save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 
 
