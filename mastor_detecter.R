@@ -390,10 +390,10 @@ if(dettype=="spread"|dettype=="combined"){
         
         #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
         kill="n"
-        if((runsum[2]+1)<=grpsize[d]){
+        if((runsum[,2]+1)<=grpsize[d]){
           kill="y"
         }
-        if(((runsum[2]+1)*3)<nrow(groupdat)&kill=="n"){
+        if(((runsum[2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
           groupdat2<- subset(resltsTSPV,group==f)
           grpvec2<-groupdat[,13]
           colClasses = c("numeric","numeric","numeric","numeric","numeric")
@@ -430,12 +430,12 @@ if(dettype=="spread"|dettype=="combined"){
             runsum2[g,4]<-(sum(groupdat2[,15+g]==1)+sum(groupdat2[,15+g]==0)+1)
             runsum2[g,5]<-max(-skipvec2)
           }
-          runsum2<-runsum2[which(runsum[,2]==max(runsum2[,2])),] #choose w most ones
+          runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
           runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
-          runsum2<-runsum2[which(runsum[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
-          runsum2<-runsum2[which(runsum[,4]==min(runsum2[,4])),] #choose w least length
+          runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
+          runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
           runsum2<-runsum2[1,] #choose first one
-          if(runsum2[,2]>=runsum[,2]){
+          if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
             kill="y"
           }else{
             kill="n"
@@ -822,6 +822,9 @@ probdist<-.25 #how apart the probabilities can be before only choosing the best 
 freqdiff<-100
 timediff<-1
 
+#compare with downsweeps parameters
+downsweepCompMod<-2.5
+downsweepCompAdjust<-1
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
