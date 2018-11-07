@@ -357,7 +357,7 @@ if(dettype=="spread"|dettype=="combined"){
           groupdat[g,15+g]<-2
           skipvec<-0
           for(h in g:(nrow(groupdat)-1)){
-            rsltvec0s<-rle(groupdat[,15+g])
+            rsltvec0s<-rle(groupdat[,15+g][! groupdat[,15+g] %in% 98])
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
@@ -370,6 +370,7 @@ if(dettype=="spread"|dettype=="combined"){
             }
             if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
               groupdat[h+1,15+g]<-1
+              groupdat[h,15+g]<-98
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
             }else if(groupdat[h,15]==groupdat[h+1,15]){
@@ -390,36 +391,37 @@ if(dettype=="spread"|dettype=="combined"){
         
         #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
         kill="n"
-        if((runsum[,2]+1)<=grpsize[d]){
+        if((runsum[,2]+1)<grpsize[d]){
           kill="y"
         }
-        if(((runsum[2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
+        if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
           groupdat2<- subset(resltsTSPV,group==f)
-          grpvec2<-groupdat[,13]
+          groupdat2<-groupdat2[order(groupdat2$meantime,-groupdat2$bottom.freq),]#reverse the order it counts stacks detections
+          grpvec2<-groupdat2[,13]
           colClasses = c("numeric","numeric","numeric","numeric","numeric")
           runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
           for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
             RM2<-groupdat2[g,13]
-            groupdat2<-groupdat2[order(groupdat2$meantime,rev(groupdat2$bottom.freq)),]#reverse the order it counts stacks detections
             groupdat2[,15+g]<-99
             groupdat2[g,15+g]<-2
             skipvec2<-0
             for(h in g:(nrow(groupdat2)-1)){
-              rsltvec0s2<-rle(groupdat2[,15+g])
+              rsltvec0s2<-rle(groupdat2[,15+g][! groupdat2[,15+g] %in% 98])
               if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
                 break
               }  
-              if(RM2>grpvec2[h+1]&RM-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,15]!=groupdat2[h+1,15]){
+              if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,15]!=groupdat2[h+1,15]){
                 groupdat2[h+1,15+g]<-1
-                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM))
-                RM<-grpvec2[h+1]
+                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+                RM2<-grpvec2[h+1]
               }else if(groupdat2[h,15]!=groupdat2[h+1,15]){
                 groupdat2[h+1,15+g]<-0
               }
-              if(groupdat2[h,15]==groupdat2[h+1,15]&groupdat2[h,15+g]==0&RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]){
+              if(groupdat2[h,15]==groupdat2[h+1,15]&(groupdat2[h,15+g]==0|groupdat2[h,15+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
                 groupdat2[h+1,15+g]<-1
-                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM))
-                RM<-grpvec2[h+1]
+                groupdat2[h,15+g]<-98
+                skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+                RM2<-grpvec2[h+1]
               }else if(groupdat2[h,15]==groupdat2[h+1,15]){
                 groupdat2[h+1,15+g]<-98
               }
@@ -823,8 +825,8 @@ freqdiff<-100
 timediff<-1
 
 #compare with downsweeps parameters
-downsweepCompMod<-2.5
-downsweepCompAdjust<-1
+downsweepCompMod<-3
+downsweepCompAdjust<-(1)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -857,9 +859,9 @@ if(runtype=="all"){
 moorings<- colnames(MooringsDat)
 #SF<-allmooringsSF
 }else{
-  allmooringsGT<- c("AW12_AU_BS3") #add as complete GTs 
+  allmooringsGT<- c("BS13_AU_04") #add as complete GTs 
   allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,217)
+  allmooringsSF[[1]]<-c(1,304)
  # allmooringsSF[[2]]<-c(1,96)
   
   MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
