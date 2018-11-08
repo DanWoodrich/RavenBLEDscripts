@@ -357,7 +357,7 @@ spectral_features<- function(specdata,whichRun){
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
   foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
-  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(yminn,ymaxx))
+  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(specdata$Low.Freq..Hz.,specdata$High.Freq..Hz.))
   foo.specprop <- specprop(foo.spec)
   foo.meanspec = meanspec(foo, plot=FALSE, ovlp=90)#not sure what ovlp parameter does but initially set to 90
   foo.autoc = autoc(foo, plot=F)
@@ -953,10 +953,10 @@ grpsize<-c(4)
 allowedZeros<-c(2)
 
 #(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(5)
+detskip<-c(3)
 
 #(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.35)
+groupInt<-c(0.45)
 
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
