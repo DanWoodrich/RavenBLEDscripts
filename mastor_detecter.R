@@ -147,10 +147,10 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 
 after_model_write <-function(mdata,finaldatrun){
   mdata[,1]<-substr(mdata[,1],1,11)
-  MoorVar<-NULL
+  MoorVar1<-NULL
   for(v in 1:length(unique(mdata[,1]))){
     if(finaldatrun==1){
-      name<-"RF applied"
+      name<-"RFA"
     }else{
       name<-"full"
     }
@@ -170,6 +170,7 @@ after_model_write <-function(mdata,finaldatrun){
     
     #save stats and parameters to excel file
     detecEval<-detecEvalFinal[0,]
+    detecEval[,2]<-as.character(detecEval[,2])
     if(dettype=="spread"|dettype=="combined"){
       detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }else{
@@ -185,31 +186,32 @@ after_model_write <-function(mdata,finaldatrun){
     
     write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
-    MoorVar2<-mdata[which(mdata[,1]==sort(unique(mdata[,1]))[v]),]
+    MoorVar2<-mdata[which(mdata[,1]==sort(unique(mdata[,1])))[v],]
     MoorVar3<-data.frame(MoorVar2$Selection,MoorVar2$FileOffsetBegin,MoorVar2$FileOffsetEnd,MoorVar2$`Low Freq (Hz)`,MoorVar2$`High Freq (Hz)`,MoorVar2$sound.files,MoorVar2$File,MoorVar2$probmean,MoorVar2$probstderr,MoorVar2$probn)
     colnames(MoorVar3)<-c("Selection","FileOffsetBegin","FileOffsetEnd","Low Freq (Hz)","High Freq (Hz)","Mooring","File","probs","probsstderr","probsn")
     write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
     }else{
-      Channel<-1
-      MoorVartemp<-MoorVar1[,2]
-      MoorVartemp<-cbind(MoorVartemp,Channel)
-      MoorVartemp2<-MoorVar1[,3:7]
-      MoorVar1<-cbind(MoorVartemp1,MoorVartemp2)
+      RavenExport<-data.frame(MoorVar1$Selection)
+      RavenExport[,2]<-"Spectrogram 1"
+      RavenExport[,3]<-1
+      RavenExport[,4]<-MoorVar1$Begin.Time..s.
+      RavenExport[,5]<-MoorVar1$End.Time..s.
+      RavenExport[,6]<-MoorVar1$Low.Freq..Hz.
+      RavenExport[,7]<-MoorVar1$High.Freq..Hz.
+      RavenExport[,8]<-as.numeric(as.character(MoorVar1$detectionType))
+      RavenExport[,9]<-as.character(MoorVar1$probmean)
+      RavenExport[,10]<-as.character(MoorVar1$probstderr)
+      RavenExport[,11]<-as.character(MoorVar1$n)
       
-      write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detectionType","probs","err","n")
       
-      Channel<-MoorVar1$probmean
-      MoorVartemp<-MoorVar1[,2]
-      MoorVartemp<-cbind(MoorVartemp,Channel)
-      MoorVartemp2<-MoorVar1[,3:7]
-      MoorVar1<-cbind(MoorVartemp1,MoorVartemp2)
+      RavenExport[which(RavenExport[,8]==1),8]<-"TP"
+      RavenExport[which(RavenExport[,8]==0),8]<-"FP"
       
-      write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-      
-    }
-    
-    
+      write.table(RavenExport,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        
+      }
   }
 }
 
@@ -845,7 +847,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runname<- "algo downsweep test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -1539,7 +1541,7 @@ abline(v=CUTmean)
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
 #plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
 
-cor.test(as.numeric(probmean),probstderr)
+#cor.test(as.numeric(probmean),probstderr)
 
 
 pp = my.xval$predictions
