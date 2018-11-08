@@ -158,12 +158,19 @@ after_model_write <-function(mdata,finaldatrun){
     
     MoorVar1<-MoorVar1[which(MoorVar1$probmean>CUTmean),]
     
-    numTP<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),1]*TPRthresh
     numTPtruth<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),2]
+    
+    if(finaldatrun==2){
+    numTP<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),1]*TPRthresh
     detTotal<-nrow(MoorVar1)
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
-    
+    }else{
+      #use real TP values for GT data. 
+      numTP<-sum(as.numeric(as.character(MoorVar1$detectionType)))
+      numFP<-(nrow(MoorVar1)-numTP)
+      numFN<-numTPtruth-numTP
+    }
     TPhitRate <- numTP/numTPtruth*100
     TPR <- numTP/(numTP+numFN)
     TPdivFP<- numTP/numFP
@@ -213,6 +220,31 @@ after_model_write <-function(mdata,finaldatrun){
         
       }
   }
+  numTPtruth<-sum(TPtottab$GTtot)
+  mdata<-mdata[which(mdata$probmean>CUTmean),]
+  
+  if(finaldatrun==1){
+  numTP<-sum(as.numeric(as.character(mdata$detectionType)))
+  numFP<-(nrow(mdata)-numTP)
+  numFN<-numTPtruth-numTP
+  }else{
+    
+  }
+  TPhitRate <- numTP/numTPtruth*100
+  TPR <- numTP/(numTP+numFN)
+  TPdivFP<- numTP/numFP
+  
+  detecEval<-detecEvalFinal[0,]
+  detecEval[,2]<-as.character(detecEval[,2])
+  if(dettype=="spread"|dettype=="combined"){
+    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  }else{
+    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+  }
+  
+  detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
+  detecEvalFinal<-rbind(detecEval2,detecEval)
+  write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
@@ -436,8 +468,10 @@ if(dettype=="spread"|dettype=="combined"){
               groupdat[h+1,15+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
-            }else if(groupdat[h,15]!=groupdat[h+1,15]){
+            }else if(groupdat[h,15]!=groupdat[h+1,15]&RM+(detskip[d]+1)>grpvec[h+1]&RM-(detskip[d]+1)<=grpvec[h+1]){
               groupdat[h+1,15+g]<-0
+            }else if(groupdat[h,15]!=groupdat[h+1,15]&(RM+(detskip[d]+1)<=grpvec[h+1]|RM-(detskip[d]+1)>grpvec[h+1])){
+              groupdat[h+1,15+g]<-98
             }
             if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
               groupdat[h+1,15+g]<-1
@@ -485,8 +519,10 @@ if(dettype=="spread"|dettype=="combined"){
                 groupdat2[h+1,15+g]<-1
                 skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
                 RM2<-grpvec2[h+1]
-              }else if(groupdat2[h,15]!=groupdat2[h+1,15]){
+              }else if(groupdat2[h,15]!=groupdat2[h+1,15]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
                 groupdat2[h+1,15+g]<-0
+              }else if(groupdat2[h,15]!=groupdat2[h+1,15]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
+                groupdat2[h+1,15+g]<-98
               }
               if(groupdat2[h,15]==groupdat2[h+1,15]&(groupdat2[h,15+g]==0|groupdat2[h,15+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
                 groupdat2[h+1,15+g]<-1
@@ -1445,7 +1481,7 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #number of iterations 
-CV=50
+CV=100
 
 #set desired TPR threshold
 TPRthresh<-.95
@@ -1537,6 +1573,8 @@ sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)
 plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
+#see freq breakdown of calls 
+cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
 #plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
