@@ -26,6 +26,7 @@ library(Rraven)
 library(seewave)
 library(beepr)
 library(stringr)
+library(stringi)
 
 
 raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
@@ -142,6 +143,74 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   exe <- shQuote(exe, type = shQuote_type)
   system(paste(exe, command, argus, sep = " "), ignore.stderr = TRUE)
   
+}
+
+after_model_write <-function(mdata,finaldatrun){
+  mdata[,1]<-substr(mdata[,1],1,11)
+  MoorVar<-NULL
+  for(v in 1:length(unique(mdata[,1]))){
+    if(finaldatrun==1){
+      name<-"RF applied"
+    }else{
+      name<-"full"
+    }
+    MoorVar1<-mdata[which(mdata[,1]==sort(unique(mdata[,1]))[v]),]
+    
+    MoorVar1<-MoorVar1[which(MoorVar1$probmean>CUTmean),]
+    
+    numTP<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),1]*TPRthresh
+    numTPtruth<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),2]
+    detTotal<-nrow(MoorVar1)
+    numFP<-detTotal-numTP
+    numFN<-numTPtruth-numTP
+    
+    TPhitRate <- numTP/numTPtruth*100
+    TPR <- numTP/(numTP+numFN)
+    TPdivFP<- numTP/numFP
+    
+    #save stats and parameters to excel file
+    detecEval<-detecEvalFinal[0,]
+    if(dettype=="spread"|dettype=="combined"){
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    }else{
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    }
+    
+    detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
+    detecEvalFinal<-rbind(detecEval2,detecEval)
+    write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
+
+    if(finaldatrun==2){    
+    MoorVar1<-MoorVar1[,c(2:8)]
+    
+    write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+    
+    MoorVar2<-mdata[which(mdata[,1]==sort(unique(mdata[,1]))[v]),]
+    MoorVar3<-data.frame(MoorVar2$Selection,MoorVar2$FileOffsetBegin,MoorVar2$FileOffsetEnd,MoorVar2$`Low Freq (Hz)`,MoorVar2$`High Freq (Hz)`,MoorVar2$sound.files,MoorVar2$File,MoorVar2$probmean,MoorVar2$probstderr,MoorVar2$probn)
+    colnames(MoorVar3)<-c("Selection","FileOffsetBegin","FileOffsetEnd","Low Freq (Hz)","High Freq (Hz)","Mooring","File","probs","probsstderr","probsn")
+    write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+    
+    }else{
+      Channel<-1
+      MoorVartemp<-MoorVar1[,2]
+      MoorVartemp<-cbind(MoorVartemp,Channel)
+      MoorVartemp2<-MoorVar1[,3:7]
+      MoorVar1<-cbind(MoorVartemp1,MoorVartemp2)
+      
+      write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      
+      Channel<-MoorVar1$probmean
+      MoorVartemp<-MoorVar1[,2]
+      MoorVartemp<-cbind(MoorVartemp,Channel)
+      MoorVartemp2<-MoorVar1[,3:7]
+      MoorVar1<-cbind(MoorVartemp1,MoorVartemp2)
+      
+      write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      
+    }
+    
+    
+  }
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
@@ -825,8 +894,8 @@ freqdiff<-100
 timediff<-1
 
 #compare with downsweeps parameters
-downsweepCompMod<-3
-downsweepCompAdjust<-(1)
+downsweepCompMod<-6
+downsweepCompAdjust<-(2)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -1096,9 +1165,9 @@ colClasses = c("character","character","character","character","character","nume
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
   GTtot=0
-  GTtot2=0
-  TPtot=0
-  MoorCor=0
+  GTtot2=NULL
+  TPtot=NULL
+  MoorCor=NULL
 for(v in 1:length(unique(DetecTab2$Mooring))){
   print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
@@ -1225,7 +1294,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
   MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
-  GTtot2<-c(GTtot2,GTtot)
+  GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
   TPhitRate <- numTP/numTPtruth*100
   TPR <- numTP/(numTP+numFN)
@@ -1297,6 +1366,9 @@ spec<-spec
 yminn<-0 #for spec plotting. Should be the same as detector window preset
 ymaxx<-1000 #" "
 
+#define this table to compare counts after running model
+TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
+
 detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
 
 #extract mooring names from moorings used in run
@@ -1358,7 +1430,7 @@ if(length(data)>12){
 }
 data$Selection<-seq(1,nrow(data))
 
-data<-splitdf(data,weight = 1/2)[[1]]
+#data<-splitdf(data,weight = 1/2)[[1]]
 
 data<-spectral_features(data,1)
 
@@ -1374,7 +1446,7 @@ my.xval$labels = list()
 CV=50
 
 #set desired TPR threshold
-TPRthresh<-.85
+TPRthresh<-.95
 
 AUC_avg<-c()
 f=1
@@ -1441,7 +1513,13 @@ data3$n<-n
 data3<-adaptive_compare(data3,1)
 
 #number of TPs in data3
-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
+finTPs<-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
+
+finFPs<-(nrow(data3[which(data3$probmean>CUTmean),])-finTPs)
+finRat<-finTPs/finFPs
+
+#write data to drive
+after_model_write(data3,1)
 
 #comparison dataset to data3
 data4$probmean<-probmean
@@ -1751,9 +1829,6 @@ findata$probstderr<-probstderr
 findata$probn<-CV
 #combine or eliminate detections within timediffself parameter
 findata<-adaptive_compare(findata,2)
-
-findata[,1]<-substr(findata$sound.files,1,11)
-TPtottab<-data.frame(TPtot,GTtot,MoorCor)
 
 #apply models and average probabilities. ASSUMPTIONS for stats to make sense: Full mooring is run, and all HG data is included in GT. 
 MoorVar<-NULL
