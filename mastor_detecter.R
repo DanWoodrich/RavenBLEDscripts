@@ -357,11 +357,12 @@ spectral_features<- function(specdata,whichRun){
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
   foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
-  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z]))
-  foo.specprop <- specprop(foo.spec)
-  foo.meanspec = meanspec(foo, plot=FALSE ,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #flim=c(specdata$Low.Freq..Hz./1000,specdata$High.Freq..Hz./1000),
-  foo.autoc = autoc(foo, plot=F,fmin=specdata$Low.Freq..Hz.[z],fmax=specdata$High.Freq..Hz.[z]) #
-  foo.dfreq = dfreq(foo, plot=F, ovlp=90,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z]))
+  foo.spec <- spec(foo, plot=F, PSD=T,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)) #,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
+  foo.specprop <- specprop(foo.spec) #
+  #spectro(foo) #could do image analysis on this guy 
+  foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
+  foo.autoc = autoc(foo, plot=F) #
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90,ylim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))
   specdata$rugosity[z] = rugo(foo@left / max(foo@left)) 
   specdata$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
@@ -1472,6 +1473,9 @@ data$Selection<-seq(1,nrow(data))
 
 data<-spectral_features(data,1)
 
+
+
+
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
@@ -1481,7 +1485,7 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #number of iterations 
-CV=100
+CV=20
 
 #set desired TPR threshold
 TPRthresh<-.95
@@ -1493,7 +1497,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=7)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=7,na.action=na.roughfix)
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
@@ -1575,6 +1579,9 @@ abline(v=CUTmean)
 
 #see freq breakdown of calls 
 cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
 #plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
