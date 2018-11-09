@@ -357,11 +357,11 @@ spectral_features<- function(specdata,whichRun){
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
   foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
-  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(specdata$Low.Freq..Hz.,specdata$High.Freq..Hz.))
+  foo.spec <- spec(foo, plot=F, PSD=T,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z]))
   foo.specprop <- specprop(foo.spec)
-  foo.meanspec = meanspec(foo, plot=FALSE, flim=c(specdata$Low.Freq..Hz./1000,specdata$High.Freq..Hz./1000), ovlp=90)#not sure what ovlp parameter does but initially set to 90
-  foo.autoc = autoc(foo, plot=F,fmin=specdata$Low.Freq..Hz.,fmax=specdata$High.Freq..Hz.)
-  foo.dfreq = dfreq(foo, plot=F,ylim=c(specdata$Low.Freq..Hz.,specdata$High.Freq..Hz.), ovlp=90)
+  foo.meanspec = meanspec(foo, plot=FALSE ,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #flim=c(specdata$Low.Freq..Hz./1000,specdata$High.Freq..Hz./1000),
+  foo.autoc = autoc(foo, plot=F,fmin=specdata$Low.Freq..Hz.[z],fmax=specdata$High.Freq..Hz.[z]) #
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z]))
   specdata$rugosity[z] = rugo(foo@left / max(foo@left)) 
   specdata$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
@@ -1397,7 +1397,7 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 
 
 ################################################
-runname<-"algo downsweep test_20181108131634"
+runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
 #species
