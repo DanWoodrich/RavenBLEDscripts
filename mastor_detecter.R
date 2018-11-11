@@ -232,6 +232,73 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
+context_sim <-function(sdata){
+  #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
+  for(w in 1:length(unique(sdata[,1]))){
+    datVar<-sdata[which(sdata[,1]==unique(sdata[,1])[w]),]
+    datVar$probrollscore<-0
+    datVar$probmean2<-datVar$probmean
+    for(n in 1:(nrow(datVar)-1)){
+      if(datVar$probmean2[n]>=0.8){
+        datVar$probrollscore[n+1]<-0.05
+        if(datVar$probrollscore[n+1]>0.05){
+          datVar$probrollscore[n+1]<-0.05
+        }
+      }else if(datVar$probmean2[n]>0.35&datVar$probmean2[n]<0.8){
+        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*.05)
+        if(datVar$probrollscore[n+1]>0.05){
+          datVar$probrollscore[n+1]<-0.05
+        }
+      }else{
+        datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
+        if(datVar$probrollscore[n+1]<(-0.35)){
+          datVar$probrollscore[n+1]<-(-0.35)
+        }
+      }
+      if(datVar$probmean2[n]+datVar$probrollscore[n]>0 & datVar$probmean2[n]+datVar$probrollscore[n]<1){
+        datVar$probmean2[n]<-datVar$probmean2[n]+datVar$probrollscore[n]
+      }else if(datVar$probmean2[n]+datVar$probrollscore[n]<0){
+        datVar$probmean2[n]<-0
+      }else if(datVar$probmean2[n]+datVar$probrollscore[n]>1){
+        datVar$probmean2[n]<-1
+      }
+    }
+  #same but backwards through data 
+  datVar$probrollscore<-0
+  datVar$probmean3<-datVar$probmean
+  for(n in (nrow(datVar)-1):1){
+    if(datVar$probmean3[n]>=0.8){
+      datVar$probrollscore[n+1]<-0.05
+      if(datVar$probrollscore[n+1]>0.05){
+        datVar$probrollscore[n+1]<-0.05
+      }
+    }else if(datVar$probmean3[n]>0.35&datVar$probmean3[n]<0.8){
+      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean3[n]*.05)
+      if(datVar$probrollscore[n+1]>0.05){
+        datVar$probrollscore[n+1]<-0.05
+      }
+    }else{
+      datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
+      if(datVar$probrollscore[n+1]<(-0.35)){
+        datVar$probrollscore[n+1]<-(-0.35)
+      }
+    }
+    if(datVar$probmean3[n]+datVar$probrollscore[n]>0 & datVar$probmean3[n]+datVar$probrollscore[n]<1){
+      datVar$probmean3[n]<-datVar$probmean3[n]+datVar$probrollscore[n]
+    }else if(datVar$probmean3[n]+datVar$probrollscore[n]<0){
+      datVar$probmean3[n]<-0
+    }else if(datVar$probmean3[n]+datVar$probrollscore[n]>1){
+      datVar$probmean3[n]<-1
+    }
+  }
+  
+  datVar$probmean<-(datVar$probmean2+datVar$probmean3)/2
+  
+  sdata2<-sdata[which(sdata[,1]!=unique(sdata[,1])[w]),]
+  sdata<-rbind(sdata2,datVar)
+  }
+}
+
 after_model_write <-function(mdata,finaldatrun){
   mdata[,1]<-substr(mdata[,1],1,11)
   MoorVar1<-NULL
@@ -336,8 +403,8 @@ after_model_write <-function(mdata,finaldatrun){
 
 adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
-  for(o in unique(Compdata$`soundfiles[n]`)){
-    CompVar<-Compdata[which(Compdata$`soundfiles[n]`==o),]
+  for(o in unique(Compdata[,1])){
+    CompVar<-Compdata[which(Compdata[,1]),]
     CompVar<-CompVar[order(CompVar$meantime),]
     print(paste("For mooring",o))
     r=0
@@ -388,7 +455,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
         n=n+1
       }
     if(n>0){
-      Compdata<-Compdata[-which(Compdata$`soundfiles[n]`==o),]
+      Compdata<-Compdata[-which(Compdata[,1]==o),]
       Compdata<-rbind(Compdata,CompVar)      
     }
 
@@ -1647,68 +1714,8 @@ data3$n<-n
 #adaptively combine detections based on probability
 data3<-adaptive_compare(data3,1)
 
-#context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
-data3$probrollscore<-0
-data3$probmean2<-data3$probmean
-for(w in 1:length(data3$`soundfiles[n]`)){
-  datVar<-data3[which(data3$`soundfiles[n]`==unique(data3$`soundfiles[n]`)[w]),]
-for(n in 1:(nrow(data3)-1)){
-  if(data3$probmean2[n]>=0.8){
-    data3$probrollscore[n+1]<-0.05
-    if(data3$probrollscore[n+1]>0.05){
-      data3$probrollscore[n+1]<-0.05
-    }
-  }else if(data3$probmean2[n]>0.35&data3$probmean2[n]<0.8){
-    data3$probrollscore[n+1]<-data3$probrollscore[n]+(data3$probmean2[n]*.05)
-    if(data3$probrollscore[n+1]>0.05){
-      data3$probrollscore[n+1]<-0.05
-    }
-  }else{
-    data3$probrollscore[n+1]<-data3$probrollscore[n]-0.001
-    if(data3$probrollscore[n+1]<(-0.35)){
-      data3$probrollscore[n+1]<-(-0.35)
-    }
-  }
-  if(data3$probmean2[n]+data3$probrollscore[n]>0 & data3$probmean2[n]+data3$probrollscore[n]<1){
-  data3$probmean2[n]<-data3$probmean2[n]+data3$probrollscore[n]
-  }else if(data3$probmean2[n]+data3$probrollscore[n]<0){
-  data3$probmean2[n]<-0
-  }else if(data3$probmean2[n]+data3$probrollscore[n]>1){
-    data3$probmean2[n]<-1
-  }
-}
-#same but backwards through data 
-data3$probrollscore<-0
-data3$probmean3<-data3$probmean
-for(n in (nrow(data3)-1):1){
-  if(data3$probmean3[n]>=0.8){
-    data3$probrollscore[n+1]<-0.05
-    if(data3$probrollscore[n+1]>0.05){
-      data3$probrollscore[n+1]<-0.05
-    }
-  }else if(data3$probmean3[n]>0.35&data3$probmean3[n]<0.8){
-    data3$probrollscore[n+1]<-data3$probrollscore[n]+(data3$probmean3[n]*.05)
-    if(data3$probrollscore[n+1]>0.05){
-      data3$probrollscore[n+1]<-0.05
-    }
-  }else{
-    data3$probrollscore[n+1]<-data3$probrollscore[n]-0.001
-    if(data3$probrollscore[n+1]<(-0.35)){
-      data3$probrollscore[n+1]<-(-0.35)
-    }
-  }
-  if(data3$probmean3[n]+data3$probrollscore[n]>0 & data3$probmean3[n]+data3$probrollscore[n]<1){
-    data3$probmean3[n]<-data3$probmean3[n]+data3$probrollscore[n]
-  }else if(data3$probmean3[n]+data3$probrollscore[n]<0){
-    data3$probmean3[n]<-0
-  }else if(data3$probmean3[n]+data3$probrollscore[n]>1){
-    data3$probmean3[n]<-1
-  }
-}
-
-data3$probmean<-(data3$probmean2+data3$probmean3)/2
-
-#now go the other way through the data 
+#simulate context over time using probability scores 
+data3<-context_sim(data3)
 
 #number of TPs in data3
 finTPs<-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
@@ -1740,6 +1747,8 @@ cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "ora
 cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$High.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
