@@ -486,7 +486,8 @@ for(z in 1:nrow(specdata)){
   specdata$dfslope[z]<-((foo.dfreq[,2][length(foo.dfreq[,2])]-foo.dfreq[,2][1])/(specdata$End.Time..s.[z]-specdata$Begin.Time..s.[z]))
   specdata$meanpeakf[z]<- frd_wrblr_int(foo)$meanpeakf[1]
   #specdata$mindom[z]<-foo.warbprop$mindom[1]
-}
+  #specan package warbler for more staties 
+  }
   return(specdata)
 }
 
@@ -978,7 +979,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "algo downsweep test"
+runname<- "wide net test "
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -1002,7 +1003,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[20:35] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1023,15 +1024,15 @@ Mindur<-0.2
 
 ############################Combine detector  parameters
 timediffself<-1.25
-probdist<-.25 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
+probdist<-.2 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
 
 #multiple detectors
 freqdiff<-100
 timediff<-1
 
 #compare with downsweeps parameters
-downsweepCompMod<-6
-downsweepCompAdjust<-(2)
+downsweepCompMod<-5
+downsweepCompAdjust<-(1)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -1476,8 +1477,6 @@ detecEvalFinal <- rbind(detecEvalFinal,detecEval)
 detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
 detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
-beep(10)
-
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
 ###################
@@ -1566,12 +1565,9 @@ if(length(data)>12){
 }
 data$Selection<-seq(1,nrow(data))
 
-data<-splitdf(data,weight = 1/4)[[1]]
+#data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features(data,1)
-
-
-
 
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
@@ -1582,10 +1578,10 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #number of iterations 
-CV=20
+CV=100
 
 #set desired TPR threshold
-TPRthresh<-.95
+TPRthresh<-.90
 
 AUC_avg<-c()
 f=1
@@ -1651,6 +1647,69 @@ data3$n<-n
 #adaptively combine detections based on probability
 data3<-adaptive_compare(data3,1)
 
+#context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
+data3$probrollscore<-0
+data3$probmean2<-data3$probmean
+for(w in 1:length(data3$`soundfiles[n]`)){
+  datVar<-data3[which(data3$`soundfiles[n]`==unique(data3$`soundfiles[n]`)[w]),]
+for(n in 1:(nrow(data3)-1)){
+  if(data3$probmean2[n]>=0.8){
+    data3$probrollscore[n+1]<-0.05
+    if(data3$probrollscore[n+1]>0.05){
+      data3$probrollscore[n+1]<-0.05
+    }
+  }else if(data3$probmean2[n]>0.35&data3$probmean2[n]<0.8){
+    data3$probrollscore[n+1]<-data3$probrollscore[n]+(data3$probmean2[n]*.05)
+    if(data3$probrollscore[n+1]>0.05){
+      data3$probrollscore[n+1]<-0.05
+    }
+  }else{
+    data3$probrollscore[n+1]<-data3$probrollscore[n]-0.001
+    if(data3$probrollscore[n+1]<(-0.35)){
+      data3$probrollscore[n+1]<-(-0.35)
+    }
+  }
+  if(data3$probmean2[n]+data3$probrollscore[n]>0 & data3$probmean2[n]+data3$probrollscore[n]<1){
+  data3$probmean2[n]<-data3$probmean2[n]+data3$probrollscore[n]
+  }else if(data3$probmean2[n]+data3$probrollscore[n]<0){
+  data3$probmean2[n]<-0
+  }else if(data3$probmean2[n]+data3$probrollscore[n]>1){
+    data3$probmean2[n]<-1
+  }
+}
+#same but backwards through data 
+data3$probrollscore<-0
+data3$probmean3<-data3$probmean
+for(n in (nrow(data3)-1):1){
+  if(data3$probmean3[n]>=0.8){
+    data3$probrollscore[n+1]<-0.05
+    if(data3$probrollscore[n+1]>0.05){
+      data3$probrollscore[n+1]<-0.05
+    }
+  }else if(data3$probmean3[n]>0.35&data3$probmean3[n]<0.8){
+    data3$probrollscore[n+1]<-data3$probrollscore[n]+(data3$probmean3[n]*.05)
+    if(data3$probrollscore[n+1]>0.05){
+      data3$probrollscore[n+1]<-0.05
+    }
+  }else{
+    data3$probrollscore[n+1]<-data3$probrollscore[n]-0.001
+    if(data3$probrollscore[n+1]<(-0.35)){
+      data3$probrollscore[n+1]<-(-0.35)
+    }
+  }
+  if(data3$probmean3[n]+data3$probrollscore[n]>0 & data3$probmean3[n]+data3$probrollscore[n]<1){
+    data3$probmean3[n]<-data3$probmean3[n]+data3$probrollscore[n]
+  }else if(data3$probmean3[n]+data3$probrollscore[n]<0){
+    data3$probmean3[n]<-0
+  }else if(data3$probmean3[n]+data3$probrollscore[n]>1){
+    data3$probmean3[n]<-1
+  }
+}
+
+data3$probmean<-(data3$probmean2+data3$probmean3)/2
+
+#now go the other way through the data 
+
 #number of TPs in data3
 finTPs<-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
 
@@ -1659,6 +1718,8 @@ finRat<-finTPs/finFPs
 
 #write data to drive
 after_model_write(data3,1)
+
+beep(10)
 
 #comparison dataset to data3
 data4$probmean<-probmean
@@ -1678,6 +1739,7 @@ abline(v=CUTmean)
 cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 
 
 #this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
@@ -1709,7 +1771,7 @@ abline(a=0, b= 1)
 #avg. Don't really know what the points on the line mean. Without manipulations on probs
 plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
      #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-     lwd = 2, main = paste("Vertical avg w/ std dev\n"))
+     lwd = 2, main = paste("Vertical avg w/ std devn"))
 plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
      lwd = 2, main = paste("Threshold avg"),colorize=T)
 abline(a=0, b= 1)
