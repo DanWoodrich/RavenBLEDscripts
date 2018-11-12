@@ -239,15 +239,15 @@ context_sim <-function(sdata){
     datVar$probrollscore<-0
     datVar$probmean2<-datVar$probmean
     for(n in 1:(nrow(datVar)-1)){
-      if(datVar$probmean2[n]>=0.8){
-        datVar$probrollscore[n+1]<-0.05
-        if(datVar$probrollscore[n+1]>0.05){
-          datVar$probrollscore[n+1]<-0.05
+      if(datVar$probmean2[n]>=greatcallThresh){
+        datVar$probrollscore[n+1]<-greatcallBonus
+        if(datVar$probrollscore[n+1]>maxBonus){
+          datVar$probrollscore[n+1]<-maxBonus
         }
-      }else if(datVar$probmean2[n]>0.35&datVar$probmean2[n]<0.8){
-        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*.05)
-        if(datVar$probrollscore[n+1]>0.05){
-          datVar$probrollscore[n+1]<-0.05
+      }else if(datVar$probmean2[n]>0.35&datVar$probmean2[n]<greatcallThresh){
+        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*goodcallLevel)
+        if(datVar$probrollscore[n+1]>maxBonus){
+          datVar$probrollscore[n+1]<-maxBonus
         }
       }else{
         datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
@@ -267,15 +267,15 @@ context_sim <-function(sdata){
   datVar$probrollscore<-0
   datVar$probmean3<-datVar$probmean
   for(n in (nrow(datVar)-1):1){
-    if(datVar$probmean3[n]>=0.8){
-      datVar$probrollscore[n+1]<-0.05
-      if(datVar$probrollscore[n+1]>0.05){
-        datVar$probrollscore[n+1]<-0.05
+    if(datVar$probmean3[n]>=greatcallThresh){
+      datVar$probrollscore[n+1]<-maxBonus
+      if(datVar$probrollscore[n+1]>maxBonus){
+        datVar$probrollscore[n+1]<-maxBonus
       }
-    }else if(datVar$probmean3[n]>0.35&datVar$probmean3[n]<0.8){
+    }else if(datVar$probmean3[n]>0.35&datVar$probmean3[n]<greatcallThresh){
       datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean3[n]*.05)
-      if(datVar$probrollscore[n+1]>0.05){
-        datVar$probrollscore[n+1]<-0.05
+      if(datVar$probrollscore[n+1]>maxBonus){
+        datVar$probrollscore[n+1]<-maxBonus
       }
     }else{
       datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
@@ -292,11 +292,15 @@ context_sim <-function(sdata){
     }
   }
   
-  datVar$probmean<-(datVar$probmean2+datVar$probmean3)/2
+  datVar$probmean<-(datVar$probmean2+datVar$probmean3)/2 #average
+  #datVar$probmean<-pmax(datVar$probmean2,datVar$probmean3) #max
+  #datVar$probmean<-pmin(datVar$probmean2,datVar$probmean3) #min
   
-  sdata2<-sdata[which(sdata[,1]!=unique(sdata[,1])[w]),]
-  sdata<-rbind(sdata2,datVar)
+  sdata<-sdata[which(sdata[,1]!=unique(sdata[,1])[w]),]
+  datVar<-datVar[,c(1:length(sdata))]
+  sdata<-rbind(sdata,datVar)
   }
+  return(sdata)
 }
 
 after_model_write <-function(mdata,finaldatrun){
@@ -333,9 +337,9 @@ after_model_write <-function(mdata,finaldatrun){
     detecEval<-detecEvalFinal[0,]
     detecEval[,2]<-as.character(detecEval[,2])
     if(dettype=="spread"|dettype=="combined"){
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }else{
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
     }
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -414,7 +418,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
     for(q in 1:(nrow(CompVar)-1)){
       if(CompVar$meantime[q+1]<=(CompVar$meantime[q]+timediffself)){
         if(CompVar$probmean[q+1]+probdist<CompVar$probmean[q]|CompVar$probmean[q+1]-probdist>CompVar$probmean[q]){#take only the best one
-          print(q)
+         # print(q)
           newdat<-CompVar[0,]
           newdat[1:2,]<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat$probmean),]
@@ -422,7 +426,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           newrow[r+1,]<-newdat[2,]
           r=r+1
         }else{
-          print(q)
+          #print(q)
           newdat<-CompVar[0,]
           newdat[1:2,]<-CompVar[c(q,q+1),]
           IDvec<-c(IDvec,newdat$Selection)
@@ -510,7 +514,6 @@ spectral_features<- function(specdata,whichRun){
   
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
-  print(z)
   foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
   foo.spec <- spec(foo, plot=F, PSD=T,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)) #,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
@@ -1070,7 +1073,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[20:35] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1097,7 +1100,7 @@ probdist<-.2 #how apart the probabilities can be before only choosing the best o
 freqdiff<-100
 timediff<-1
 
-#compare with downsweeps parameters
+#############################compare with downsweeps parameters
 downsweepCompMod<-5
 downsweepCompAdjust<-(1)
 
@@ -1107,6 +1110,19 @@ downsweepCompAdjust<-(1)
 whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
+
+###########################Model paramaters
+CV=30 #number of cross validation models to create (more consistent results with greater number of models)
+TPRthresh=.875 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
+
+#context sim parameters
+greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
+maxBonus<-0.05 #Maximum bonus level. Same as reset value when greatcallThresh is reached. 
+
+goodcallBonus<-0.05 #increase factor for every call within resonable range (-maxPenalty to greatcallThresh)
+
+maxPenalty<-(-0.35) #same abs value as lowest value for "good calls" that give bonus 
+badcallPenalty<-(-0.001) #constant decrease every detection below threshold
 
 ############################Spread parameters. must be same length as number of spread detectors you are running
 #p7 good ones: 2,1,3,0.75
@@ -1645,10 +1661,10 @@ my.xval$predictions = list()
 my.xval$labels = list()
 
 #number of iterations 
-CV=100
+CV=30
 
 #set desired TPR threshold
-TPRthresh<-.90
+TPRthresh<-.875
 
 AUC_avg<-c()
 f=1
@@ -1723,39 +1739,6 @@ finTPs<-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detect
 finFPs<-(nrow(data3[which(data3$probmean>CUTmean),])-finTPs)
 finRat<-finTPs/finFPs
 
-#write data to drive
-after_model_write(data3,1)
-
-beep(10)
-
-#comparison dataset to data3
-data4$probmean<-probmean
-data4$probstderr<-probstderr
-data4$n<-n
-
-#number of TPs in data4
-sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
-
-
-
-######################
-plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
-abline(v=CUTmean)
-
-#see freq breakdown of calls 
-cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$High.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-
-
-#this looks like cleanest portion of data- but how to subset to this while keeping a known TPR? Even if it takes a after the fact analysis, should explore only taking the "tail" of the data
-#plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
-
-#cor.test(as.numeric(probmean),probstderr)
-
 pp2<-data3$probmean
 ll2<-data3$detectionType
 predd2<-prediction(pp2,ll2)
@@ -1768,6 +1751,37 @@ abline(a=0, b= 1)
 auc.perf = performance(predd2, measure = "auc",plot=F)
 print(auc.perf@y.values)
 
+AUCadj<-auc.perf@y.values
+
+plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
+abline(v=CUTmean)
+
+#see freq breakdown of calls 
+cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$High.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+
+#write data to drive
+after_model_write(data3,1)
+
+beep(10)
+#################
+
+
+
+
+#comparison dataset to data3#####################################
+data4$probmean<-probmean
+data4$probstderr<-probstderr
+data4$n<-n
+
+#number of TPs in data4
+sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
+
+#cor.test(as.numeric(probmean),probstderr)
 pp = my.xval$predictions
 ll = my.xval$labels
 predd = prediction(pp, ll)
@@ -1792,15 +1806,6 @@ varImpPlot(data.rf,
 
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
-
-
-
-
-#run 1 full data: can achieve .95 TPR with FPR of .7 84% of TPs total accounted for. With FPR of a little of .5, can get TPR of .9, 80% of TPs total accounted for. 
-#about the same for second .25 sampling of data. 
-#.95 tpr .7 fpr seems more consistently on curve line than .9/.5. 
-
-
 
 
 ###############################################
