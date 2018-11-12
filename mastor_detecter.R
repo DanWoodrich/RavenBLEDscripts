@@ -957,13 +957,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "wide net test "
+runname<- "new log test"
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
+dettype<- "single" 
 
 #enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
 moorType<-"FULL"
@@ -987,7 +987,7 @@ detectorssprshort<- detectorsspr
 }
 
 if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[1]
+detectorssin <- c(dir(BLEDpath)[2]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
@@ -1009,7 +1009,7 @@ freqdiff<-100
 timediff<-1
 
 #############################compare with downsweeps parameters
-downsweepCompMod<-5
+downsweepCompMod<-3
 downsweepCompAdjust<-(1)
 
 ############################Whiten parameters (need to have done this in Raven previously)
@@ -1289,7 +1289,7 @@ DetecTab2<-process_data(1)
 DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
   GTtot=0
@@ -1470,6 +1470,7 @@ detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
+beep(10)
 ###################
 #MAYBE TEMPORARY- Save dataset for next steps so don't have to rerun after crash
 
