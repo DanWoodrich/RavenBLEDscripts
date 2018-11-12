@@ -240,19 +240,19 @@ context_sim <-function(sdata){
     datVar$probmean2<-datVar$probmean
     for(n in 1:(nrow(datVar)-1)){
       if(datVar$probmean2[n]>=greatcallThresh){
-        datVar$probrollscore[n+1]<-greatcallBonus
+        datVar$probrollscore[n+1]<-maxBonus
         if(datVar$probrollscore[n+1]>maxBonus){
           datVar$probrollscore[n+1]<-maxBonus
         }
-      }else if(datVar$probmean2[n]>0.35&datVar$probmean2[n]<greatcallThresh){
-        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*goodcallLevel)
+      }else if(datVar$probmean2[n]>(-maxPenalty)&datVar$probmean2[n]<greatcallThresh){
+        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*goodcallBonus)
         if(datVar$probrollscore[n+1]>maxBonus){
           datVar$probrollscore[n+1]<-maxBonus
         }
       }else{
-        datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
-        if(datVar$probrollscore[n+1]<(-0.35)){
-          datVar$probrollscore[n+1]<-(-0.35)
+        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+badcallPenalty
+        if(datVar$probrollscore[n+1]<maxPenalty){
+          datVar$probrollscore[n+1]<-maxPenalty
         }
       }
       if(datVar$probmean2[n]+datVar$probrollscore[n]>0 & datVar$probmean2[n]+datVar$probrollscore[n]<1){
@@ -272,15 +272,15 @@ context_sim <-function(sdata){
       if(datVar$probrollscore[n+1]>maxBonus){
         datVar$probrollscore[n+1]<-maxBonus
       }
-    }else if(datVar$probmean3[n]>0.35&datVar$probmean3[n]<greatcallThresh){
-      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean3[n]*.05)
+    }else if(datVar$probmean3[n]>(-maxPenalty)&datVar$probmean3[n]<greatcallThresh){
+      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean3[n]*goodcallBonus)
       if(datVar$probrollscore[n+1]>maxBonus){
         datVar$probrollscore[n+1]<-maxBonus
       }
     }else{
-      datVar$probrollscore[n+1]<-datVar$probrollscore[n]-0.001
-      if(datVar$probrollscore[n+1]<(-0.35)){
-        datVar$probrollscore[n+1]<-(-0.35)
+      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+badcallPenalty
+      if(datVar$probrollscore[n+1]<maxPenalty){
+        datVar$probrollscore[n+1]<-maxPenalty
       }
     }
     if(datVar$probmean3[n]+datVar$probrollscore[n]>0 & datVar$probmean3[n]+datVar$probrollscore[n]<1){
@@ -337,9 +337,9 @@ after_model_write <-function(mdata,finaldatrun){
     detecEval<-detecEvalFinal[0,]
     detecEval[,2]<-as.character(detecEval[,2])
     if(dettype=="spread"|dettype=="combined"){
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }else{
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -395,10 +395,11 @@ after_model_write <-function(mdata,finaldatrun){
   detecEval<-detecEvalFinal[0,]
   detecEval[,2]<-as.character(detecEval[,2])
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }
+  
   
   detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
   detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -600,15 +601,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPV[z+1,14]<-f
         }
       }
-      
-      #if the meantime is the same take only the lowest # box. 
-      #resltsTSPV$remove<-0
-      #for(g in 1:(nrow(resltsTSPV)-1)){
-      #  if(resltsTSPV[g+1,15]==resltsTSPV[g,15]){
-      #    resltsTSPV[g+1,16]<-1}}
-      #resltsTSPV<- subset(resltsTSPV,remove==0) #this is working as intended- looks like R truncates the values after 4 digits but does calculate with the full values. 
-      #resltsTSPV$remove<-NULL
-      
+    
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
@@ -713,7 +706,16 @@ if(dettype=="spread"|dettype=="combined"){
           runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
           runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
           runsum2<-runsum2[1,] #choose first one
-          if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
+          
+          downsweep<-groupdat2[,c(1:15,15+runsum2[,1])]
+          downsweep<-downsweep[which(groupdat2[,16]==2|groupdat2[,16]==1),]
+          upsweep<-groupdat[,c(1:15,15+runsum[,1])]
+          upsweep<-upsweep[which(groupdat[,16]==2|groupdat[,16]==1),]
+          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[,13] %in% upsweep[,13])){
+            groupdat<-rbind(downsweep,upsweep[c(2:nrow(upsweep)),])
+            kill="s"
+            groupdat<-groupdat[,c(1:15)]
+          }else if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
             kill="y"
           }else{
             kill="n"
@@ -726,6 +728,8 @@ if(dettype=="spread"|dettype=="combined"){
         groupdat<-groupdat[which(groupdat[,16]==2|groupdat[,16]==1),]
         groupdat<-groupdat[,c(1:15)]
         resltsTSPV<-rbind(resltsTSPV,groupdat)
+        }else if(kill=="s"){
+          resltsTSPV<-rbind(resltsTSPV,groupdat)
         }
       }
       
@@ -826,53 +830,6 @@ DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
 DetecTab$UniqueID<-seq(1:nrow(DetecTab))
 DetecTab$remove<-0
 
-#average detections within detectors using timediffself parameter
-#n=0
-#for(o in unique(DetecTab$Mooring)){
-#  Tab<-DetecTab[which(DetecTab$Mooring==o),]
-#  print(paste("For mooring",o))
-#  for(p in 1:max(Tab$DetectorCount)){
-#    r=0
-#    AvgTab<- Tab[which(Tab$DetectorCount==p),]
-#    print(paste("       Average within detector",AvgTab$DetectorName[1]))
-#    newrow<-AvgTab[0,]
-#    IDvec<-NULL
-#    if(nrow(AvgTab)>1){
-#    for(q in 1:(nrow(AvgTab)-1)){
-#      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
-#        
-#        newdat<-AvgTab[0,]
-#        newdat[1:2,]<-AvgTab[c(q,q+1),]
-#        IDvec<-c(IDvec,newdat$UniqueID)
-#        s<-mean(newdat[,4])
-#        e<-mean(newdat[,5])
-#        h<-mean(newdat[,6])
-#        l<-mean(newdat[,7])
-#        mt<-(s+e)/2
-#        mf<-(h+l)/2
-#        unqID<-newdat[1,15]
-#        newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
-#        r=r+1
-#      }
-#    }
-#    }
-#    if(r>0){
-#      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
-#      AvgTab<-rbind(AvgTab,newrow)
-#      AvgTab<-AvgTab[order(AvgTab$meantime),]
-#      Tab<- Tab[-which(Tab$DetectorCount==p),]
-#      Tab<-rbind(Tab,AvgTab)
-#      n=n+1
-#    }
-#    
-#  }
-#  if(n>0){
-#    DetecTab<-DetecTab[-which(DetecTab$Mooring==o),]
-#    DetecTab<-rbind(DetecTab,Tab)
-#  }
-#}
-
-
 DetecTab<-DetecTab[order(DetecTab$meantime),]
 
 #average between detectors
@@ -927,55 +884,6 @@ for(w in unique(DetecTab$Mooring)){
 }
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
-
-#average detections within combined detector using timediffself parameter (3x)
-#for(a in 1:3){
-#n=0
-#for(o in unique(DetecTab2$Mooring)){
-#  Tab<-DetecTab2[which(DetecTab2$Mooring==o),]
-#  print(paste("For mooring",o))   
-#  for(p in unique(Tab$DetectorCount)){
-#    r=0
-#    AvgTab<- Tab[which(Tab$DetectorCount==p),]
-#    print(paste("       Average combined detector for time number",a))
-#    
-#    newrow<-AvgTab[0,]
-#    IDvec<-NULL
-#    if(nrow(AvgTab)>1){
-#    for(q in 1:(nrow(AvgTab)-1)){
-#      if(AvgTab[q+1,13]<=(AvgTab[q,13]+timediffself)){
-#        
-#        newdat<-AvgTab[0,]
-#        newdat[1:2,]<-AvgTab[c(q,q+1),]
-#        IDvec<-c(IDvec,newdat$UniqueID)
-#        s<-mean(newdat[,4])
-#        e<-mean(newdat[,5])
-#        h<-mean(newdat[,6])
-#        l<-mean(newdat[,7])
-#        mt<-(s+e)/2
-#        mf<-(h+l)/2
-#       unqID<-newdat[1,15]
-#       newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],newdat[1,3],s,e,h,l,newdat[1,8],newdat[1,9],newdat[1,10],newdat[1,11],newdat[1,12],mt,mf,unqID,0, stringsAsFactors = FALSE)
-#       r=r+1
-#      }
-#    }
-#    }
-#    if(r>0){
-#      AvgTab<-subset(AvgTab,!(AvgTab$UniqueID %in% IDvec))
-#      AvgTab<-rbind(AvgTab,newrow)
-#      AvgTab<-AvgTab[order(AvgTab$meantime),]
-#      Tab<- Tab[-which(Tab$DetectorCount==p),]
-#      Tab<-rbind(Tab,AvgTab)
-#      n=n+1
-#    }
-    
-#  }
-#  if(n>0){
-#    DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==o),]
-#    DetecTab2<-rbind(DetecTab2,Tab)
-#  }
-#}
-#}
 
 #remove detections that do not fit min/max duration parameters 
 DetecTab2$UniqueID<-NULL
@@ -1119,7 +1027,7 @@ TPRthresh=.875 #estimated number of TP's to retain from total that initially go 
 greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
 maxBonus<-0.05 #Maximum bonus level. Same as reset value when greatcallThresh is reached. 
 
-goodcallBonus<-0.05 #increase factor for every call within resonable range (-maxPenalty to greatcallThresh)
+goodcallBonus<-0.1 #increase factor for every call within resonable range (-maxPenalty to greatcallThresh)
 
 maxPenalty<-(-0.35) #same abs value as lowest value for "good calls" that give bonus 
 badcallPenalty<-(-0.001) #constant decrease every detection below threshold
@@ -1381,8 +1289,8 @@ DetecTab2<-process_data(1)
 DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
   GTtot=0
   GTtot2=NULL
@@ -1523,9 +1431,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
@@ -1551,9 +1459,9 @@ TPdivFP<- numTP/numFP
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
 if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
@@ -1659,12 +1567,6 @@ data2$detectionType<-as.factor(data2$detectionType)
 my.xval = list()
 my.xval$predictions = list()
 my.xval$labels = list()
-
-#number of iterations 
-CV=30
-
-#set desired TPR threshold
-TPRthresh<-.875
 
 AUC_avg<-c()
 f=1
@@ -1953,8 +1855,8 @@ write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = 
 DetecTab2<-process_data(2)
 
 #Define table for later excel file export. 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP, ZerosAllowed,GroupSize,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 
 MoorTab<-NULL
