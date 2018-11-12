@@ -711,7 +711,7 @@ if(dettype=="spread"|dettype=="combined"){
           downsweep<-downsweep[which(groupdat2[,16]==2|groupdat2[,16]==1),]
           upsweep<-groupdat[,c(1:15,15+runsum[,1])]
           upsweep<-upsweep[which(groupdat[,16]==2|groupdat[,16]==1),]
-          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[,13] %in% upsweep[,13])){
+          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[,15] %in% upsweep[,15])){
             groupdat<-rbind(downsweep,upsweep[c(2:nrow(upsweep)),])
             kill="s"
             groupdat<-groupdat[,c(1:15)]
@@ -963,7 +963,7 @@ runname<- "new log test"
 runtype<-"spf"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "single" 
+dettype<- "spread" 
 
 #enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
 moorType<-"FULL"
@@ -981,7 +981,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[26:31] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
