@@ -336,6 +336,7 @@ after_model_write <-function(mdata,finaldatrun){
     #save stats and parameters to excel file
     detecEval<-detecEvalFinal[0,]
     detecEval[,2]<-as.character(detecEval[,2])
+    detecEval[,13]<-as.character(detecEval[,13])
     if(dettype=="spread"|dettype=="combined"){
       detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }else{
@@ -394,6 +395,7 @@ after_model_write <-function(mdata,finaldatrun){
   
   detecEval<-detecEvalFinal[0,]
   detecEval[,2]<-as.character(detecEval[,2])
+  detecEval[,13]<-as.character(detecEval[,13])
   if(dettype=="spread"|dettype=="combined"){
     detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
@@ -708,9 +710,11 @@ if(dettype=="spread"|dettype=="combined"){
           runsum2<-runsum2[1,] #choose first one
           
           downsweep<-groupdat2[,c(1:15,15+runsum2[,1])]
-          downsweep<-downsweep[which(groupdat2[,16]==2|groupdat2[,16]==1),]
+          downsweep<-downsweep[which(downsweep[,16]==2|downsweep[,16]==1),]
+          downsweep<-downsweep[,c(1:15)]
           upsweep<-groupdat[,c(1:15,15+runsum[,1])]
-          upsweep<-upsweep[which(groupdat[,16]==2|groupdat[,16]==1),]
+          upsweep<-upsweep[which(upsweep[,16]==2|upsweep[,16]==1),]
+          upsweep<-upsweep[,c(1:15)]
           if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[,15] %in% upsweep[,15])){
             groupdat<-rbind(downsweep,upsweep[c(2:nrow(upsweep)),])
             kill="s"
@@ -957,10 +961,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 #enter the run name:
-runname<- "new log test"
+runname<- "new log test w new downsweep algo "
 
 #Run type: all (all) or specific (spf) moorings to run
-runtype<-"spf"
+runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -981,7 +985,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[26:31] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1009,8 +1013,8 @@ freqdiff<-100
 timediff<-1
 
 #############################compare with downsweeps parameters
-downsweepCompMod<-3
-downsweepCompAdjust<-(1)
+downsweepCompMod<-2
+downsweepCompAdjust<-(2)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -1021,7 +1025,7 @@ LMS<-.10 #LMS step size
 
 ###########################Model paramaters
 CV=30 #number of cross validation models to create (more consistent results with greater number of models)
-TPRthresh=.875 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
+TPRthresh=.9 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
 
 #context sim parameters
 greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
@@ -1485,6 +1489,8 @@ beep(10)
 #RUN RANDOM FOREST MODEL 
 
 
+#################
+
 ################################################
 runname<-runname
 spec<-spec
@@ -1671,8 +1677,6 @@ cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue",
 after_model_write(data3,1)
 
 beep(10)
-#################
-
 
 
 
