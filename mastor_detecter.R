@@ -28,23 +28,11 @@ library(beepr)
 library(stringr)
 library(stringi)
 
-frd_wrblr_int <- function(wave, wl = 512, fsmooth = 0.1, threshold = 10, wn = "hanning", flim = c(0, 22), bp = NULL, ovlp = 50)
+frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp = NULL,sample_rate=sample_rate)
 {
-  # get sampling rate
-  f <-  wave@samp.rate
-  
-  # fix flim
-  flim <- c(0, floor(f/2000))
-  if (flim[2] > ceiling(f/2000) - 1) flim[2] <- ceiling(f/2000) - 1 
-  
-  if(wl >= length(wave@left))  wl <- length(wave@left) - 1 
-  if (wl %% 2 != 0) wl <- wl - 1
-  
-  # mean spectrum
-  spc <- meanspec(wave, plot = FALSE, wl = wl, f = f, wn = wn, ovlp = ovlp)
   
   # get frequency windows length for smoothing
-  step <- wave@samp.rate/wl/1000
+  step <- sample_rate/512/1000
   
   fsmooth <- fsmooth/step
   
@@ -113,7 +101,7 @@ frd_wrblr_int <- function(wave, wl = 512, fsmooth = 0.1, threshold = 10, wn = "h
   rl <- list(frange = data.frame(bottom.freq = min.strt, top.freq = max.nd), af.mat = cbind(z, zf), meanpeakf = meanpeakf, detections = cbind(start.freq = strt, end.freq = nd))
   
   # return low and high freq
-  return(rl)
+  return(rl) #Dan: it returns two things? Should make another variable for the other variable
 }
 
 raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
@@ -518,10 +506,14 @@ spectral_features<- function(specdata,whichRun){
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
   foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
+  sample_rate<-wave@samp.rate
   foo.spec <- spec(foo, plot=F, PSD=T,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)) #,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #
+  meanpeaks<-frd_wrblr_int(foo.meanspec)$meanpeakf
+  meanpeak1<-meanpeaks[1]
+  meanpeak2<-meanpeaks[2]
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=90,ylim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))
@@ -557,7 +549,7 @@ for(z in 1:nrow(specdata)){
   specdata$time.ent[z]<-th(foo.env)[1]
   specdata$modindx[z]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(max(foo.dfreq[,2], na.rm=T)-min(foo.dfreq[,2], na.rm=T)))
   specdata$dfslope[z]<-((foo.dfreq[,2][length(foo.dfreq[,2])]-foo.dfreq[,2][1])/(specdata$End.Time..s.[z]-specdata$Begin.Time..s.[z]))
-  specdata$meanpeakf[z]<- frd_wrblr_int(foo)$meanpeakf[1]
+  specdata$meanpeakf[z]<- 
   #specdata$mindom[z]<-foo.warbprop$mindom[1]
   #specan package warbler for more staties 
   }
