@@ -359,7 +359,7 @@ after_model_write <-function(mdata,finaldatrun){
 adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
-    CompVar<-Compdata[which(Compdata[,1]==unique(Compdata[,1])[o]),]
+    CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar$meantime),]
     print(paste("For mooring",o))
     r=0
