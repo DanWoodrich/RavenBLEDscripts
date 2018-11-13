@@ -28,11 +28,16 @@ library(beepr)
 library(stringr)
 library(stringi)
 
-frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp = NULL,sample_rate=sample_rate)
+freqstat.normalize<- function(freqstat,lowFreq,highFreq){
+  newstat<-((freqstat-lowFreq)/(highFreq-lowFreq))
+  return(newstat)
+}
+
+frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp = NULL,sr=NULL)
 {
   
   # get frequency windows length for smoothing
-  step <- sample_rate/512/1000
+  step <- sr/512/1000
   
   fsmooth <- fsmooth/step
   
@@ -46,12 +51,6 @@ frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp
   z <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
   zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(z))
   
-  if (!is.null(bp)) { 
-    #remove range outsde bp
-    z <- z[zf > bp[1] & zf < bp[2]]
-    zf <- zf[zf > bp[1] & zf < bp[2]]
-  }
-  
   # make minimum amplitude 0
   z <- z - min(z)
   z[z < 0] <- 0
@@ -59,49 +58,10 @@ frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp
   # normalize amplitude from 0 to 1
   z <- z/max(z)
   
-  #get freqs crossing threshold
-  z1 <- rep(0, length(z))
-  z1[z > threshold/100] <- 1 
-  z2 <- z1[2:length(z1)] - z1[1:(length(z1) - 1)]
-  
-  # add 0 to get same length than z
-  z2 <- c(0, z2)
-  
-  #determine start and end of amplitude hills  
-  strt <- zf[z2 == 1]
-  nd <- zf[z2 == -1]
-  
-  #add NAs when some ends or starts where not found
-  if (length(strt) != length(nd))
-  {if (z1[1] == 0) nd <- c(nd, NA) else strt <- c(NA, strt)}
-  
-  if (length(strt) == 1){
-    if (z1[1] == 1 & z1[length(z1)] == 1  & strt > nd){    
-      strt <- c(NA, strt)
-      nd <- c(nd , NA)
-    }
-  }  
-  # substract half a step to calculate mid point between the 2 freq windows in which the theshold has passed
-  nd <- nd - (step / 2)
-  strt <- strt - (step / 2)
-  
   meanpeakf <- zf[which.max(z)] + (step / 2)
   
-  options(warn = -1)
-  min.strt <- ifelse(length(strt) == 1, strt, min(strt, na.rm = TRUE))
-  max.nd <- ifelse(length(nd) == 1, nd, max(nd, na.rm = TRUE))
-  
-  if (!any(is.na(c(min.strt, max.nd)))) {
-    if (min.strt > max.nd){
-      min.strt <- NA
-      max.nd <- NA
-    }
-  }
-  
-  rl <- list(frange = data.frame(bottom.freq = min.strt, top.freq = max.nd), af.mat = cbind(z, zf), meanpeakf = meanpeakf, detections = cbind(start.freq = strt, end.freq = nd))
-  
   # return low and high freq
-  return(rl) #Dan: it returns two things? Should make another variable for the other variable
+  return(meanpeakf) #Dan: it returns two things? Should make another variable for the other variable
 }
 
 raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
@@ -505,35 +465,45 @@ spectral_features<- function(specdata,whichRun){
   
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
-  foo <- readWave(paste(specpath,specdata[z,1],sep=""),specdata$Begin.Time..s.[z],specdata$End.Time..s.[z],units="seconds")
-  sample_rate<-wave@samp.rate
-  foo.spec <- spec(foo, plot=F, PSD=T,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)) #,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
+  print(z)
+  #store reused calculations to avoid indexing 
+  Low<-specdata$Low.Freq..Hz.[z]
+  High<-specdata$High.Freq..Hz.[z]
+  Start<-specdata$Begin.Time..s.[z]
+  End<-  specdata$End.Time..s.[z]
+  
+  foo <- readWave(paste(specpath,specdata[z,1],sep=""),Start,End,units="seconds")
+  sample_rate<-foo@samp.rate
+  foo.spec <- spec(foo, plot=F, PSD=T)
+  foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
-  foo.meanspec = meanspec(foo, plot=F,ovlp=90,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #
-  meanpeaks<-frd_wrblr_int(foo.meanspec)$meanpeakf
-  meanpeak1<-meanpeaks[1]
-  meanpeak2<-meanpeaks[2]
+  foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #
+  #foo.meanspec2<-foo.meanspec[which(foo.meanspec[,1]<High&foo.meanspec[,1]>Low),] #only returns like 2 numbers- probably not getting a lot out of this if we freq limit
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F) #
-  foo.dfreq = dfreq(foo, plot=F, ovlp=90,ylim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90)
+  Startdom<-foo.dfreq[,2][1]
+  Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
+  Mindom <- min(foo.dfreq, na.rm = TRUE)
+  Maxdom <- max(foo.dfreq, na.rm = TRUE)
+  Dfrange <- Maxdom - Mindom
   specdata$rugosity[z] = rugo(foo@left / max(foo@left)) 
   specdata$crest.factor[z] = crest(foo)$C
   foo.env = seewave:::env(foo, plot=F) 
   specdata$temporal.entropy[z] = th(foo.env)
   specdata$shannon.entropy[z] = sh(foo.spec)
-  specdata$spectral.flatness.measure[z] = sfm(foo.spec)
   specdata$spectrum.roughness[z] = roughness(foo.meanspec[,2])
-  specdata$autoc.mean[z] = mean(foo.autoc[,2], na.rm=T)
-  specdata$autoc.median[z] = median(foo.autoc[,2], na.rm=T)
+  specdata$autoc.mean[z] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High)
+  specdata$autoc.median[z] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High)
   specdata$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
-  specdata$dfreq.mean[z] = mean(foo.dfreq[,2], na.rm=T)
+  specdata$dfreq.mean[z] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High)
   specdata$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
-  specdata$specprop.mean[z] = foo.specprop$mean[1]
+  specdata$specprop.mean[z] = freqstat.normalize(foo.specprop$mean[1],Low,High)
   specdata$specprop.sd[z] = foo.specprop$sd[1]
   specdata$specprop.sem[z] = foo.specprop$sem[1]
-  specdata$specprop.median[z] = foo.specprop$median[1]
-  specdata$specprop.mode[z] = foo.specprop$mode[1]
+  specdata$specprop.median[z] = freqstat.normalize(foo.specprop$median[1],Low,High)
+  specdata$specprop.mode[z] = freqstat.normalize(foo.specprop$mode[1],Low,High)
   specdata$specprop.Q25[z] = foo.specprop$Q25[1]
   specdata$specprop.Q75[z] = foo.specprop$Q75[1]
   specdata$specprop.IQR[z] = foo.specprop$IQR[1]
@@ -542,16 +512,21 @@ for(z in 1:nrow(specdata)){
   specdata$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
   specdata$specprop.sfm[z] = foo.specprop$sfm[1]
   specdata$specprop.sh[z] = foo.specprop$sh[1]
+  specdata$specprop.prec[z] = foo.specprop$prec[1]
   specdata$amp.env.median[z] = M(foo)
   specdata$total.entropy[z] = H(foo)
  # specdata$resonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
   specdata$time.ent[z]<-th(foo.env)[1]
-  specdata$modindx[z]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(max(foo.dfreq[,2], na.rm=T)-min(foo.dfreq[,2], na.rm=T)))
-  specdata$dfslope[z]<-((foo.dfreq[,2][length(foo.dfreq[,2])]-foo.dfreq[,2][1])/(specdata$End.Time..s.[z]-specdata$Begin.Time..s.[z]))
-  specdata$meanpeakf[z]<- 
-  #specdata$mindom[z]<-foo.warbprop$mindom[1]
-  #specan package warbler for more staties 
+  specdata$modindx[z]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange))
+  specdata$startdom[z]<-freqstat.normalize(Startdom,Low,High)
+  specdata$enddom[z]<-freqstat.normalize(Enddom,Low,High)
+  specdata$mindom[z]<-freqstat.normalize(Mindom,Low,High)
+  specdata$maxdom[z]<-freqstat.normalize(Maxdom,Low,High)
+  specdata$dfrange[z]<-Dfrange
+  specdata$dfslope[z]<-((Enddom-Startdom)/(End-Start))
+  specdata$meanpeakf[z]<-frd_wrblr_int(foo.meanspec,sr=sample_rate)
+
   }
   return(specdata)
 }
