@@ -1022,6 +1022,11 @@ detskip<-c(3)
 #(SPREAD) max time distance for detectors to be considered in like group 
 groupInt<-c(0.45)
 
+############################file combine parameters
+fileCombinesize<-345
+
+decimationFactor<-20
+
 ############################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
@@ -1697,9 +1702,9 @@ allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
-fileSizeInt<-(345)
+fileSizeInt<-(fileCombinesize*decimationFactor)
 }else{
-fileSizeInt<-(345) #whitened files are smaller so still under 6 gigs. 
+fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
 }
 
 if(moorType=="HG"){
@@ -1714,13 +1719,14 @@ resltsTab <- NULL
 resltsTabInt<- NULL
 durTab<-NULL
 for(m in allMoorings){
-  #decimate dataset:
+  #decimate dataset. need to add txt doc to say whether decimated already or not or will continue to decimate
   for(z in dir(sfpath)){
-    wav<-readWave(combSound,unit="sample")
+    wav<-readWave(paste(sfpath,"/",z,sep=""),unit="sample")
     wav.samp.rate<-wav@samp.rate
-    wav<-decimate(wav@left,q=20)
-    savewav(wav,f=wav.samp.rate/20,filename=paste(sfpath,z))
+    wav<-decimate(wav@left,q=decimationFactor)
+    savewav(wav,f=wav.samp.rate/decimationFactor,filename=paste(sfpath,"/",z,sep=""))
   }
+  write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
   sound_files <- dir(sfpath) #
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
