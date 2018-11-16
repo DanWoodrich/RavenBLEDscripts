@@ -27,6 +27,7 @@ library(seewave)
 library(beepr)
 library(stringr)
 library(stringi)
+library(signal)
 
 freqstat.normalize<- function(freqstat,lowFreq,highFreq){
   newstat<-((freqstat-lowFreq)/(highFreq-lowFreq))
@@ -61,7 +62,7 @@ frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp
   meanpeakf <- zf[which.max(z)] + (step / 2)
   
   # return low and high freq
-  return(meanpeakf) #Dan: it returns two things? Should make another variable for the other variable
+  return(meanpeakf) 
 }
 
 raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
@@ -192,7 +193,7 @@ context_sim <-function(sdata){
         if(datVar$probrollscore[n+1]>maxBonus){
           datVar$probrollscore[n+1]<-maxBonus
         }
-      }else if(datVar$probmean2[n]>(-maxPenalty)&datVar$probmean2[n]<greatcallThresh){
+      }else if(datVar$probmean2[n]>=(-maxPenalty+CUTmean)&datVar$probmean2[n]<greatcallThresh){
         datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*goodcallBonus)
         if(datVar$probrollscore[n+1]>maxBonus){
           datVar$probrollscore[n+1]<-maxBonus
@@ -472,17 +473,19 @@ for(z in 1:nrow(specdata)){
   Start<-specdata$Begin.Time..s.[z]
   End<-  specdata$End.Time..s.[z]
   
-  foo <- readWave(paste(specpath,specdata[z,1],sep=""),Start,End,units="seconds")
+  foo <- foo2 <- readWave(paste(specpath,specdata[z,1],sep=""),Start,End,units="seconds")
   sample_rate<-foo@samp.rate
-  foo.spec <- spec(foo, plot=F, PSD=T)
-  foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
+  foo<-ffilter(foo,from=Low,to=High,output="Wave")
+  foo.spec <- spec(foo,plot=F, PSD=T)
+  #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #
+  foo.meanspec2 = meanspec(foo2, plot=F,ovlp=90)
   #foo.meanspec2<-foo.meanspec[which(foo.meanspec[,1]<High&foo.meanspec[,1]>Low),] #only returns like 2 numbers- probably not getting a lot out of this if we freq limit
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F) #
-  foo.dfreq = dfreq(foo, plot=F, ovlp=90)
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
   Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
   Mindom <- min(foo.dfreq, na.rm = TRUE)
@@ -525,7 +528,7 @@ for(z in 1:nrow(specdata)){
   specdata$maxdom[z]<-freqstat.normalize(Maxdom,Low,High)
   specdata$dfrange[z]<-Dfrange
   specdata$dfslope[z]<-((Enddom-Startdom)/(End-Start))
-  specdata$meanpeakf[z]<-frd_wrblr_int(foo.meanspec,sr=sample_rate)
+  specdata$meanpeakf[z]<-frd_wrblr_int(foo.meanspec2,sr=sample_rate)
 
   }
   return(specdata)
@@ -992,7 +995,7 @@ LMS<-.10 #LMS step size
 
 ###########################Model paramaters
 CV=30 #number of cross validation models to create (more consistent results with greater number of models)
-TPRthresh=.9 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
+TPRthresh=.95 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
 
 #context sim parameters
 greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
@@ -1620,6 +1623,10 @@ ll2<-data3$detectionType
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
 
+varImpPlot(data.rf,  
+           sort = TRUE,
+           main="Variable Importance")
+
 #with permutations on probs
 plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
      lwd = 2, main = paste("Threshold avg"),colorize=T)
@@ -1639,6 +1646,7 @@ cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue",
 cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$High.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+
 
 #write data to drive
 after_model_write(data3,1)
@@ -1662,21 +1670,17 @@ predd = prediction(pp, ll)
 perff = performance(predd, "tpr", "fpr")
 
 #no avg
-plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
-abline(a=0, b= 1)
+#plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
+#abline(a=0, b= 1)
 
 #avg. Don't really know what the points on the line mean. Without manipulations on probs
-plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
+#plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
      #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-     lwd = 2, main = paste("Vertical avg w/ std devn"))
-plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-     lwd = 2, main = paste("Threshold avg"),colorize=T)
-abline(a=0, b= 1)
-print(mean(AUC_avg))
-
-varImpPlot(data.rf,  
-           sort = TRUE,
-           main="Top 10 - Variable Importance")
+#     lwd = 2, main = paste("Vertical avg w/ std devn"))
+#plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
+#     lwd = 2, main = paste("Threshold avg"),colorize=T)
+#abline(a=0, b= 1)
+#print(mean(AUC_avg))
 
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
@@ -1693,9 +1697,9 @@ allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
-fileSizeInt<-345
+fileSizeInt<-(345)
 }else{
-fileSizeInt<-(345*3) #whitened files are smaller so still under 6 gigs. 
+fileSizeInt<-(345) #whitened files are smaller so still under 6 gigs. 
 }
 
 if(moorType=="HG"){
@@ -1710,6 +1714,13 @@ resltsTab <- NULL
 resltsTabInt<- NULL
 durTab<-NULL
 for(m in allMoorings){
+  #decimate dataset:
+  for(z in dir(sfpath)){
+    wav<-readWave(combSound,unit="sample")
+    wav.samp.rate<-wav@samp.rate
+    wav<-decimate(wav@left,q=20)
+    savewav(wav,f=wav.samp.rate/20,filename=paste(sfpath,z))
+  }
   sound_files <- dir(sfpath) #
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
@@ -1745,7 +1756,7 @@ for(m in allMoorings){
       }else{
         dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
         print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+        sox_alt(paste(noquote(paste(paste(sound_filesfullpath[1],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
         durTab<-duration_store()
       }
       
