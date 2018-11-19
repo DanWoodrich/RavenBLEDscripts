@@ -685,7 +685,7 @@ if(dettype=="spread"|dettype=="combined"){
           upsweep<-groupdat[,c(1:15,15+runsum[,1])]
           upsweep<-upsweep[which(upsweep[,16]==2|upsweep[,16]==1),]
           upsweep<-upsweep[,c(1:15)]
-          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[,15] %in% upsweep[,15])){
+          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&any(downsweep[nrow(downsweep),15] %in% upsweep[1,15])){
             groupdat<-rbind(downsweep,upsweep[c(2:nrow(upsweep)),])
             kill="s"
             groupdat<-groupdat[,c(1:15)]
@@ -934,11 +934,11 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runTestModel<-"n" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
-runname<- "new log test w new downsweep algo "
+runname<- "break apart script test "
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -991,7 +991,7 @@ timediff<-1
 
 #############################compare with downsweeps parameters
 downsweepCompMod<-2
-downsweepCompAdjust<-(2)
+downsweepCompAdjust<-(3)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -1565,6 +1565,8 @@ write.csv(data,paste(processedGTpath,runname,"_processedGT.csv"),row.names = F)
   data<-read.csv(recentPath) #produces most recently modifed file 
 }
 
+if(runTestModel=="y"){
+  
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 #names(data2)[1]<-"Mooring"
@@ -1713,6 +1715,7 @@ perff = performance(predd, "tpr", "fpr")
 #save last model
 save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
+}
 
 ###############################################
 
@@ -1720,6 +1723,8 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 #EMPLOY MODEL ON FULL DATASETS
 
 ################################################
+
+if(runNewData=="y"){
 
 allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
@@ -2043,5 +2048,5 @@ plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTm
 
 cor.test(as.numeric(probmean),probstderr)
 
-
+}
   
