@@ -906,10 +906,12 @@ return(DetecTab2)
 }
 
 #paths
-startcombpath<-"E:/Combined_sound_files/"
+drivepath<-"E:/"
+startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
 ravenpath<-"C:/Users/danby456/Raven Pro 1.5"
-outputpath<-"E:/DetectorRunOutput/"
+outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
+processedGTpath<-paste(drivepath,"Processed_GT_data/",sep="")
 
 #moorings completed 
 allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
@@ -930,6 +932,11 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ################Script function
 
+##########sections to run
+runGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
+
 #enter the run name:
 runname<- "new log test w new downsweep algo "
 
@@ -939,7 +946,7 @@ runtype<-"all"
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
 
-#enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
+#for newData: enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
 moorType<-"FULL"
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
@@ -1025,9 +1032,11 @@ groupInt<-c(0.45)
 ############################file combine parameters
 fileCombinesize<-345
 
-decimationFactor<-20
+downsample<-"y"
+setSampRate<-4000
 
 ############################
+
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
@@ -1187,6 +1196,13 @@ if(dettype=="single"|dettype=="combined"){
   }  
 }
 
+if(spec=="RW"){
+  ravenView<-"RW_Upcalls"
+}else if(spec=="GS"){
+  ravenView<-"RW_GS"
+}
+
+if(runGT=="y"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
@@ -1216,7 +1232,7 @@ for(m in moorings){
 if(interfere=="y"){
   for(i in interfereVec){
     print(paste("Running detector for",m))
-    resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+    resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
     resltVarInt$Mooring<-m
     resltVarInt$detector<-i
     resltVarInt$detectorType<-"intereference"
@@ -1233,7 +1249,7 @@ if(dettype=="spread"|dettype=="combined"){
   for(q in 1:length(detectorssprshort)){
     for(r in detectorssprshort[[q]]){
       print(paste("Running detector for",m))
-      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
       resltVar$Mooring<-m
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
@@ -1249,7 +1265,7 @@ if(dettype=="spread"|dettype=="combined"){
 if(dettype=="single"|dettype=="combined"){
   for(n in detectorssinshort){
     print(paste("Running detector for",m))
-    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
     resltVar$Mooring<-m
     resltVar$detector<-n
     resltVar$detectorType<-"single"
@@ -1541,6 +1557,13 @@ data$Selection<-seq(1,nrow(data))
 #data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features(data,1)
+write.csv(data,paste(processedGTpath,runname,"_processedGT.csv"),row.names = F)
+
+}else{
+  recentTab<-file.info(list.files(processedGTpath, full.names = T))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  data<-read.csv(recentPath) #produces most recently modifed file 
+}
 
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
@@ -1702,9 +1725,9 @@ allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
-fileSizeInt<-(fileCombinesize*decimationFactor)
+fileSizeInt<-(fileCombinesize*4)
 }else{
-fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
+fileSizeInt<-(fileCombinesize*4*3) #whitened files are smaller so still under 6 gigs. 
 }
 
 if(moorType=="HG"){
@@ -1718,15 +1741,27 @@ if(moorType=="HG"){
 resltsTab <- NULL
 resltsTabInt<- NULL
 durTab<-NULL
+
+#decimate dataset. need to add txt doc to say whether decimated already or not or will continue to decimate. right now, decimating 1000 files per hour (17,000 files is AW15_AU_BS3 mooring)
+if(downsample=="y"){
+  ravenView<-paste(ravenView,"_",setSampRate,"DS",sep="")
+    if(!file.exists(paste(sfpath,"downsamp_to",setSampRate,sep="_"))){
+      dir.create(paste(sfpath,"downsamp_to",setSampRate,sep="_"))
+      sfpath2<-sfpath
+      sfpath<-paste(sfpath,"downsamp_to",setSampRate,sep="_")
+      for(z in dir(sfpath2)){
+        wav<-readWave(paste(sfpath2,"/",z,sep=""),unit="sample")
+        wav.samp.rate<-wav@samp.rate
+        wav<-downsample(wav,setSampRate)
+        writeWave(wav, filename=paste(sfpath,"/",z,sep=""), extensible = FALSE)
+      }
+      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus"),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      
+    }
+}
+
 for(m in allMoorings){
-  #decimate dataset. need to add txt doc to say whether decimated already or not or will continue to decimate
-  for(z in dir(sfpath)){
-    wav<-readWave(paste(sfpath,"/",z,sep=""),unit="sample")
-    wav.samp.rate<-wav@samp.rate
-    wav<-decimate(wav@left,q=decimationFactor)
-    savewav(wav,f=wav.samp.rate/decimationFactor,filename=paste(sfpath,"/",z,sep=""))
-  }
-  write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+
   sound_files <- dir(sfpath) #
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
@@ -1786,7 +1821,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(i in interfereVec){
         print(paste("Running detector for",combname))
-        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset="RW_Upcalls")
+        resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
         resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
@@ -1805,7 +1840,7 @@ for(m in allMoorings){
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           print(paste("Running detector for",combname))
-          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset="RW_Upcalls")
+          resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
           resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
@@ -1824,7 +1859,7 @@ for(m in allMoorings){
       combname<- paste(m,"_files_entire",b,".wav",sep="")
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
-        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset ="RW_Upcalls")
+        resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
         resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
