@@ -935,13 +935,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
+runRavenGT<-"y"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
-runname<- "break apart script test "
+runname<- "break apart script test 2 and new algo test "
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -1035,8 +1035,8 @@ groupInt<-c(0.45)
 ############################file combine parameters
 fileCombinesize<-345
 
-downsample<-"y"
-setSampRate<-4000
+decimate<-"y"
+decimationFactor<-10
 
 ############################
 
@@ -1205,7 +1205,7 @@ if(spec=="RW"){
   ravenView<-"RW_GS"
 }
 
-if(runGT=="y"){
+if(runRavenGT=="y"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
@@ -1286,8 +1286,8 @@ write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),r
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-  data<-read.csv(recentPath) #produces most recently modifed file 
-  colnames(data)[1]<-"soundfiles[n]"
+  resltsTab<-read.csv(recentPath) #produces most recently modifed file 
+
 }
 
 if(runProcessGT=="y"){
@@ -1768,17 +1768,17 @@ resltsTab <- NULL
 resltsTabInt<- NULL
 durTab<-NULL
 
-#decimate dataset. need to add txt doc to say whether decimated already or not or will continue to decimate. right now, decimating 1000 files per hour (17,000 files is AW15_AU_BS3 mooring)
-if(downsample=="y"){
-  ravenView<-paste(ravenView,"_",setSampRate,"DS",sep="")
-    if(!file.exists(paste(sfpath,"downsamp_to",setSampRate,sep="_"))){
-      dir.create(paste(sfpath,"downsamp_to",setSampRate,sep="_"))
+#decimate dataset. 
+if(decimate=="y"){
+  ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
+    if(!file.exists(paste(sfpath,"decimate_by",decimationFactor,sep="_"))){
+      dir.create(paste(sfpath,"decimate_by",decimationFactor,sep="_"))
       sfpath2<-sfpath
-      sfpath<-paste(sfpath,"downsamp_to",setSampRate,sep="_")
+      sfpath<-paste(sfpath,"decimate_by",decimationFactor,sep="_")
       for(z in dir(sfpath2)){
         wav<-readWave(paste(sfpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
-        wav<-downsample(wav,setSampRate)
+        wav<-decimate(wav,decimationFactor)
         writeWave(wav, filename=paste(sfpath,"/",z,sep=""), extensible = FALSE)
       }
       write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus"),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
