@@ -579,7 +579,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       #maxgrp<-max(resltsTSPV[,14])
       
-      resltsTSPV[1,]<-seq(1:nrow(resltsTSPV))
+      resltsTSPV[,1]<-seq(1:nrow(resltsTSPV))
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
       unwantedSelections<-c()
@@ -935,7 +935,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
@@ -1281,7 +1281,7 @@ if(dettype=="single"|dettype=="combined"){
   }
 }
 #Save progress
-write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv"),row.names = F)
+write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T))
@@ -1751,9 +1751,9 @@ allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
-fileSizeInt<-(fileCombinesize*4)
+fileSizeInt<-(fileCombinesize*decimationFactor)
 }else{
-fileSizeInt<-(fileCombinesize*4*3) #whitened files are smaller so still under 6 gigs. 
+fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
 }
 
 if(moorType=="HG"){
