@@ -1779,6 +1779,7 @@ if(decimate=="y"){
         wav<-readWave(paste(sfpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
         wav<-decimate(wav,decimationFactor)
+        wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
         writeWave(wav, filename=paste(sfpath,"/",z,sep=""), extensible = FALSE)
       }
       write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus"),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
