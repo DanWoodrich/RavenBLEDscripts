@@ -913,7 +913,7 @@ startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
 ravenpath<-"C:/Users/danby456/Raven Pro 1.5"
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
-processedGTpath<-paste(drivepath,"Processed_GT_data/",sep="")
+outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 #moorings completed 
 allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
@@ -935,8 +935,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runGT<-"y"
-runTestModel<-"n" #run model on GT data
+runRavenGT<-"n"
+runProcessGT<-"n"
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
@@ -1279,6 +1280,17 @@ if(dettype=="single"|dettype=="combined"){
     }
   }
 }
+#Save progress
+write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv"),row.names = F)
+
+}else{
+  recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  data<-read.csv(recentPath) #produces most recently modifed file 
+  colnames(data)[1]<-"soundfiles[n]"
+}
+
+if(runProcessGT=="y"){
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data(1)
@@ -1559,12 +1571,19 @@ data$Selection<-seq(1,nrow(data))
 #data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features(data,1)
-write.csv(data,paste(processedGTpath,runname,"_processedGT.csv"),row.names = F)
+write.csv(data,paste(outputpathfiles,"processedGTpath/",runname,"_processedGT.csv",sep=""),row.names = F)
+write.csv(data,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
 }else{
-  recentTab<-file.info(list.files(processedGTpath, full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,"processedGTpath/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   data<-read.csv(recentPath) #produces most recently modifed file 
+  colnames(data)[1]<-"soundfiles[n]"
+  
+  recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  TPtottab<-read.csv(recentPath) #produces most recently modifed file 
+  
 }
 
 if(runTestModel=="y"){
