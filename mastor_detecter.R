@@ -578,11 +578,12 @@ if(dettype=="spread"|dettype=="combined"){
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       #maxgrp<-max(resltsTSPV[,14])
-      
+      store<-resltsTSPV[1,1]
       resltsTSPV[,1]<-seq(1:nrow(resltsTSPV))
+      
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
-      unwantedSelections<-c()
+      wantedSelections<-c()
       for(f in unique(resltsTSPV[,14])){
         #print(paste("calculating run for",f,"of",maxgrp))
         groupdat<- subset(resltsTSPV,group==f)
@@ -688,10 +689,9 @@ if(dettype=="spread"|dettype=="combined"){
           upsweep<-upsweep[which(upsweep[,16]==2|upsweep[,16]==1),]
           upsweep<-upsweep[,c(1:15)]
           if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&downsweep[nrow(downsweep),15]==upsweep[1,15]){
-            groupdat<-rbind(downsweep,upsweep[c(2:nrow(upsweep)),])
             kill="s"
-            unwantedSelections<-c(unwantedSelections,downsweep[which(downsweep[,16]!=2&downsweep[,16]!=1),1])
-            unwantedSelections<-c(unwantedSelections,upsweep[which(upsweep[,16]!=1),1])
+            wantedSelections<-c(wantedSelections,downsweep[,1])
+            wantedSelections<-c(wantedSelections,upsweep[2:nrow(upsweep),1])
           }else if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
             kill="y"
           }else{
@@ -701,13 +701,12 @@ if(dettype=="spread"|dettype=="combined"){
         
         if(kill=="n"){
           groupdat<-groupdat[,c(1:15,15+runsum[,1])]
-          unwantedSelections<-c(unwantedSelections,groupdat[which(groupdat[,16]!=2&groupdat[,16]!=1),1])
-        }else if(kill=="y"){
-          unwantedSelections<-c(unwantedSelections,groupdat[,1])
+          wantedSelections<-c(wantedSelections,groupdat[which(groupdat[,16]==2|groupdat[,16]==1),1])
         }
       }
       
-      resltsTSPV<-resltsTSPV[-which(resltsTSPV[,1] %in% unwantedSelections),]
+      resltsTSPV<-resltsTSPV[which(resltsTSPV[,1] %in% wantedSelections),]
+      resltsTSPV[,1]<-store
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
