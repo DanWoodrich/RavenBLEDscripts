@@ -29,6 +29,17 @@ library(stringr)
 library(stringi)
 library(signal)
 
+prime.factor <- function(x){
+  n=c()
+  i=2
+  r=x
+  while(prod(n)!=x){
+    if(!r%%i) {n=c(n,i);r=r/i;i=1}
+    i=i+1
+  }
+  return(n)
+}
+
 freqstat.normalize<- function(freqstat,lowFreq,highFreq){
   newstat<-((freqstat-lowFreq)/(highFreq-lowFreq))
   return(newstat)
@@ -283,7 +294,8 @@ after_model_write <-function(mdata,finaldatrun){
     TPdivFP<- numTP/numFP
     
     #save stats and parameters to excel file
-    detecEval<-detecEvalFinal[0,]
+    detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
+    detecEval<-detecEval[0,]
     detecEval[,2]<-as.character(detecEval[,2])
     detecEval[,13]<-as.character(detecEval[,13])
     if(dettype=="spread"|dettype=="combined"){
@@ -342,7 +354,8 @@ after_model_write <-function(mdata,finaldatrun){
   TPR <- numTP/(numTP+numFN)
   TPdivFP<- numTP/numFP
   
-  detecEval<-detecEvalFinal[0,]
+  detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
+  detecEval<-detecEval[0,]
   detecEval[,2]<-as.character(detecEval[,2])
   detecEval[,13]<-as.character(detecEval[,13])
   if(dettype=="spread"|dettype=="combined"){
@@ -993,7 +1006,7 @@ timediff<-1
 
 #############################compare with downsweeps parameters
 downsweepCompMod<-2
-downsweepCompAdjust<-(3)
+downsweepCompAdjust<-(4)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
@@ -1004,7 +1017,7 @@ LMS<-.10 #LMS step size
 
 ###########################Model paramaters
 CV=30 #number of cross validation models to create (more consistent results with greater number of models)
-TPRthresh=.95 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
+TPRthresh=.9 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
 
 #context sim parameters
 greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
@@ -1171,7 +1184,7 @@ ParamSum<-rbind(ParamSum,ParamSum3)
 
 write.table(ParamSum,paste(outputpath,runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
 
-######################################
+######################################Manipulate factors and calculate various things 
 #set FO and LMS to NA if no whiten
 if(whiten=="n"){
   FO<-NA
@@ -1204,6 +1217,9 @@ if(spec=="RW"){
   ravenView<-"RW_GS"
 }
 
+decimationSteps<-prime.factor(decimationFactor)
+
+##################start script#################
 if(runRavenGT=="y"){
 #run sound files:
 resltsTab <- NULL
@@ -1570,11 +1586,15 @@ data$Selection<-seq(1,nrow(data))
 #data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features(data,1)
-write.csv(data,paste(outputpathfiles,"processedGTpath/",runname,"_processedGT.csv",sep=""),row.names = F)
-write.csv(data,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
+
+write.csv(data,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
+write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
+
+data2<-data[,c(1,2,5,6,7,8,9:length(data))]
+data2$detectionType<-as.factor(data2$detectionType)
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,"processedGTpath/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   data<-read.csv(recentPath) #produces most recently modifed file 
   colnames(data)[1]<-"soundfiles[n]"
@@ -1583,12 +1603,12 @@ write.csv(data,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
+  data2<-data[,c(1,2,5,6,7,8,9:length(data))]
+  data2$detectionType<-as.factor(data2$detectionType)
 }
 
 if(runTestModel=="y"){
-  
-data2<-data[,c(1,2,5,6,7,8,9:length(data))]
-data2$detectionType<-as.factor(data2$detectionType)
+
 #names(data2)[1]<-"Mooring"
 
 my.xval = list()
@@ -1706,18 +1726,18 @@ beep(10)
 
 
 #comparison dataset to data3#####################################
-data4$probmean<-probmean
-data4$probstderr<-probstderr
-data4$n<-n
+#data4$probmean<-probmean
+#data4$probstderr<-probstderr
+#data4$n<-n
 
 #number of TPs in data4
-sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
+#sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
 
 #cor.test(as.numeric(probmean),probstderr)
-pp = my.xval$predictions
-ll = my.xval$labels
-predd = prediction(pp, ll)
-perff = performance(predd, "tpr", "fpr")
+#pp = my.xval$predictions
+#ll = my.xval$labels
+#predd = prediction(pp, ll)
+#perff = performance(predd, "tpr", "fpr")
 
 #no avg
 #plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
@@ -1773,13 +1793,17 @@ if(decimate=="y"){
     if(!file.exists(paste(sfpath,"decimate_by",decimationFactor,sep="_"))){
       dir.create(paste(sfpath,"decimate_by",decimationFactor,sep="_"))
       sfpath2<-sfpath
-      sfpath<-paste(sfpath,"decimate_by",decimationFactor,sep="_")
+      sfpath<-paste(sfpath2,"decimate_by",decimationFactor,sep="_")
       for(z in dir(sfpath2)){
         wav<-readWave(paste(sfpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
-        wav<-decimate(wav,decimationFactor)
+        wav<-wav@left
+        for(h in decimationSteps){
+        wav<-decimate(wav,h)
+        }
         wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
-        writeWave(wav, filename=paste(sfpath,"/",z,sep=""), extensible = FALSE)
+        wav<-normalize(wav,unit="16")
+        writeWave(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
       }
       write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus"),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
@@ -1965,6 +1989,19 @@ if(length(findata)>17){
 findata<-spectral_features(findata,2)
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
+if(runProcessGT=="n"){
+  recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  data<-read.csv(recentPath) #produces most recently modifed file 
+  colnames(data)[1]<-"soundfiles[n]"
+  
+  recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  TPtottab<-read.csv(recentPath) #produces most recently modifed file 
+  
+  data2<-data[,c(1,2,5,6,7,8,9:length(data))]
+  data2$detectionType<-as.factor(data2$detectionType)
+}
 data2$detectionType<-as.factor(data2$detectionType)
 
 AUC_avg<-c()
