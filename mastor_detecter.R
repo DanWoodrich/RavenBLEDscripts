@@ -29,6 +29,126 @@ library(stringr)
 library(stringi)
 library(signal)
 
+write_4byte_unsigned_int <- function(x, con){
+  if((!is.numeric(x) || is.na(x)) || (x < 0 || x > (2^32-1))) 
+    stop("the field length must be a 4 byte unsigned integer in [0, 2^32-1], i.e. file size < 4 GB")
+  big <- x %/% 256^2
+  small <- x %% 256^2
+  writeBin(as.integer(c(small, big)), con, size = 2, endian = "little")
+}
+
+write_longvector <- function(x, ..., bytes){
+  if(bytes > (2^31-1)){
+    index <- 1:floor(length(x)/2)
+    writeBin(x[index], ...)
+    writeBin(x[-index], ...)        
+  }
+  else writeBin(x, ...)
+}
+
+
+
+writeWave.nowarn <- 
+  function(object, filename, extensible = TRUE) {
+    if(!is(object, "WaveGeneral")) 
+      stop("'object' needs to be of class 'Wave' or 'WaveMC'")
+    validObject(object)
+    if(is(object, "Wave")){
+      object <- as(object, "WaveMC")
+      colnames(object) <- c("FL", if(ncol(object) > 1) "FR")
+    }
+    if(ncol(object) > 2 && !extensible)
+      stop("Objects with more than two columns (multi channel) can only be written to a Wave extensible format file.")
+    
+    cn <- colnames(object)
+    if((length(cn) != ncol(object) || !all(cn %in% MCnames[["name"]])) || any(duplicated(cn)))
+      stop("colnames(object) must be specified and must uniquely identify the channel ordering for WaveMC objects, see ?MCnames for possible channels")
+    cnamesnum <- as.numeric(factor(colnames(object), levels=MCnames[["name"]]))
+    if(is.unsorted(cnamesnum))
+      object <- object[,order(cnamesnum)]
+    dwChannelMask <- sum(2^(cnamesnum - 1))  ##
+    
+    l <- as.numeric(length(object)) # can be an int > 2^31
+    sample.data <- t(object@.Data)
+    dim(sample.data) <- NULL
+    
+    ## PCM or IEEE FLOAT
+    pcm <- object@pcm                                 
+    
+    # Open connection
+    con <- file(filename, "wb")
+    on.exit(close(con)) # be careful ...
+    
+    # Some calculations:
+    byte <- as.integer(object@bit / 8)
+    channels <- ncol(object)
+    block.align <- channels * byte
+    bytes <- l * byte * channels
+    
+    if((!is.numeric(bytes) || is.na(bytes)) || (bytes < 0 || (round(bytes + if(extensible) 72 else 36) + 4) > (2^32-1)))
+      stop(paste("File size in bytes is", round(bytes + if(extensible) 72 else 36) + 4, "but must be a 4 byte unsigned integer in [0, 2^32-1], i.e. file size < 4 GB"))
+    
+    ## Writing the header:
+    # RIFF
+    writeChar("RIFF", con, 4, eos = NULL) 
+    write_4byte_unsigned_int(round(bytes + if(extensible) 72 else 36), con) # cksize RIFF
+    
+    
+    # WAVE
+    writeChar("WAVE", con, 4, eos = NULL)
+    # fmt chunk
+    writeChar("fmt ", con, 4, eos = NULL)
+    if(extensible) { # cksize format chunk
+      writeBin(as.integer(40), con, size = 4, endian = "little") 
+    } else {
+      writeBin(as.integer(16), con, size = 4, endian = "little")
+    }    
+    if(!extensible) { # wFormatTag
+      writeBin(as.integer(if(pcm) 1 else 3), con, size = 2, endian = "little")
+    } else {
+      writeBin(as.integer(65534), con, size = 2, endian = "little") # wFormatTag: extensible   
+    }
+    writeBin(as.integer(channels), con, size = 2, endian = "little") # nChannels
+    writeBin(as.integer(object@samp.rate), con, size = 4, endian = "little") # nSamplesPerSec
+    writeBin(as.integer(object@samp.rate * block.align), con, size = 4, endian = "little") # nAvgBytesPerSec
+    writeBin(as.integer(block.align), con, size = 2, endian = "little") # nBlockAlign
+    writeBin(as.integer(object@bit), con, size = 2, endian = "little") # wBitsPerSample
+    # extensible
+    if(extensible) {
+      writeBin(as.integer(22), con, size = 2, endian = "little") # cbsize extensible
+      writeBin(as.integer(object@bit), con, size = 2, endian = "little") # ValidBitsPerSample
+      writeBin(as.integer(dwChannelMask), con, size = 4, endian = "little") #  dbChannelMask
+      writeBin(as.integer(if(pcm) 1 else 3), con, size = 2, endian = "little") # SubFormat 1-2
+      writeBin(as.raw(c(0,   0,   0,  0,  16,   0, 128,   0 ,  0, 170,   0,  56, 155, 113)), con) # SubFormat 3-16
+      # fact
+      writeChar("fact", con, 4, eos = NULL)
+      writeBin(as.integer(4), con, size = 4, endian = "little") # cksize fact chunk
+      writeBin(as.integer(l), con, size = 4, endian = "little") # dwSampleLength
+    }
+    # data
+    writeChar("data", con, 4, eos = NULL)
+    write_4byte_unsigned_int(round(bytes), con)
+    
+    # Write data:
+    # PCM format
+    if(pcm) { 
+      if(byte == 3){
+        sample.data <- sample.data + 2^24 * (sample.data < 0)
+        temp <- sample.data %% (256^2)
+        sample.data <- sample.data %/% 256^2
+        a2 <- temp %/% 256
+        temp <- temp %%  256
+        write_longvector(as.integer(rbind(temp, a2, sample.data)), con, size = 1, endian = "little", bytes=bytes)
+      } else {
+        write_longvector(as.integer(sample.data), con, size = byte, endian = "little", bytes=bytes)
+      }
+    } else {
+      write_longvector(as.numeric(sample.data), con, size = byte, endian = "little", bytes=bytes)
+    }
+    
+    invisible(NULL)
+  }
+
 prime.factor <- function(x){
   n=c()
   i=2
@@ -1775,6 +1895,17 @@ fileSizeInt<-(fileCombinesize*decimationFactor)
 fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
 }
 
+if(fileSizeInt>400&fileSizeInt<800){
+  fileSizeInt<-400
+}else if(fileSizeInt>=800){
+  fileSizeInt2<-fileSizeInt
+  fileSizeInt<-400
+  iterate_SF<-c(1,2)
+  fileSizeInt2<-as.integer(floor(fileSizeInt2/400))
+}else{
+  iterate_SF<-1
+}
+
 if(moorType=="HG"){
   sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
@@ -1802,17 +1933,23 @@ if(decimate=="y"){
         wav<-decimate(wav,h)
         }
         wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
-        wav<-normalize(wav,unit="16")
-        writeWave(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
+        #wav<-normalize(wav,unit="16")
+        writeWave.nowarn(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
       }
-      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus"),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
 }
 
 for(m in allMoorings){
 
-  sound_files <- dir(sfpath) #
+  for(a in iterate_SF){
+    if(a==1){
+      sound_files <- dir(sfpath,pattern=".wav") #
+    }else if(a==2){
+      sound_files <- dir(filepath,pattern=".wav") #
+      fileSizeInt <- fileSizeInt2
+    }
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
 
@@ -1825,6 +1962,7 @@ for(m in allMoorings){
     if(whiten=="n" & moorType=="HG"){
       whiten2<-"Entire_No_whiten"
       
+
       combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(combSound)){
         durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
@@ -1847,12 +1985,14 @@ for(m in allMoorings){
       }else{
         dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
         print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-        sox_alt(paste(noquote(paste(paste(sound_filesfullpath[1],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
         durTab<-duration_store()
       }
-      
+
       filePath<- paste(startcombpath,whiten2,sep="")
     }
+  }
+  }
 
     if(whiten=="y" & moorType=="HG"){
       whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
@@ -1863,7 +2003,8 @@ for(m in allMoorings){
       filePath<- paste(startcombpath,whiten2,sep="")
       durTab <-read.csv(paste(startcombpath,whiten2,"/SFiles_and_durations.csv",sep=""))  
     }
-  }
+  
+  
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
