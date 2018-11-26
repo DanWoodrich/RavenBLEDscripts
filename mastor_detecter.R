@@ -31,15 +31,12 @@ library(signal)
 
 
 sox.write<-function(numPass){
-  if(numPass==1){
+dir.create(paste(pathh,sep=""))
 dir.create(paste(pathh,"/",whiten2,"/",sep=""))
 print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-durTab<-duration_store(1)
+sox_alt(paste(noquote(paste(b,paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+durTab<-duration_store(numPass)
 return(durTab)
-  }else if(numPass==2){
-  
-}
 }
 
 write_4byte_unsigned_int <- function(x, con){
@@ -590,8 +587,13 @@ for(f in 1:length(sound_filesfullpath)){
 durTab<-rbind(durTab,durVar)
 return(durTab)
   }else if(numPass==2){
+    durVar<-durTab[which(unique(durTab$CombSF) %in% sound_files),]
+    durVar$CombSF<-paste(m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+    durVar$CumDur<-cumsum(durVar$Duration)
+    durTab<-rbind(durTab,durVar)
+    return(durTab)
+  }
   
-}
 }
 
 spectral_features<- function(specdata,whichRun){
@@ -1361,7 +1363,6 @@ if(runRavenGT=="y"){
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
-durTab<-NULL
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
@@ -1912,13 +1913,13 @@ fileSizeInt<-(fileCombinesize*decimationFactor)
 fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
 }
 
-if(fileSizeInt>400&fileSizeInt<800){
-  fileSizeInt<-400
-}else if(fileSizeInt>=800){
+if(fileSizeInt>340&fileSizeInt<680){
+  fileSizeInt<-340
+}else if(fileSizeInt>=680){
   fileSizeInt2<-fileSizeInt
-  fileSizeInt<-400
+  fileSizeInt<-340
   iterate_SF<-c(1,2)
-  fileSizeInt2<-as.integer(floor(fileSizeInt2/400))
+  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))-1) #consistently too large for some reason, subtract 1 to make sure it is under 6gb
 }else{
   iterate_SF<-1
 }
@@ -1934,6 +1935,7 @@ if(moorType=="HG"){
 resltsTab <- NULL
 resltsTabInt<- NULL
 durTab<-NULL
+durTab2<-NULL
 
 #decimate dataset. 
 if(decimate=="y"){
@@ -1984,12 +1986,14 @@ for(m in allMoorings){
       if(a==1){
       pathh<-paste(startcombpath,spec,sep="")
       }else{
-      pathh<-paste(startcombpath,spec,"/temp",sep="")    
+      pathh2<-paste(startcombpath,spec,"/temp/",sep="")    
       }
       combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(combSound)&a==1){
+      if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
-      }else if(a==2){
+      }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+        storepath<-pathh
+        pathh<-pathh2
         durTab<-sox.write(2)
       }else{
         durTab<-sox.write(1)
@@ -2002,12 +2006,14 @@ for(m in allMoorings){
       if(a==1){
         pathh<-paste(startcombpath,sep="")
       }else{
-        pathh<-paste(startcombpath,"/temp",sep="")    
+        pathh<-paste(startcombpath,"/temp/",sep="")    
       }
       combSound<-paste(pathh,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(combSound)&a==1){
+      if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
-      }else if(a==2){
+      }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+        storepath<-pathh
+        pathh<-pathh2
         durTab<-sox.write(2)
       }else{
         durTab<-sox.write(1)
@@ -2016,17 +2022,24 @@ for(m in allMoorings){
       filePath<- paste(pathh,whiten2,sep="")
     }
   }
-  }
-
+  if(a==1){
     if(whiten=="y" & moorType=="HG"){
       whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
-      filePath<- paste(startcombpath,spec,whiten2,sep="")
-      durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      filePath<- paste(pathh,whiten2,sep="")
+      durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
     }else if(whiten=="y" & moorType!="HG"){
       whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
-      filePath<- paste(startcombpath,whiten2,sep="")
-      durTab <-read.csv(paste(startcombpath,whiten2,"/SFiles_and_durations.csv",sep=""))  
+      filePath<- paste(pathh,whiten2,sep="")
+      durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))  
     }
+  }
+  }
+
+  if(!is.null(storepath)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+    file.remove(dir(storepath))
+    file.copy(dir(paste(pathh,"/",whiten2,"/",sep="")),storepath)
+    unlink(pathh)
+  }
   
   
   
