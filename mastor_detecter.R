@@ -29,6 +29,19 @@ library(stringr)
 library(stringi)
 library(signal)
 
+
+sox.write<-function(numPass){
+  if(numPass==1){
+dir.create(paste(pathh,"/",whiten2,"/",sep=""))
+print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
+sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+durTab<-duration_store(1)
+return(durTab)
+  }else if(numPass==2){
+  
+}
+}
+
 write_4byte_unsigned_int <- function(x, con){
   if((!is.numeric(x) || is.na(x)) || (x < 0 || x > (2^32-1))) 
     stop("the field length must be a 4 byte unsigned integer in [0, 2^32-1], i.e. file size < 4 GB")
@@ -554,7 +567,8 @@ adaptive_compare<-function(Compdata,specfeatrun){
 }
 
   
-duration_store<- function(){
+duration_store<- function(numPass){
+  if(numPass==1){
   durVar<-NULL
   durVar<-data.frame(SFfp=character(),
                      SFsh=character(),
@@ -575,6 +589,9 @@ for(f in 1:length(sound_filesfullpath)){
 
 durTab<-rbind(durTab,durVar)
 return(durTab)
+  }else if(numPass==2){
+  
+}
 }
 
 spectral_features<- function(specdata,whichRun){
@@ -1939,6 +1956,8 @@ if(decimate=="y"){
       write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
+  sfpath2<-sfpath
+  sfpath<-paste(sfpath2,"decimate_by",decimationFactor,sep="_")
 }
 
 for(m in allMoorings){
@@ -1947,8 +1966,9 @@ for(m in allMoorings){
     if(a==1){
       sound_files <- dir(sfpath,pattern=".wav") #
     }else if(a==2){
-      sound_files <- dir(filepath,pattern=".wav") #
+      sound_files <- dir(filePath,pattern=".wav") #
       fileSizeInt <- fileSizeInt2
+      sfpath<-filePath
     }
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
@@ -1961,35 +1981,39 @@ for(m in allMoorings){
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
       whiten2<-"Entire_No_whiten"
-      
-
-      combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(combSound)){
-        durTab <-read.csv(paste(startcombpath,spec,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      if(a==1){
+      pathh<-paste(startcombpath,spec,sep="")
       }else{
-        dir.create(paste(startcombpath,spec,sep=""))
-        dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
-        print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-        durTab<-duration_store()
+      pathh<-paste(startcombpath,spec,"/temp",sep="")    
+      }
+      combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      if(file.exists(combSound)&a==1){
+        durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      }else if(a==2){
+        durTab<-sox.write(2)
+      }else{
+        durTab<-sox.write(1)
       }
       
-      filePath<- paste(startcombpath,spec,whiten2,sep="")
+      filePath<- paste(pathh,whiten2,sep="")
       
     }else if(whiten=="n" & moorType!="HG"){
       whiten2<-"Entire_full_No_whiten"
-      
-      combSound<-paste(startcombpath,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(combSound)){
-        durTab <-read.csv(paste(startcombpath,whiten2,"/SFiles_and_durations.csv",sep=""))   
+      if(a==1){
+        pathh<-paste(startcombpath,sep="")
       }else{
-        dir.create(paste(startcombpath,"/",whiten2,"/",sep=""))
-        print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-        sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-        durTab<-duration_store()
+        pathh<-paste(startcombpath,"/temp",sep="")    
+      }
+      combSound<-paste(pathh,"/",whiten2,"/",m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      if(file.exists(combSound)&a==1){
+        durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
+      }else if(a==2){
+        durTab<-sox.write(2)
+      }else{
+        durTab<-sox.write(1)
       }
 
-      filePath<- paste(startcombpath,whiten2,sep="")
+      filePath<- paste(pathh,whiten2,sep="")
     }
   }
   }
