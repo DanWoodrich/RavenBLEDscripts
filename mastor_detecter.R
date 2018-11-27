@@ -593,7 +593,7 @@ durTab<-rbind(durTab,durVar)
 durTab2<-1 #workaround to R not allowing dataframes to be "null". 
   }else if(numPass==2){
     durVar<-durTab[which(durTab$CombSF %in% sound_files),]
-    durVar<-durVar[!which(duplicated(durVar$SFsh)),]
+    durVar<-durVar[-which(duplicated(durVar$SFsh)),]
     durVar$CombSF<-paste(b,m,"_files_entire",bigFile_breaks[b],".wav",sep="")
     durVar$CumDur<-cumsum(durVar$Duration)
     durTab2<-rbind(durTab2,durVar)
@@ -2043,6 +2043,7 @@ for(m in allMoorings){
       break
     }
   }
+  break #for testing to stop after a==1 
   }
 
   if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
