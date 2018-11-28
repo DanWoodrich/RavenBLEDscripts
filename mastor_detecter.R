@@ -718,7 +718,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
       
       #need to order chronologically. 
-      resltsTSPV<-resltsTSPV[order(resltsTSPV$meantime,resltsTSPV$bottom.freq),]
+      resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$meantime,resltsTSPV$bottom.freq),]
       
       #assign groups based on groupInt value
       f<-1
@@ -737,7 +737,6 @@ if(dettype=="spread"|dettype=="combined"){
         }
       }
       
-      resltsTSPV[,15]<-gTime
       resltsTSPV[,14]<-gGroup
       
       #remove groups based on grpsize value
@@ -2121,6 +2120,8 @@ for(m in allMoorings){
     }  
   }
 }
+
+
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
