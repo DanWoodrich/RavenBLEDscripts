@@ -855,7 +855,10 @@ if(dettype=="spread"|dettype=="combined"){
           
           downsweep<-groupdat2[,c(1:3,3+runsum2[,1])]
           downsweep<-downsweep[which(downsweep[,4]==2|downsweep[,4]==1),]
+          if(is.null(nrow(downsweep))){
           downsweep<-downsweep[,c(1:3)]
+          kill="n"
+          }else{
           upsweep<-groupdat[,c(1:3,3+runsum[,1])]
           upsweep<-upsweep[which(upsweep[,4]==2|upsweep[,4]==1),]
           upsweep<-upsweep[,c(1:3)]
@@ -869,6 +872,8 @@ if(dettype=="spread"|dettype=="combined"){
             kill="n"
           }
         }
+      }
+    
         
         if(kill=="n"){
           groupdat<-groupdat[,c(1:3,3+runsum[,1])]
@@ -1032,7 +1037,7 @@ for(w in unique(DetecTab$Mooring)){
 
 DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
-#remove detections that do not fit min/max duration parameters 
+#remove detections that do not fit min/max duration parameters  #
 DetecTab2$UniqueID<-NULL
 for(d in unique(DetecTab2$Mooring)){
   Tab<-DetecTab2[which(DetecTab2$Mooring==d),]
