@@ -2063,7 +2063,7 @@ for(m in allMoorings){
       for(i in interfereVec){
         print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
-        resltVarInt$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+        resltVarInt$Mooring<-m
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
@@ -2082,7 +2082,7 @@ for(m in allMoorings){
         for(r in detectorssprshort[[q]]){
           print(paste("Running detector for",combname))
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
-          resltVar$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+          resltVar$Mooring<-m
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
@@ -2101,7 +2101,7 @@ for(m in allMoorings){
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
-        resltVar$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+        resltVar$Mooring<-m
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
