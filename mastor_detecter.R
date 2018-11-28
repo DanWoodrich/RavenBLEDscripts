@@ -586,15 +586,15 @@ for(f in 1:length(sound_filesfullpath)){
   durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
   durVar[,4]<-cumsum(durVar$Duration)
-  durVar[,5]<-paste(b,m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+  durVar[,5]<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
   durVar[,6]<-m
 
 durTab<-rbind(durTab,durVar)
 durTab2<-1 #workaround to R not allowing dataframes to be "null". 
   }else if(numPass==2){
     durVar<-durTab[which(durTab$CombSF %in% sound_files),]
-    durVar<-durVar[-which(duplicated(durVar$SFsh)),]
-    durVar$CombSF<-paste(b,m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+   # durVar<-durVar[-which(duplicated(durVar$SFsh)),]
+    durVar$CombSF<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
     durVar$CumDur<-cumsum(durVar$Duration)
     durTab2<-rbind(durTab2,durVar)
   }
@@ -1093,8 +1093,8 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
@@ -1925,7 +1925,7 @@ if(fileSizeInt>340&fileSizeInt<680){
   fileSizeInt2<-fileSizeInt
   fileSizeInt<-340
   iterate_SF<-c(1,2)
-  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))-1) #consistently too large for some reason, subtract 1 to make sure it is under 6gb
+  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
 }else{
   iterate_SF<-1
 }
@@ -1972,20 +1972,20 @@ for(m in allMoorings){
 
   for(a in iterate_SF){
     if(a==1){
-      sound_files <- dir(sfpath,pattern=".wav") #
+      sound_files_all <- dir(sfpath,pattern=".wav") #
     }else if(a==2){
-      sound_files <- dir(filePath,pattern=".wav") #
+      sound_files_all <- dir(filePath,pattern=".wav") #
       fileSizeInt <- fileSizeInt2
       sfpath<-filePath
     }
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
-  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
+  bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
 
-  #if end of file happens to end on last break make sure its not redundant
-  if(bigFile_breaks[length(bigFile_breaks)]==bigFile_breaks[length(bigFile_breaks)-1]){
-    bigFile_breaks<-bigFile_breaks[1:(length(bigFile_breaks)-1)]}
   for(b in 1:(length(bigFile_breaks)-1)){
-    sound_files <- dir(sfpath)[bigFile_breaks[b]:bigFile_breaks[b+1]]
+    sound_files <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
+    if(b==length(bigFile_breaks)-1){
+      sound_files <- dir(sfpath)[bigFile_breaks[b]:length(sound_files_all)]
+    }
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
       whiten2<-"Entire_No_whiten"
@@ -1994,7 +1994,7 @@ for(m in allMoorings){
       }else{
       pathh<-paste(startcombpath,spec,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",whiten2,"/",b,m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
         filePath<- paste(pathh,whiten2,sep="")
@@ -2014,7 +2014,7 @@ for(m in allMoorings){
       }else{
         pathh<-paste(startcombpath,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",whiten2,"/",b,m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
         filePath<- paste(pathh,whiten2,sep="")
@@ -2043,7 +2043,6 @@ for(m in allMoorings){
       break
     }
   }
-  break #for testing to stop after a==1 
   }
 
   if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
@@ -2059,12 +2058,12 @@ for(m in allMoorings){
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
-    for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
-      combname<- paste(m,"_files_entire",b,".wav",sep="")
+    for(b in 1:(length(bigFile_breaks)-1)){
+      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(i in interfereVec){
         print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
-        resltVarInt$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
+        resltVarInt$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
         resltVarInt$detector<-i
         resltVarInt$detectorType<-"intereference"
         resltVarInt$detectorCount<-which(interfereVec==i)
@@ -2077,13 +2076,13 @@ for(m in allMoorings){
     }
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
-    for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
-      combname<- paste(m,"_files_entire",b,".wav",sep="")
+    for(b in 1:(length(bigFile_breaks)-1)){
+      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           print(paste("Running detector for",combname))
           resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
-          resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
+          resltVar$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
           resltVar$detector<-r
           resltVar$detectorType<-"spread"
           resltVar$detectorCount<-q
@@ -2097,12 +2096,12 @@ for(m in allMoorings){
   }
   
   if(dettype=="single"|dettype=="combined"){
-    for(b in bigFile_breaks[1:length(bigFile_breaks)-1]){
-      combname<- paste(m,"_files_entire",b,".wav",sep="")
+    for(b in 1:(length(bigFile_breaks)-1)){
+      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
-        resltVar$Mooring<-paste(m,"_files_entire",b,".wav",sep="")
+        resltVar$Mooring<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
         resltVar$detector<-n
         resltVar$detectorType<-"single"
         resltVar$detectorCount<-which(detectorssinshort==n)
