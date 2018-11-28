@@ -34,7 +34,7 @@ sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
 dir.create(paste(pathh,"/",whiten2,"/",sep=""))
 print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="F:\\Accessory\\sox-14-4-2")
 durList<-duration_store(numPass)
 if(numPass==1){
   return(durList[[1]])
@@ -1084,7 +1084,7 @@ return(DetecTab2)
 }
 
 #paths
-drivepath<-"E:/"
+drivepath<-"F:/"
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
 ravenpath<-"C:/Users/danby456/Raven Pro 1.5"
@@ -1358,7 +1358,7 @@ if(whiten=="n"){
 #path to ground truth table
 GT<-list()
 for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste("E:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- read.delim(paste("F:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
 
@@ -1391,15 +1391,15 @@ resltsTabInt<- NULL
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
-  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  sound_files <- dir(paste("F:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_filesfullpath <- paste("F:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="F:\\Accessory\\sox-14-4-2")
   }
   
   
@@ -1685,7 +1685,7 @@ spec<-spec
 #define this table to compare counts after running model
 TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
 
-detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
+detfiles<-list.files(paste("F:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
 
 #extract mooring names from moorings used in run
 mooringpat=NULL
@@ -1701,9 +1701,9 @@ if(whiten=="y"){
 
 #only choose soundfiles that match those used in run
 soundfiles<-NULL
-for(n in 1:length(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
-  if(substr(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
-    soundfiles<-c(soundfiles,dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
+for(n in 1:length(dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
+  if(substr(dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
+    soundfiles<-c(soundfiles,dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
   }
 }
 
@@ -1714,7 +1714,7 @@ detfiles<-sort(detfiles)
 
 data=NULL
 for(n in 1:length(detfiles)){
-  data2<-read.csv(paste("E:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
+  data2<-read.csv(paste("F:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
   data2<-cbind(soundfiles[n],data2)
   data<-rbind(data,data2)
 }
@@ -1916,7 +1916,7 @@ beep(10)
 #print(mean(AUC_avg))
 
 #save last model
-save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
+save(data.rf, file = paste("F:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 }
 
@@ -1929,7 +1929,7 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 
 if(runNewData=="y"){
 
-allDataPath<-"E:/Datasets"
+allDataPath<-"F:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
@@ -1950,9 +1950,9 @@ if(fileSizeInt>340&fileSizeInt<680){
 }
 
 if(moorType=="HG"){
-  sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste("F:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
-  sfpath<-paste("E:/Full_datasets/",dir(allDataPath)[1],sep = "")
+  sfpath<-paste("F:/Full_datasets/",dir(allDataPath)[1],sep = "")
 }
 
 #
