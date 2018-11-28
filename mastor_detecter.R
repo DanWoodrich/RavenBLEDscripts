@@ -746,48 +746,53 @@ if(dettype=="spread"|dettype=="combined"){
       store<-resltsTSPV[1,1]
       resltsTSPV[,1]<-seq(1:nrow(resltsTSPV))
       
+      #coerce to matrix to "vectorize" algorithm
+      resltsTSPVmat<-as.matrix(resltsTSPV[,c(13,14,15)])
+      
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
       wantedSelections<-c()
-      for(f in unique(resltsTSPV[,14])){
+      for(f in unique(resltsTSPVmat[,2])){
+        print(f)
         #print(paste("calculating run for",f,"of",maxgrp))
-        groupdat<- subset(resltsTSPV,group==f)
-        grpvec<-groupdat[,13]
+        groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+        grpvec<-groupdat[,1]
         colClasses = c("numeric","numeric","numeric","numeric","numeric")
         runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
         
         for(g in 1:(nrow(groupdat)-(grpsize[d]-1))){
-          RM<-groupdat[g,13]
-          groupdat[,15+g]<-99
-          groupdat[g,15+g]<-2
+          RM<-groupdat[g,1]
+          groupdat<-cbind(groupdat,0)
+          groupdat[,3+g]<-99
+          groupdat[g,3+g]<-2
           skipvec<-0
           for(h in g:(nrow(groupdat)-1)){
-            rsltvec0s<-rle(groupdat[,15+g][! groupdat[,15+g] %in% 98])
+            rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
             if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
               break
             }  
-            if(RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]&groupdat[h,15]!=groupdat[h+1,15]){
-              groupdat[h+1,15+g]<-1
+            if(RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
+              groupdat[h+1,3+g]<-1
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
-            }else if(groupdat[h,15]!=groupdat[h+1,15]&RM+(detskip[d]+1)>grpvec[h+1]&RM-(detskip[d]+1)<=grpvec[h+1]){
-              groupdat[h+1,15+g]<-0
-            }else if(groupdat[h,15]!=groupdat[h+1,15]&(RM+(detskip[d]+1)<=grpvec[h+1]|RM-(detskip[d]+1)>grpvec[h+1])){
-              groupdat[h+1,15+g]<-98
+            }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[d]+1)>grpvec[h+1]&RM-(detskip[d]+1)<=grpvec[h+1]){
+              groupdat[h+1,3+g]<-0
+            }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[d]+1)<=grpvec[h+1]|RM-(detskip[d]+1)>grpvec[h+1])){
+              groupdat[h+1,3+g]<-98
             }
-            if(groupdat[h,15]==groupdat[h+1,15]&groupdat[h,15+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
-              groupdat[h+1,15+g]<-1
-              groupdat[h,15+g]<-98
+            if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
+              groupdat[h+1,3+g]<-1
+              groupdat[h,3+g]<-98
               skipvec<-c(skipvec,(grpvec[h+1]-RM))
               RM<-grpvec[h+1]
-            }else if(groupdat[h,15]==groupdat[h+1,15]){
-              groupdat[h+1,15+g]<-98
+            }else if(groupdat[h,3]==groupdat[h+1,3]){
+              groupdat[h+1,3+g]<-98
             }
           }
           runsum[g,1]<-g
-          runsum[g,2]<-sum(groupdat[,15+g]==1)
-          runsum[g,3]<-sum(groupdat[,15+g]==0)
-          runsum[g,4]<-(sum(groupdat[,15+g]==1)+sum(groupdat[,15+g]==0)+1)
+          runsum[g,2]<-sum(groupdat[,3+g]==1)
+          runsum[g,3]<-sum(groupdat[,3+g]==0)
+          runsum[g,4]<-(sum(groupdat[,3+g]==1)+sum(groupdat[,3+g]==0)+1)
           runsum[g,5]<-max(skipvec)
         }
         runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
@@ -802,43 +807,44 @@ if(dettype=="spread"|dettype=="combined"){
           kill="y"
         }
         if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
-          groupdat2<- subset(resltsTSPV,group==f)
-          groupdat2<-groupdat2[order(groupdat2$meantime,-groupdat2$bottom.freq),]#reverse the order it counts stacks detections
-          grpvec2<-groupdat2[,13]
+          groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+          groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
+          grpvec2<-groupdat2[,1]
           colClasses = c("numeric","numeric","numeric","numeric","numeric")
           runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
           for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
-            RM2<-groupdat2[g,13]
-            groupdat2[,15+g]<-99
-            groupdat2[g,15+g]<-2
+            RM2<-groupdat2[g,1]
+            groupdat2<-cbind(groupdat2,0)
+            groupdat2[,3+g]<-99
+            groupdat2[g,3+g]<-2
             skipvec2<-0
             for(h in g:(nrow(groupdat2)-1)){
-              rsltvec0s2<-rle(groupdat2[,15+g][! groupdat2[,15+g] %in% 98])
+              rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
               if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
                 break
               }  
-              if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,15]!=groupdat2[h+1,15]){
-                groupdat2[h+1,15+g]<-1
+              if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+                groupdat2[h+1,3+g]<-1
                 skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
                 RM2<-grpvec2[h+1]
-              }else if(groupdat2[h,15]!=groupdat2[h+1,15]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
-                groupdat2[h+1,15+g]<-0
-              }else if(groupdat2[h,15]!=groupdat2[h+1,15]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
-                groupdat2[h+1,15+g]<-98
+              }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
+                groupdat2[h+1,3+g]<-0
+              }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
+                groupdat2[h+1,3+g]<-98
               }
-              if(groupdat2[h,15]==groupdat2[h+1,15]&(groupdat2[h,15+g]==0|groupdat2[h,15+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
-                groupdat2[h+1,15+g]<-1
-                groupdat2[h,15+g]<-98
+              if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
+                groupdat2[h+1,3+g]<-1
+                groupdat2[h,3+g]<-98
                 skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
                 RM2<-grpvec2[h+1]
-              }else if(groupdat2[h,15]==groupdat2[h+1,15]){
-                groupdat2[h+1,15+g]<-98
+              }else if(groupdat2[h,3]==groupdat2[h+1,3]){
+                groupdat2[h+1,3+g]<-98
               }
             }
             runsum2[g,1]<-g
-            runsum2[g,2]<-sum(groupdat2[,15+g]==1)
-            runsum2[g,3]<-sum(groupdat2[,15+g]==0)
-            runsum2[g,4]<-(sum(groupdat2[,15+g]==1)+sum(groupdat2[,15+g]==0)+1)
+            runsum2[g,2]<-sum(groupdat2[,3+g]==1)
+            runsum2[g,3]<-sum(groupdat2[,3+g]==0)
+            runsum2[g,4]<-(sum(groupdat2[,3+g]==1)+sum(groupdat2[,3+g]==0)+1)
             runsum2[g,5]<-max(-skipvec2)
           }
           runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
@@ -847,13 +853,13 @@ if(dettype=="spread"|dettype=="combined"){
           runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
           runsum2<-runsum2[1,] #choose first one
           
-          downsweep<-groupdat2[,c(1:15,15+runsum2[,1])]
-          downsweep<-downsweep[which(downsweep[,16]==2|downsweep[,16]==1),]
-          downsweep<-downsweep[,c(1:15)]
-          upsweep<-groupdat[,c(1:15,15+runsum[,1])]
-          upsweep<-upsweep[which(upsweep[,16]==2|upsweep[,16]==1),]
-          upsweep<-upsweep[,c(1:15)]
-          if(mean(downsweep[,15])<mean(upsweep[,15])&downsweep[1,13]<upsweep[nrow(upsweep),13]&downsweep[nrow(downsweep),15]==upsweep[1,15]){
+          downsweep<-groupdat2[,c(1:3,3+runsum2[,1])]
+          downsweep<-downsweep[which(downsweep[,4]==2|downsweep[,4]==1),]
+          downsweep<-downsweep[,c(1:3)]
+          upsweep<-groupdat[,c(1:3,3+runsum[,1])]
+          upsweep<-upsweep[which(upsweep[,4]==2|upsweep[,4]==1),]
+          upsweep<-upsweep[,c(1:3)]
+          if(mean(downsweep[,3])<mean(upsweep[,3])&downsweep[1,1]<upsweep[nrow(upsweep),1]&downsweep[nrow(downsweep),3]==upsweep[1,3]){
             kill="s"
             wantedSelections<-c(wantedSelections,downsweep[,1])
             wantedSelections<-c(wantedSelections,upsweep[2:nrow(upsweep),1])
@@ -865,11 +871,12 @@ if(dettype=="spread"|dettype=="combined"){
         }
         
         if(kill=="n"){
-          groupdat<-groupdat[,c(1:15,15+runsum[,1])]
-          wantedSelections<-c(wantedSelections,groupdat[which(groupdat[,16]==2|groupdat[,16]==1),1])
+          groupdat<-groupdat[,c(1:3,3+runsum[,1])]
+          wantedSelections<-c(wantedSelections,groupdat[which(groupdat[,4]==2|groupdat[,4]==1),1])
         }
       }
       
+      resltsTSPVmat<-NULL
       resltsTSPV<-resltsTSPV[which(resltsTSPV[,1] %in% wantedSelections),]
       resltsTSPV[,1]<-store
       
