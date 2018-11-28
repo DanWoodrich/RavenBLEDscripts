@@ -722,16 +722,24 @@ if(dettype=="spread"|dettype=="combined"){
       
       #assign groups based on groupInt value
       f<-1
+      
+      #index columns to process faster:
+      gTime<-resltsTSPV[,15]
+      gGroup<-resltsTSPV[,14]
+      
       print("assigning group values")
       for(z in 1:(nrow(resltsTSPV)-1)){
-        if(resltsTSPV[z,15]+groupInt[d]>=resltsTSPV[z+1,15]){
-          resltsTSPV[z+1,14]<-f
+        if(gTime[z]+groupInt[d]>=gTime[z+1]){
+          gGroup[z+1]<-f
         }else{
           f<-f+1
-          resltsTSPV[z+1,14]<-f
+          gGroup[z+1]<-f
         }
       }
-    
+      
+      resltsTSPV[,15]<-gTime
+      resltsTSPV[,14]<-gGroup
+      
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
