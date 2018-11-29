@@ -1117,13 +1117,13 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
-runname<- "break apart script test 2 and new algo test "
+runname<- "new hd test "
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -1203,7 +1203,7 @@ badcallPenalty<-(-0.001) #constant decrease every detection below threshold
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(4)
+grpsize<-c(3)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
