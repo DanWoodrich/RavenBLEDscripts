@@ -1086,7 +1086,7 @@ return(DetecTab2)
 #paths
 drivepath<-"F:/"
 #dumb conditional so I don't have to change path from machine to machine
-if(dir.exists("C:\Users\ACS-3")){
+if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
 }else{
   user<-"danby456"
@@ -1147,7 +1147,7 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-detectorsspr[[1]] <- dir(BLEDpath)[20:37] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- dir(BLEDpath)[22:39] #add more spreads with notation detectorspr[[x]]<-... #15-32
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1180,8 +1180,8 @@ downsweepCompAdjust<-(4)
 
 ############################Whiten parameters (need to have done this in Raven previously)
 
-#Pre whiten data?(y or no)
-whiten<-"y"
+#Pre whiten data?(y or n)
+whiten<-"n"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -2002,6 +2002,9 @@ for(m in allMoorings){
       sound_files_all <- dir(filePath,pattern=".wav") #
       fileSizeInt <- fileSizeInt2
       sfpath<-filePath
+      if(!is.null(done)){
+        break
+      }
     }
   #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
   bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
@@ -2023,11 +2026,14 @@ for(m in allMoorings){
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
         filePath<- paste(pathh,whiten2,sep="")
-        break
+        done="y"
+        did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
         did2<-"y"
       }else{
+        done=NULL
+        did2=NULL
         durTab<-sox.write(1)
         filePath<- paste(pathh,whiten2,sep="")
       }
@@ -2043,11 +2049,14 @@ for(m in allMoorings){
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
         filePath<- paste(pathh,whiten2,sep="")
-        break
+        done="y"
+        did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
         did2<-"y"
       }else{
+        done=NULL
+        did2=NULL
         durTab<-sox.write(1)
         filePath<- paste(pathh,whiten2,sep="")
       }
