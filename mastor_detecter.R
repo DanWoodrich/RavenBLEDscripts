@@ -856,9 +856,9 @@ if(dettype=="spread"|dettype=="combined"){
           downsweep<-groupdat2[,c(1:3,3+runsum2[,1])]
           downsweep<-downsweep[which(downsweep[,4]==2|downsweep[,4]==1),]
           if(is.null(nrow(downsweep))){
-          downsweep<-downsweep[,c(1:3)]
           kill="n"
           }else{
+          downsweep<-downsweep[,c(1:3)]
           upsweep<-groupdat[,c(1:3,3+runsum[,1])]
           upsweep<-upsweep[which(upsweep[,4]==2|upsweep[,4]==1),]
           upsweep<-upsweep[,c(1:3)]
@@ -1117,7 +1117,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
