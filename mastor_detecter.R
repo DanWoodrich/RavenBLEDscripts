@@ -8,7 +8,7 @@
 
 ################################################
 
-#install.packages("flightcallr")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2")install.packages("usdm")install.packages("ROCR")install.packages("e1071")  install.packages("caret")  
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix")
 
 library(e1071)  
 #library(caret)  
@@ -1085,9 +1085,15 @@ return(DetecTab2)
 
 #paths
 drivepath<-"F:/"
+#dumb conditional so I don't have to change path from machine to machine
+if(dir.exists("C:\Users\ACS-3")){
+  user<-"ACS-3"
+}else{
+  user<-"danby456"
+}
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
-BLEDpath<-"C:/Users/danby456/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/"
-ravenpath<-"C:/Users/danby456/Raven Pro 1.5"
+BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
+ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
 outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
@@ -1114,7 +1120,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 runRavenGT<-"n"
 runProcessGT<-"n"
 runTestModel<-"n" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "break apart script test 2 and new algo test "
