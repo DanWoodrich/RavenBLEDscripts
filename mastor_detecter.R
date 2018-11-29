@@ -746,8 +746,6 @@ if(dettype=="spread"|dettype=="combined"){
       #coerce to matrix to "vectorize" algorithm
       resltsTSPVmat<-as.matrix(resltsTSPV[,c(13,14,15)])
       
-      resltsTSPV$Selection<-seq(1:nrow(resltsTSPV))
-      
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
       wantedSelections<-c()
@@ -863,8 +861,8 @@ if(dettype=="spread"|dettype=="combined"){
           upsweep<-upsweep[,c(1:3)]
           if(mean(downsweep[,3])<mean(upsweep[,3])&downsweep[1,1]<upsweep[nrow(upsweep),1]&downsweep[nrow(downsweep),3]==upsweep[1,3]){
             kill="s"
-            wantedSelections<-c(wantedSelections,downsweep[,1])
-            wantedSelections<-c(wantedSelections,upsweep[2:nrow(upsweep),1])
+            wantedSelections<-c(wantedSelections,rownames(downsweep[,]))
+            wantedSelections<-c(wantedSelections,rownames(upsweep[2:nrow(upsweep),]))
           }else if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
             kill="y"
           }else{
@@ -876,13 +874,12 @@ if(dettype=="spread"|dettype=="combined"){
         
         if(kill=="n"){
           groupdat<-groupdat[,c(1:3,3+runsum[,1])]
-          wantedSelections<-c(wantedSelections,groupdat[which(groupdat[,4]==2|groupdat[,4]==1),1])
+          wantedSelections<-c(wantedSelections,rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
         }
       }
       
       resltsTSPVmat<-NULL
-      resltsTSPV<-resltsTSPV[which(resltsTSPV$Selection %in% wantedSelections),]
-      resltsTSPV$Selection<-NULL
+      resltsTSPV<-resltsTSPV[which(resltsTSPV$Selection %in% as.integer(wantedSelections)),]
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
