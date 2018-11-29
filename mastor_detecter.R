@@ -1998,17 +1998,18 @@ for(m in allMoorings){
   for(a in iterate_SF){
     if(a==1){
       sound_files_all <- dir(sfpath,pattern=".wav") #
+      bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
     }else if(a==2){
       sound_files_all <- dir(filePath,pattern=".wav") #
       fileSizeInt <- fileSizeInt2
       sfpath<-filePath
-      if(!is.null(done)){
-        break
+      if(!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+      bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
+      }else{
+        bigFile_breaks<-seq(from=1,by=fileSizeInt,length.out=length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
+      break
       }
     }
-  #make 300 increment break points for sound files. SoX and RRaven can't handle full sound files. 
-  bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
-
   for(b in 1:(length(bigFile_breaks)-1)){
     sound_files <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
     if(b==length(bigFile_breaks)-1){
@@ -2026,13 +2027,11 @@ for(m in allMoorings){
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
         filePath<- paste(pathh,whiten2,sep="")
-        done="y"
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
         did2<-"y"
       }else{
-        done=NULL
         did2=NULL
         durTab<-sox.write(1)
         filePath<- paste(pathh,whiten2,sep="")
@@ -2049,13 +2048,11 @@ for(m in allMoorings){
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
         filePath<- paste(pathh,whiten2,sep="")
-        done="y"
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
         did2<-"y"
       }else{
-        done=NULL
         did2=NULL
         durTab<-sox.write(1)
         filePath<- paste(pathh,whiten2,sep="")
