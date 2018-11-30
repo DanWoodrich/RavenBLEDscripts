@@ -1038,14 +1038,14 @@ DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
 
 #remove detections that do not fit min/max duration parameters  #
 DetecTab2$UniqueID<-NULL
-for(d in unique(DetecTab2$sound.files)){
-  Tab<-DetecTab2[which(DetecTab2$sound.files==d),]
+for(c in unique(DetecTab2$sound.files)){
+  Tab<-DetecTab2[which(DetecTab2$sound.files==c),]
   for(f in 1:nrow(Tab)){
     if((Tab[f,5]-Tab[f,4])>Maxdur|(Tab[f,5]-Tab[f,4])<Mindur){
-      Tab[f,15]<-1
+      Tab[f,16]<-1
     }
   }
-  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==d),]
+  DetecTab2<-DetecTab2[-which(DetecTab2$sound.files==c),]
   DetecTab2<-rbind(DetecTab2,Tab)
 }
 
