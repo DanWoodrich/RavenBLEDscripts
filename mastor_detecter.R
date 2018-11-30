@@ -602,7 +602,7 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,whichRun){
+spectral_features<- function(specdata,library,whichRun){
   if(whichRun==1){
     if(whiten=="y"){
       specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,"/",sep="")
@@ -620,18 +620,21 @@ spectral_features<- function(specdata,whichRun){
       specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
     }
   }
-
+  mooringslib<-library
+  
+  specdata<-cbind(specdata,matrix(,nrow(specdata),34))
   
 print("extracting spectral parameters")
 for(z in 1:nrow(specdata)){
   print(z)
   #store reused calculations to avoid indexing 
-  Low<-specdata$Low.Freq..Hz.[z]
-  High<-specdata$High.Freq..Hz.[z]
-  Start<-specdata$Begin.Time..s.[z]
-  End<-  specdata$End.Time..s.[z]
+
+  Start<-specdata[z,2]
+  End<-  specdata[z,3]
+  Low<-specdata[z,4]
+  High<-specdata[z,5]
   
-  foo <- foo2 <- readWave(paste(specpath,specdata[z,1],sep=""),Start,End,units="seconds")
+  foo <- foo2 <- readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
   sample_rate<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
   foo.spec <- spec(foo,plot=F, PSD=T)
@@ -649,44 +652,43 @@ for(z in 1:nrow(specdata)){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  specdata$rugosity[z] = rugo(foo@left / max(foo@left)) 
-  specdata$crest.factor[z] = crest(foo)$C
+  specdata[z,6] = rugo(foo@left / max(foo@left)) #rugosity
+  specdata[z,7] = crest(foo)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  specdata$temporal.entropy[z] = th(foo.env)
-  specdata$shannon.entropy[z] = sh(foo.spec)
-  specdata$spectrum.roughness[z] = roughness(foo.meanspec[,2])
-  specdata$autoc.mean[z] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High)
-  specdata$autoc.median[z] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High)
-  specdata$autoc.se[z] = std.error(foo.autoc[,2], na.rm=T)
-  specdata$dfreq.mean[z] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High)
-  specdata$dfreq.se[z] = std.error(foo.dfreq[,2], na.rm=T)
-  specdata$specprop.mean[z] = freqstat.normalize(foo.specprop$mean[1],Low,High)
-  specdata$specprop.sd[z] = foo.specprop$sd[1]
-  specdata$specprop.sem[z] = foo.specprop$sem[1]
-  specdata$specprop.median[z] = freqstat.normalize(foo.specprop$median[1],Low,High)
-  specdata$specprop.mode[z] = freqstat.normalize(foo.specprop$mode[1],Low,High)
-  specdata$specprop.Q25[z] = foo.specprop$Q25[1]
-  specdata$specprop.Q75[z] = foo.specprop$Q75[1]
-  specdata$specprop.IQR[z] = foo.specprop$IQR[1]
-  specdata$specprop.cent[z] = foo.specprop$cent[1]
-  specdata$specprop.skewness[z] = foo.specprop$skewness[1]
-  specdata$specprop.kurtosis[z] = foo.specprop$kurtosis[1]
-  specdata$specprop.sfm[z] = foo.specprop$sfm[1]
-  specdata$specprop.sh[z] = foo.specprop$sh[1]
-  specdata$specprop.prec[z] = foo.specprop$prec[1]
-  specdata$amp.env.median[z] = M(foo)
-  specdata$total.entropy[z] = H(foo)
+  specdata[z,8] = th(foo.env) #temporal entropy
+  specdata[z,9] = sh(foo.spec) #shannon entropy
+  specdata[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
+  specdata[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  specdata[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  specdata[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specdata[z,14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specdata[z,15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specdata[z,16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  specdata[z,17] = foo.specprop$sd[1] #specprop sd
+  specdata[z,18] = foo.specprop$sem[1] #specprop sem
+  specdata[z,19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specdata[z,20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specdata[z,21] = foo.specprop$Q25[1] # specprop q25
+  specdata[z,22] = foo.specprop$Q75[1] #specprop q75
+  specdata[z,23] = foo.specprop$IQR[1] #specprop IQR
+  specdata[z,24] = foo.specprop$cent[1] #specrop cent
+  specdata[z,25] = foo.specprop$skewness[1] #specprop skewness
+  specdata[z,26] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specdata[z,27] = foo.specprop$sfm[1] #specprop sfm
+  specdata[z,28] = foo.specprop$sh[1] #specprop sh
+  specdata[z,29] = foo.specprop$prec[1] #specprop prec
+  specdata[z,30] = M(foo) #amp env median
+  specdata[z,31] = H(foo) #total entropy
  # specdata$resonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
-  specdata$time.ent[z]<-th(foo.env)[1]
-  specdata$modindx[z]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange))
-  specdata$startdom[z]<-freqstat.normalize(Startdom,Low,High)
-  specdata$enddom[z]<-freqstat.normalize(Enddom,Low,High)
-  specdata$mindom[z]<-freqstat.normalize(Mindom,Low,High)
-  specdata$maxdom[z]<-freqstat.normalize(Maxdom,Low,High)
-  specdata$dfrange[z]<-Dfrange
-  specdata$dfslope[z]<-((Enddom-Startdom)/(End-Start))
-  specdata$meanpeakf[z]<-frd_wrblr_int(foo.meanspec2,sr=sample_rate)
+  specdata[z,32]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specdata[z,33]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specdata[z,34]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specdata[z,35]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specdata[z,36]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specdata[z,37]<-Dfrange #dfrange
+  specdata[z,38]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specdata[z,39]<-frd_wrblr_int(foo.meanspec2,sr=sample_rate) #meanpeakf
 
   }
   return(specdata)
@@ -1777,7 +1779,11 @@ data$Selection<-seq(1,nrow(data))
 #TEMPORARY TO DEBUG, REMOVE
 #data<-splitdf(data,weight = 1/4)[[1]]
 
-data<-spectral_features(data,1)
+#"vectorize" data frame. 
+
+dataMat<- data.matrix(data[c(1,5,6,7,8)])
+moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(unique(data$`soundfiles[n]`)))
+data<-spectral_features(dataMat,moorlib,1)
 
 write.csv(data,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
