@@ -959,7 +959,7 @@ if(dettype=="single"|dettype=="combined"){
         resltsTSGVFinal$DetectorName<- resltsTSGV$detector[1]
         resltsTSGVFinal$DetectorType<-"single"
         resltsTSGVFinal$numDetectors<-1
-        resltsTSGVFinal$Mooring<-resltsTSGV$Mooring
+        resltsTSGVFinal$Mooring<-resltsTSGV$Mooring[1]
         resltsTSGVFinal$sound.files<-resltsTSGV$sound.files[1]
         
         DetecTab<- rbind(DetecTab,resltsTSGVFinal)
@@ -1166,7 +1166,11 @@ interfereVec<-c(dir(BLEDpath)[6])
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
+if(!user=="danby456"){
 detectorsspr[[1]] <- dir(BLEDpath)[22:39] #add more spreads with notation detectorspr[[x]]<-... #15-32
+}else{
+detectorsspr[[1]] <- dir(BLEDpath)[3:20] #add more spreads with notation detectorspr[[x]]<-... #15-32
+}
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1541,8 +1545,8 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+2)&GT[[v]]$meantime>(MoorVar$meantime[h]-2))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if((MoorVar[h,13]>GT[[v]][g,4]) & (MoorVar[h,13]<GT[[v]][g,5])){
-        OutputCompare[p,]<-MoorVar[h,c(1:7,13,15)]
+      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])){
+        OutputCompare[p,]<-MoorVar[h,c(1:7,14,16)]
         OutputCompare[p,9]<-"TP"
         p=p+1
       }
@@ -1551,7 +1555,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   }
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   if(nrow(OutputCompare)>0){
-  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,13,15)])
+  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,14,16)])
   OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
   }
   
