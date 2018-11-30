@@ -1072,7 +1072,27 @@ for(w in unique(DetecTab2$sound.files)){
   
 }
 
+DetecTab2$MoorStartSec<-0
+DetecTab2$MoorOffsetBegin<-0
+DetecTab2$MoorOffsetEnd<-0
+for(w in unique(DetecTab2$Mooring)){
+  print(paste("calculate file ID and begin time and end time relative to file for Mooring",w))
+  DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
+  durVar<-durTab[which(durTab$Mooring==w),]
+  for(c in 1:nrow(DetecVar)){
+    DetecVar$MoorStartSec[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$MoorCumDur)),4]
+  }
+  DetecVar$MoorStartSec<-DetecVar$MoorStartSec-DetecVar$MoorStartSec[1]
+  DetecVar$MoorOffsetBegin<-DetecVar$`Begin Time (s)`-DetecVar$MoorStartSec
+  DetecVar$MoorOffsetEnd<-DetecVar$`End Time (s)`-DetecVar$MoorStartSec  
+  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==w),]
+  DetecTab2<-rbind(DetecTab2,DetecVar)
+  
+}
+
 DetecTab2$FileStartSec<-NULL
+DetecTab2$MoorStartSec<-NULL
+
 }
 DetecTab2$Selection<-seq(1,nrow(DetecTab2))
 
@@ -1114,9 +1134,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new hd test "
@@ -2081,7 +2101,11 @@ for(m in allMoorings){
     
   }
   
-  
+  #add cumsum for mooring time to durtab:
+  durTab$MoorCumDur<-0
+  for(y in unique(durTab$Mooring)){
+    durTab$MoorCumDur<-cumsum(durTab$Duration)
+  }
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
