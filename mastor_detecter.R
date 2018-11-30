@@ -879,7 +879,7 @@ if(dettype=="spread"|dettype=="combined"){
       }
       
       resltsTSPVmat<-NULL
-      resltsTSPV<-resltsTSPV[which(resltsTSPV$Selection %in% as.integer(wantedSelections)),]
+      resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
@@ -906,7 +906,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
           resltsTSPVFinal[p,10]<-"spread"
           resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
-          resltsTSPVFinal[p,12]<-e
+          resltsTSPVFinal[p,12]<-resltsTSPV$Mooring[1]
           
           p<-p+1
         }
@@ -917,7 +917,7 @@ if(dettype=="spread"|dettype=="combined"){
         DetecTab<- rbind(DetecTab,resltsTSPVFinal)
         
         resltsTSPVFinal<- resltsTSPVFinal[,1:7]
-        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",e,"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",resltsTSPV$Mooring[1],"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       }
     }
     l<-l+1}
@@ -1747,7 +1747,7 @@ if(length(data)>12){
   }
 }
 data$Selection<-seq(1,nrow(data))
-}#TEMPORARY TO DEBUG, REMOVE
+#TEMPORARY TO DEBUG, REMOVE
 #data<-splitdf(data,weight = 1/4)[[1]]
 
 data<-spectral_features(data,1)
