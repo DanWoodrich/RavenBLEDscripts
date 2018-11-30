@@ -906,8 +906,8 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
           resltsTSPVFinal[p,10]<-"spread"
           resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
-          resltsTSPVFinal[p,12]<-resltsTSPV$Mooring[1]
-          resltsTSPVFinal[p,13]<-resltsTSPV$sound.files[1]
+          resltsTSPVFinal[p,12]<-as.character(resltsTSPV$Mooring[1])
+          resltsTSPVFinal[p,13]<-as.character(resltsTSPV$sound.files[1])
           
           p<-p+1
         }
@@ -959,8 +959,8 @@ if(dettype=="single"|dettype=="combined"){
         resltsTSGVFinal$DetectorName<- resltsTSGV$detector[1]
         resltsTSGVFinal$DetectorType<-"single"
         resltsTSGVFinal$numDetectors<-1
-        resltsTSGVFinal$Mooring<-resltsTSGV$Mooring[1]
-        resltsTSGVFinal$sound.files<-resltsTSGV$sound.files[1]
+        resltsTSGVFinal$Mooring<-as.character(resltsTSGV$Mooring[1])
+        resltsTSGVFinal$sound.files<-as.character(resltsTSGV$sound.files[1])
         
         DetecTab<- rbind(DetecTab,resltsTSGVFinal)
         
@@ -1226,7 +1226,7 @@ badcallPenalty<-(-0.001) #constant decrease every detection below threshold
 #p9 working ones: 3,2,3,.25
 #p10 good ones: 3,2,4,0.5
 #(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(3)
+grpsize<-c(4)
 
 #(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
 allowedZeros<-c(2)
