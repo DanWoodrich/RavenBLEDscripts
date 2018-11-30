@@ -885,9 +885,9 @@ if(dettype=="spread"|dettype=="combined"){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
         
-        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
-        resltsTSPVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring", colClasses = colClasses)
-        colnames(resltsTSPVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring")
+        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character","character")
+        resltsTSPVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring, sound.files", colClasses = colClasses)
+        colnames(resltsTSPVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring","sound.files")
         
         
         p=1
@@ -907,9 +907,11 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal[p,10]<-"spread"
           resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
           resltsTSPVFinal[p,12]<-resltsTSPV$Mooring[1]
+          resltsTSPVFinal$sound.files<-resltsTSPV$sound.files[1]
           
           p<-p+1
         }
+        
         
         resltsTSPVFinal$View<-"Spectrogram 1"
         resltsTSPVFinal$Channel<-1
@@ -942,11 +944,11 @@ if(dettype=="single"|dettype=="combined"){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
         
-        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character")
-        resltsTSGVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring", colClasses = colClasses)[1:nrow(resltsTSGV), ]
-        colnames(resltsTSGVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring")
+        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character","character")
+        resltsTSGVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring,sound.files", colClasses = colClasses)[1:nrow(resltsTSGV), ]
+        colnames(resltsTSGVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring","sound.files")
         
-        resltsTSGVFinal$Selection<-seq(1:nrow(resltsTSGV))
+        resltsTSGVFinal$Selection<-seq(1,nrow(resltsTSGV),1)
         resltsTSGVFinal$View<-"Spectrogram 1"
         resltsTSGVFinal$Channel<-1
         resltsTSGVFinal[,4]<-resltsTSGV$start
@@ -958,6 +960,7 @@ if(dettype=="single"|dettype=="combined"){
         resltsTSGVFinal$DetectorType<-"single"
         resltsTSGVFinal$numDetectors<-1
         resltsTSGVFinal$Mooring<-resltsTSGV$Mooring
+        resltsTSGVFinal$sound.files<-resltsTSGV$sound.files[1]
         
         DetecTab<- rbind(DetecTab,resltsTSGVFinal)
         
@@ -1134,9 +1137,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new hd test "
