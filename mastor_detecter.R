@@ -746,7 +746,7 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
       
       #coerce to matrix to "vectorize" algorithm
-      resltsTSPVmat<-as.matrix(resltsTSPV[,c(13,14,15)])
+      resltsTSPVmat<-data.matrix(resltsTSPV[,c(13,14,15)])
       
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
@@ -1783,7 +1783,10 @@ data$Selection<-seq(1,nrow(data))
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(unique(data$`soundfiles[n]`)))
-data<-spectral_features(dataMat,moorlib,1)
+dataMat<-spectral_features(dataMat,moorlib,1)
+
+dataMat<-data.frame(dataMat)
+data<-cbind(data,dataMat[,c(6:length(dataMat))])
 
 write.csv(data,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
