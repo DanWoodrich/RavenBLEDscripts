@@ -163,7 +163,59 @@ RW_algo<-function(RWdata){
   return(wantedSelections)
 }
 
-GS_algo<-
+GS_algo<-function(GSdata){
+  #coerce to matrix to "vectorize" algorithm
+  resltsTSPVmat<-data.matrix(GSdata[,c(13,14,15)])
+  wantedSelections<-c()
+  for(f in unique(resltsTSPVmat[,2])){
+    #print(paste("calculating run for",f,"of",maxgrp))
+    groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+    groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
+    grpvec2<-groupdat2[,1]
+    colClasses = c("numeric","numeric","numeric","numeric","numeric")
+    runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+    for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
+      RM2<-groupdat2[g,1]
+      groupdat2<-cbind(groupdat2,0)
+      groupdat2[,3+g]<-99
+      groupdat2[g,3+g]<-2
+      skipvec2<-0
+      for(h in g:(nrow(groupdat2)-1)){
+        rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
+        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
+          break
+        }  
+        if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+          groupdat2[h+1,3+g]<-1
+          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+          RM2<-grpvec2[h+1]
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-0
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-98
+        }
+        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-1
+          groupdat2[h,3+g]<-98
+          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+          RM2<-grpvec2[h+1]
+        }else if(groupdat2[h,3]==groupdat2[h+1,3]){
+          groupdat2[h+1,3+g]<-98
+        }
+      }
+      runsum2[g,1]<-g
+      runsum2[g,2]<-sum(groupdat2[,3+g]==1)
+      runsum2[g,3]<-sum(groupdat2[,3+g]==0)
+      runsum2[g,4]<-(sum(groupdat2[,3+g]==1)+sum(groupdat2[,3+g]==0)+1)
+      runsum2[g,5]<-max(-skipvec2)
+    }
+    runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
+    runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
+    runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
+    runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
+    runsum2<-runsum2[1,] #choose first one
+  }
+}
 
 sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
@@ -315,12 +367,15 @@ freqstat.normalize<- function(freqstat,lowFreq,highFreq){
   return(newstat)
 }
 
-frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp = NULL,sr=NULL)
-{
+frd_wrblr_int <- function(spc,LenSamples, threshold = 10, wn = "hanning", bp = NULL,sr=NULL){
+  
+  wl<-512
+  if(wl >= LenSamples)  wl <- LenSamples - 1 
+  if (wl %% 2 != 0) wl <- wl - 1
   
   # get frequency windows length for smoothing
-  step <- sr/512/1000
-  
+  step <- sr/wl/1000
+  fsmooth = 0.1
   fsmooth <- fsmooth/step
   
   # number of samples
@@ -330,17 +385,17 @@ frd_wrblr_int <- function(spc, fsmooth = 0.1, threshold = 10, wn = "hanning", bp
   FWL <- fsmooth - 1
   
   # smooth 
-  z <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
-  zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(z))
+  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
+  zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(zx))
   
   # make minimum amplitude 0
-  z <- z - min(z)
-  z[z < 0] <- 0
+  zx <- zx - min(zx)
+  zx[zx < 0] <- 0
   
   # normalize amplitude from 0 to 1
-  z <- z/max(z)
+  zx <- zx/max(zx)
   
-  meanpeakf <- zf[which.max(z)] + (step / 2)
+  meanpeakf <- zf[which.max(zx)] + (step / 2)
   
   # return low and high freq
   return(meanpeakf) 
@@ -769,16 +824,17 @@ for(z in 1:nrow(specdata)){
   Low<-specdata[z,4]
   High<-specdata[z,5]
   
-  foo <- foo2 <- readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
-  sample_rate<-foo@samp.rate
+  foo <- readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
+  sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
-  foo.spec <- spec(foo,plot=F, PSD=T)
+  sample_rate.new<-((High-Low)*2)
+  foo<-downsample(foo,2000)
+  samples<-length(foo@left)
+  foo.spec <- spec(foo,plot=T, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #
-  foo.meanspec2 = meanspec(foo2, plot=F,ovlp=90)
-  #foo.meanspec2<-foo.meanspec[which(foo.meanspec[,1]<High&foo.meanspec[,1]>Low),] #only returns like 2 numbers- probably not getting a lot out of this if we freq limit
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=90) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
@@ -823,7 +879,7 @@ for(z in 1:nrow(specdata)){
   specdata[z,36]<-freqstat.normalize(Maxdom,Low,High) #maxdom
   specdata[z,37]<-Dfrange #dfrange
   specdata[z,38]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specdata[z,39]<-frd_wrblr_int(foo.meanspec2,sr=sample_rate) #meanpeakf
+  specdata[z,39]<-frd_wrblr_int(spc=foo.meanspec,LenSamples=samples,sr=sample_rate.new) #meanpeakf
 
   }
   return(specdata)
