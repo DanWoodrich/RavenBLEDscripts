@@ -907,7 +907,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal[p,10]<-"spread"
           resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
           resltsTSPVFinal[p,12]<-resltsTSPV$Mooring[1]
-          resltsTSPVFinal$sound.files<-resltsTSPV$sound.files[1]
+          resltsTSPVFinal[p,13]<-resltsTSPV$sound.files[1]
           
           p<-p+1
         }
