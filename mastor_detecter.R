@@ -793,8 +793,8 @@ for(z in 1:nrow(specdata)){
   foo <-readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
-  sample_rate.new<-((High-Low)*2)
-  foo<-downsample(foo,4000)
+  sample_rate.clip<-4000
+  foo<-downsample(foo,sample_rate.clip)
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
@@ -847,23 +847,24 @@ for(z in 1:nrow(specdata)){
   specdata[z,38]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
   wl<-512
-  if(wl >= LenSamples)  wl <- LenSamples - 1 
+  if(wl >= samples)  wl <- samples - 1 
   if (wl %% 2 != 0) wl <- wl - 1
   
   # get frequency windows length for smoothing
-  step <- sr/wl/1000
+  step <- sample_rate.clip/wl/1000
   fsmooth = 0.1
   fsmooth <- fsmooth/step
   
   # number of samples
-  n <- nrow(spc)
+  n <- nrow(foo.meanspec)
   
   # smoothing parameter
   FWL <- fsmooth - 1
   
+  zx<-NULL
   # smooth 
-  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
-  zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(zx))
+  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
+  zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
   
   # make minimum amplitude 0
   zx <- zx - min(zx)
