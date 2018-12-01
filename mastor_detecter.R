@@ -29,7 +29,7 @@ library(stringr)
 library(stringi)
 library(signal)
 
-RW_algo<-function(RWdata){
+RW_algo<-function(RWdata,detector){
   #coerce to matrix to "vectorize" algorithm
   resltsTSPVmat<-data.matrix(RWdata[,c(13,14,15)])
   wantedSelections<-c()
@@ -40,7 +40,7 @@ RW_algo<-function(RWdata){
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
     runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
     
-    for(g in 1:(nrow(groupdat)-(grpsize[d]-1))){
+    for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
       RM<-groupdat[g,1]
       groupdat<-cbind(groupdat,0)
       groupdat[,3+g]<-99
@@ -48,19 +48,19 @@ RW_algo<-function(RWdata){
       skipvec<-0
       for(h in g:(nrow(groupdat)-1)){
         rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
-        if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[d])){
+        if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[detector])){
           break
         }  
-        if(RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
+        if(RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
           groupdat[h+1,3+g]<-1
           skipvec<-c(skipvec,(grpvec[h+1]-RM))
           RM<-grpvec[h+1]
-        }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[d]+1)>grpvec[h+1]&RM-(detskip[d]+1)<=grpvec[h+1]){
+        }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[detector]+1)>grpvec[h+1]&RM-(detskip[detector]+1)<=grpvec[h+1]){
           groupdat[h+1,3+g]<-0
-        }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[d]+1)<=grpvec[h+1]|RM-(detskip[d]+1)>grpvec[h+1])){
+        }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[detector]+1)<=grpvec[h+1]|RM-(detskip[detector]+1)>grpvec[h+1])){
           groupdat[h+1,3+g]<-98
         }
-        if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[d]+1)>grpvec[h+1]){
+        if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]){
           groupdat[h+1,3+g]<-1
           groupdat[h,3+g]<-98
           skipvec<-c(skipvec,(grpvec[h+1]-RM))
@@ -83,7 +83,7 @@ RW_algo<-function(RWdata){
     
     #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
     kill="n"
-    if((runsum[,2]+1)<grpsize[d]){
+    if((runsum[,2]+1)<grpsize[detector]){
       kill="y"
     }
     if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
@@ -92,7 +92,7 @@ RW_algo<-function(RWdata){
       grpvec2<-groupdat2[,1]
       colClasses = c("numeric","numeric","numeric","numeric","numeric")
       runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-      for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
+      for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
         RM2<-groupdat2[g,1]
         groupdat2<-cbind(groupdat2,0)
         groupdat2[,3+g]<-99
@@ -100,19 +100,19 @@ RW_algo<-function(RWdata){
         skipvec2<-0
         for(h in g:(nrow(groupdat2)-1)){
           rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
-          if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
+          if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
             break
           }  
-          if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+          if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
             groupdat2[h+1,3+g]<-1
             skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
             RM2<-grpvec2[h+1]
-          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
+          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
             groupdat2[h+1,3+g]<-0
-          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
+          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
             groupdat2[h+1,3+g]<-98
           }
-          if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
+          if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
             groupdat2[h+1,3+g]<-1
             groupdat2[h,3+g]<-98
             skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
@@ -163,7 +163,7 @@ RW_algo<-function(RWdata){
   return(wantedSelections)
 }
 
-GS_algo<-function(GSdata){
+GS_algo<-function(GSdata,detector){
   #coerce to matrix to "vectorize" algorithm
   resltsTSPVmat<-data.matrix(GSdata[,c(13,14,15)])
   wantedSelections<-c()
@@ -174,7 +174,7 @@ GS_algo<-function(GSdata){
     grpvec2<-groupdat2[,1]
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
     runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-    for(g in 1:(nrow(groupdat2)-(grpsize[d]-1))){
+    for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
       RM2<-groupdat2[g,1]
       groupdat2<-cbind(groupdat2,0)
       groupdat2[,3+g]<-99
@@ -182,19 +182,19 @@ GS_algo<-function(GSdata){
       skipvec2<-0
       for(h in g:(nrow(groupdat2)-1)){
         rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
-        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[d])){
+        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
           break
         }  
-        if(RM2>grpvec2[h+1]&RM2-(detskip[d]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+        if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
           groupdat2[h+1,3+g]<-1
           skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
           RM2<-grpvec2[h+1]
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[d]+1)<grpvec2[h+1]&RM2+(detskip[d]+1)>=grpvec2[h+1]){
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
           groupdat2[h+1,3+g]<-0
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[d]+1)>=grpvec2[h+1])|RM2+(detskip[d]+1)<grpvec2[h+1]){
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
           groupdat2[h+1,3+g]<-98
         }
-        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[d]+1))<grpvec2[h+1]){
+        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
           groupdat2[h+1,3+g]<-1
           groupdat2[h,3+g]<-98
           skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
@@ -365,40 +365,6 @@ prime.factor <- function(x){
 freqstat.normalize<- function(freqstat,lowFreq,highFreq){
   newstat<-((freqstat-lowFreq)/(highFreq-lowFreq))
   return(newstat)
-}
-
-frd_wrblr_int <- function(spc,LenSamples, threshold = 10, wn = "hanning", bp = NULL,sr=NULL){
-  
-  wl<-512
-  if(wl >= LenSamples)  wl <- LenSamples - 1 
-  if (wl %% 2 != 0) wl <- wl - 1
-  
-  # get frequency windows length for smoothing
-  step <- sr/wl/1000
-  fsmooth = 0.1
-  fsmooth <- fsmooth/step
-  
-  # number of samples
-  n <- nrow(spc)
-  
-  # smoothing parameter
-  FWL <- fsmooth - 1
-  
-  # smooth 
-  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
-  zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(zx))
-  
-  # make minimum amplitude 0
-  zx <- zx - min(zx)
-  zx[zx < 0] <- 0
-  
-  # normalize amplitude from 0 to 1
-  zx <- zx/max(zx)
-  
-  meanpeakf <- zf[which.max(zx)] + (step / 2)
-  
-  # return low and high freq
-  return(meanpeakf) 
 }
 
 raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detector = "Amplitude detector", relabel_colms = TRUE, pb = TRUE, dpreset="Default",vpreset="Default")
@@ -792,7 +758,7 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,library,whichRun){
+spectral_features<- function(specdata,libb,whichRun){
   if(whichRun==1){
     if(whiten=="y"){
       specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,"/",sep="")
@@ -810,7 +776,7 @@ spectral_features<- function(specdata,library,whichRun){
       specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
     }
   }
-  mooringslib<-library
+  mooringslib<-libb
   
   specdata<-cbind(specdata,matrix(,nrow(specdata),34))
   
@@ -824,13 +790,13 @@ for(z in 1:nrow(specdata)){
   Low<-specdata[z,4]
   High<-specdata[z,5]
   
-  foo <- readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
   sample_rate.new<-((High-Low)*2)
-  foo<-downsample(foo,2000)
+  foo<-downsample(foo,4000)
   samples<-length(foo@left)
-  foo.spec <- spec(foo,plot=T, PSD=T)
+  foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
@@ -879,9 +845,39 @@ for(z in 1:nrow(specdata)){
   specdata[z,36]<-freqstat.normalize(Maxdom,Low,High) #maxdom
   specdata[z,37]<-Dfrange #dfrange
   specdata[z,38]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specdata[z,39]<-frd_wrblr_int(spc=foo.meanspec,LenSamples=samples,sr=sample_rate.new) #meanpeakf
+  
+  wl<-512
+  if(wl >= LenSamples)  wl <- LenSamples - 1 
+  if (wl %% 2 != 0) wl <- wl - 1
+  
+  # get frequency windows length for smoothing
+  step <- sr/wl/1000
+  fsmooth = 0.1
+  fsmooth <- fsmooth/step
+  
+  # number of samples
+  n <- nrow(spc)
+  
+  # smoothing parameter
+  FWL <- fsmooth - 1
+  
+  # smooth 
+  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(spc[y:(y + FWL), 2]))
+  zf <- seq(min(spc[,1]), max(spc[,1]), length.out = length(zx))
+  
+  # make minimum amplitude 0
+  zx <- zx - min(zx)
+  zx[zx < 0] <- 0
+  
+  # normalize amplitude from 0 to 1
+  zx <- zx/max(zx)
+  
+  meanpeakf <- zf[which.max(zx)] + (step / 2)
+  
+  # return low and high freq
+  specdata[z,39]<-meanpeakf #meanpeakf
 
-  }
+    }
   return(specdata)
 }
 
@@ -940,7 +936,7 @@ if(dettype=="spread"|dettype=="combined"){
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
       if(spec=="RW"){
-      wantedSelections<-RW_algo(resltsTSPV)
+      wantedSelections<-RW_algo(resltsTSPV,d)
       }else if(spec=="GS"){
         
       }
@@ -1208,7 +1204,7 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
-runname<- "new hd test "
+runname<- "new feature and algo as function test "
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
