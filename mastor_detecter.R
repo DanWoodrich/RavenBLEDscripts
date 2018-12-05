@@ -486,9 +486,9 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 context_sim <-function(sdata){
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,1]))){
-    colcounts<-length(datVar)
+    colcounts<-ncol(sdata)
     datVar<-sdata[which(sdata[,1]==unique(sdata[,1])[w]),]
-    cbind(datVar,matrix(1,nrow=nrow(datVar),ncol=5))
+    datVar<-cbind(datVar,matrix(1,nrow=nrow(datVar),ncol=5))
     datVar[,colcounts+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
       if(datVar[n,colcounts+2]>=greatcallThresh){
@@ -518,13 +518,13 @@ context_sim <-function(sdata){
   #same but backwards through data 
   datVar[,colcounts+4]<-datVar[,pos-2]
   for(n in (nrow(datVar)-1):1){
-    if(datVar[n,colcounts+4][n]>=greatcallThresh){
+    if(datVar[n,colcounts+4]>=greatcallThresh){
       datVar[n+3,colcounts+3]<-maxBonus
       if(datVar[n+3,colcounts+3]>maxBonus){
         datVar[n+3,colcounts+3]<-maxBonus
       }
-    }else if(datVar[n,colcounts+4][n]>(-maxPenalty)&datVar[n,colcounts+4][n]<greatcallThresh){
-      datVar[n+3,colcounts+3]<-datVar[n,colcounts+3]+(datVar[n,colcounts+4][n]*goodcallBonus)
+    }else if(datVar[n,colcounts+4]>(-maxPenalty)&datVar[n,colcounts+4]<greatcallThresh){
+      datVar[n+3,colcounts+3]<-datVar[n,colcounts+3]+(datVar[n,colcounts+4]*goodcallBonus)
       if(datVar[n+3,colcounts+3]>maxBonus){
         datVar[n+3,colcounts+3]<-maxBonus
       }
@@ -534,12 +534,12 @@ context_sim <-function(sdata){
         datVar[n+3,colcounts+3]<-maxPenalty
       }
     }
-    if(datVar[n,colcounts+4][n]+datVar[n,colcounts+3]>0 & datVar[n,colcounts+4][n]+datVar[n,colcounts+3]<1){
-      datVar[n,colcounts+4][n]<-datVar[n,colcounts+4][n]+datVar[n,colcounts+3]
-    }else if(datVar[n,colcounts+4][n]+datVar[n,colcounts+3]<0){
-      datVar[n,colcounts+4][n]<-0
-    }else if(datVar[n,colcounts+4][n]+datVar[n,colcounts+3]>1){
-      datVar[n,colcounts+4][n]<-1
+    if(datVar[n,colcounts+4]+datVar[n,colcounts+3]>0 & datVar[n,colcounts+4]+datVar[n,colcounts+3]<1){
+      datVar[n,colcounts+4]<-datVar[n,colcounts+4]+datVar[n,colcounts+3]
+    }else if(datVar[n,colcounts+4]+datVar[n,colcounts+3]<0){
+      datVar[n,colcounts+4]<-0
+    }else if(datVar[n,colcounts+4]+datVar[n,colcounts+3]>1){
+      datVar[n,colcounts+4]<-1
     }
   }
   
@@ -1215,7 +1215,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
@@ -1969,7 +1969,7 @@ data3Mat<-adaptive_compare(data3Mat,1)
 data3<-data3Mat
 
 #simulate context over time using probability scores 
-#data3<-context_sim(data3) bench this for onw
+data3<-context_sim(data3)
 
 #number of TPs in data3
 finTPs<-sum(as.numeric(as.character(data3[which(data3[,pos-2]>CUTmean),7])))
@@ -2008,7 +2008,7 @@ cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue",
 
 
 #write data to drive
-after_model_write(data3,1)
+after_model_write(data3,1) #need to change to vector 
 
 beep(10)
 
