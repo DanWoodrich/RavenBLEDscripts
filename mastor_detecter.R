@@ -484,74 +484,72 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 }
 
 context_sim <-function(sdata){
+  datTab<-matrix(,ncol=pos+5,nrow=0)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,1]))){
-    colcounts<-ncol(sdata)
     datVar<-sdata[which(sdata[,1]==unique(sdata[,1])[w]),]
-    datVar<-cbind(datVar,matrix(1,nrow=nrow(datVar),ncol=5))
-    datVar[,colcounts+2]<-datVar[,pos-2]
+    datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
+    datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
-      if(datVar[n,colcounts+2]>=greatcallThresh){
-        datVar[n+1,colcounts+1]<-maxBonus
-        if(datVar[n+1,colcounts+1]>maxBonus){
-          datVar[n+1,colcounts+1]<-maxBonus
+      if(datVar[n,pos+2]>=greatcallThresh){
+        datVar[n+1,pos+1]<-maxBonus
+        if(datVar[n+1,pos+1]>maxBonus){
+          datVar[n+1,pos+1]<-maxBonus
         }
-      }else if(datVar[n,colcounts+2]>=(-maxPenalty+CUTmean)&datVar[n,colcounts+2]<greatcallThresh){
-        datVar[n+1,colcounts+1]<-datVar[n,colcounts+1]+(datVar[n,colcounts+2]*goodcallBonus)
-        if(datVar[n+1,colcounts+1]>maxBonus){
-          datVar[n+1,colcounts+1]<-maxBonus
+      }else if(datVar[n,pos+2]>=(-maxPenalty+CUTmean)&datVar[n,pos+2]<greatcallThresh){
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+(datVar[n,pos+2]*goodcallBonus)
+        if(datVar[n+1,pos+1]>maxBonus){
+          datVar[n+1,pos+1]<-maxBonus
         }
       }else{
-        datVar[n+1,colcounts+1]<-datVar[n,colcounts+1]+badcallPenalty
-        if(datVar[n+1,colcounts+1]<maxPenalty){
-          datVar[n+1,colcounts+1]<-maxPenalty
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+badcallPenalty
+        if(datVar[n+1,pos+1]<maxPenalty){
+          datVar[n+1,pos+1]<-maxPenalty
         }
       }
-      if(datVar[n,colcounts+2]+datVar[n,colcounts+1]>0 & datVar[n,colcounts+2]+datVar[n,colcounts+1]<1){
-        datVar[n,colcounts+2]<-datVar[n,colcounts+2]+datVar[n,colcounts+1]
-      }else if(datVar[n,colcounts+2]+datVar[n,colcounts+1]<0){
-        datVar[n,colcounts+2]<-0
-      }else if(datVar[n,colcounts+2]+datVar[n,colcounts+1]>1){
-        datVar[n,colcounts+2]<-1
+      if(datVar[n,pos+2]+datVar[n,pos+1]>0 & datVar[n,pos+2]+datVar[n,pos+1]<1){
+        datVar[n,pos+2]<-datVar[n,pos+2]+datVar[n,pos+1]
+      }else if(datVar[n,pos+2]+datVar[n,pos+1]<0){
+        datVar[n,pos+2]<-0
+      }else if(datVar[n,pos+2]+datVar[n,pos+1]>1){
+        datVar[n,pos+2]<-1
       }
     }
   #same but backwards through data 
-  datVar[,colcounts+4]<-datVar[,pos-2]
-  for(n in (nrow(datVar)-1):1){
-    if(datVar[n,colcounts+4]>=greatcallThresh){
-      datVar[n+3,colcounts+3]<-maxBonus
-      if(datVar[n+3,colcounts+3]>maxBonus){
-        datVar[n+3,colcounts+3]<-maxBonus
+  datVar[,pos+4]<-datVar[,pos-2]
+  for(n in (nrow(datVar)-1):2){
+    if(datVar[n,pos+4]>=greatcallThresh){
+      datVar[n-1,pos+3]<-maxBonus
+      if(datVar[n-1,pos+3]>maxBonus){
+        datVar[n-1,pos+3]<-maxBonus
       }
-    }else if(datVar[n,colcounts+4]>(-maxPenalty)&datVar[n,colcounts+4]<greatcallThresh){
-      datVar[n+3,colcounts+3]<-datVar[n,colcounts+3]+(datVar[n,colcounts+4]*goodcallBonus)
-      if(datVar[n+3,colcounts+3]>maxBonus){
-        datVar[n+3,colcounts+3]<-maxBonus
+    }else if(datVar[n,pos+4]>(-maxPenalty)&datVar[n,pos+4]<greatcallThresh){
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+(datVar[n,pos+4]*goodcallBonus)
+      if(datVar[n-1,pos+3]>maxBonus){
+        datVar[n-1,pos+3]<-maxBonus
       }
     }else{
-      datVar[n+3,colcounts+3]<-datVar[n,colcounts+3]+badcallPenalty
-      if(datVar[n+3,colcounts+3]<maxPenalty){
-        datVar[n+3,colcounts+3]<-maxPenalty
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+badcallPenalty
+      if(datVar[n-1,pos+3]<maxPenalty){
+        datVar[n-1,pos+3]<-maxPenalty
       }
     }
-    if(datVar[n,colcounts+4]+datVar[n,colcounts+3]>0 & datVar[n,colcounts+4]+datVar[n,colcounts+3]<1){
-      datVar[n,colcounts+4]<-datVar[n,colcounts+4]+datVar[n,colcounts+3]
-    }else if(datVar[n,colcounts+4]+datVar[n,colcounts+3]<0){
-      datVar[n,colcounts+4]<-0
-    }else if(datVar[n,colcounts+4]+datVar[n,colcounts+3]>1){
-      datVar[n,colcounts+4]<-1
+    if(datVar[n,pos+4]+datVar[n,pos+3]>0 & datVar[n,pos+4]+datVar[n,pos+3]<1){
+      datVar[n,pos+4]<-datVar[n,pos+4]+datVar[n,pos+3]
+    }else if(datVar[n,pos+4]+datVar[n,pos+3]<0){
+      datVar[n,pos+4]<-0
+    }else if(datVar[n,pos+4]+datVar[n,pos+3]>1){
+      datVar[n,pos+4]<-1
     }
   }
   
-  datVar[n,colcounts+5]<-(datVar[n,colcounts+2]+datVar[n,colcounts+4])/2 #average
-  #datVar$probmean<-pmax(datVar[n,colcounts+2],datVar[n,colcounts+3]) #max
-  #datVar$probmean<-pmin(datVar[n,colcounts+2],datVar[n,colcounts+3]) #min
+  datVar[,pos+5]<-(datVar[,pos+2]+datVar[,pos+4])/2 #average
+  #datVar$probmean<-pmax(datVar[n,pos+2],datVar[n,pos+3]) #max
+  #datVar$probmean<-pmin(datVar[n,pos+2],datVar[n,pos+3]) #min
   
-  sdata<-sdata[which(sdata[,1]!=unique(sdata[,1])[w]),]
-  datVar<-datVar[,c(1:length(sdata))]
-  sdata<-rbind(sdata,datVar)
+  datTab<-rbind(datTab,datVar)
   }
-  return(sdata)
+  return(datTab)
 }
 
 after_model_write <-function(mdata,finaldatrun){
@@ -787,7 +785,7 @@ spectral_features<- function(specdata,libb,whichRun){
     
   }else{
     rowcount<-nrow(specdata)
-    specdata<-cbind(specdata,matrix(1,rowcount,33))
+    specdata<-cbind(specdata,matrix(1,rowcount,32))
     
   }
   
@@ -1215,7 +1213,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
@@ -1998,6 +1996,16 @@ AUCadj<-auc.perf@y.values
 plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==1,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
+#plot of probabilities after context sim:
+plot(data3[,pos+5])
+lines(lowess(data3[,pos+5]))
+lines(lowess(data3[,pos+4]))
+lines(lowess(data3[,pos+2]))
+lines(lowess(data3[,pos-2]))
+lines(lowess(data3[,pos+3]*10))
+lines(lowess(data3[,pos+1]*10))
+
+
 #see freq breakdown of calls 
 cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
@@ -2269,12 +2277,12 @@ for(m in allMoorings){
   }
 }
 
-
-
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 DetecTab2<-process_data(2)
+
+DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -2321,11 +2329,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
 findata<-MoorTab
 
-#create columns to be used later 
-findata$probmean<-0
-findata$probstderr<-0
-findata$probn<-0
-findata$detectionType<-0
 
 #make interference columns into factors
 if(length(findata)>17){
@@ -2335,6 +2338,11 @@ if(length(findata)>17){
 }
 
 findata<-spectral_features(findata,2)
+
+#create columns to be used later 
+findata$probmean<-0
+findata$probstderr<-0
+findata$probn<-0
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
 if(runProcessGT=="n"){
