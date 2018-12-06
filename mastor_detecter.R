@@ -485,74 +485,72 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 }
 
 context_sim <-function(sdata){
+  datTab<-matrix(,ncol=pos+5,nrow=0)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,1]))){
     datVar<-sdata[which(sdata[,1]==unique(sdata[,1])[w]),]
-    datVar$probrollscore<-0
-    datVar$probmean2<-datVar$probmean
+    datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
+    datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
-      if(datVar$probmean2[n]>=greatcallThresh){
-        datVar$probrollscore[n+1]<-maxBonus
-        if(datVar$probrollscore[n+1]>maxBonus){
-          datVar$probrollscore[n+1]<-maxBonus
+      if(datVar[n,pos+2]>=greatcallThresh){
+        datVar[n+1,pos+1]<-maxBonus
+        if(datVar[n+1,pos+1]>maxBonus){
+          datVar[n+1,pos+1]<-maxBonus
         }
-      }else if(datVar$probmean2[n]>=(-maxPenalty+CUTmean)&datVar$probmean2[n]<greatcallThresh){
-        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean2[n]*goodcallBonus)
-        if(datVar$probrollscore[n+1]>maxBonus){
-          datVar$probrollscore[n+1]<-maxBonus
+      }else if(datVar[n,pos+2]>=(-maxPenalty+CUTmean)&datVar[n,pos+2]<greatcallThresh){
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+(datVar[n,pos+2]*goodcallBonus)
+        if(datVar[n+1,pos+1]>maxBonus){
+          datVar[n+1,pos+1]<-maxBonus
         }
       }else{
-        datVar$probrollscore[n+1]<-datVar$probrollscore[n]+badcallPenalty
-        if(datVar$probrollscore[n+1]<maxPenalty){
-          datVar$probrollscore[n+1]<-maxPenalty
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+badcallPenalty
+        if(datVar[n+1,pos+1]<maxPenalty){
+          datVar[n+1,pos+1]<-maxPenalty
         }
       }
-      if(datVar$probmean2[n]+datVar$probrollscore[n]>0 & datVar$probmean2[n]+datVar$probrollscore[n]<1){
-        datVar$probmean2[n]<-datVar$probmean2[n]+datVar$probrollscore[n]
-      }else if(datVar$probmean2[n]+datVar$probrollscore[n]<0){
-        datVar$probmean2[n]<-0
-      }else if(datVar$probmean2[n]+datVar$probrollscore[n]>1){
-        datVar$probmean2[n]<-1
+      if(datVar[n,pos+2]+datVar[n,pos+1]>0 & datVar[n,pos+2]+datVar[n,pos+1]<1){
+        datVar[n,pos+2]<-datVar[n,pos+2]+datVar[n,pos+1]
+      }else if(datVar[n,pos+2]+datVar[n,pos+1]<0){
+        datVar[n,pos+2]<-0
+      }else if(datVar[n,pos+2]+datVar[n,pos+1]>1){
+        datVar[n,pos+2]<-1
       }
     }
   #same but backwards through data 
-  datVar$probrollscore<-0
-  datVar$probmean3<-datVar$probmean
-  for(n in (nrow(datVar)-1):1){
-    if(datVar$probmean3[n]>=greatcallThresh){
-      datVar$probrollscore[n+1]<-maxBonus
-      if(datVar$probrollscore[n+1]>maxBonus){
-        datVar$probrollscore[n+1]<-maxBonus
+  datVar[,pos+4]<-datVar[,pos-2]
+  for(n in (nrow(datVar)-1):2){
+    if(datVar[n,pos+4]>=greatcallThresh){
+      datVar[n-1,pos+3]<-maxBonus
+      if(datVar[n-1,pos+3]>maxBonus){
+        datVar[n-1,pos+3]<-maxBonus
       }
-    }else if(datVar$probmean3[n]>(-maxPenalty)&datVar$probmean3[n]<greatcallThresh){
-      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+(datVar$probmean3[n]*goodcallBonus)
-      if(datVar$probrollscore[n+1]>maxBonus){
-        datVar$probrollscore[n+1]<-maxBonus
+    }else if(datVar[n,pos+4]>(-maxPenalty)&datVar[n,pos+4]<greatcallThresh){
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+(datVar[n,pos+4]*goodcallBonus)
+      if(datVar[n-1,pos+3]>maxBonus){
+        datVar[n-1,pos+3]<-maxBonus
       }
     }else{
-      datVar$probrollscore[n+1]<-datVar$probrollscore[n]+badcallPenalty
-      if(datVar$probrollscore[n+1]<maxPenalty){
-        datVar$probrollscore[n+1]<-maxPenalty
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+badcallPenalty
+      if(datVar[n-1,pos+3]<maxPenalty){
+        datVar[n-1,pos+3]<-maxPenalty
       }
     }
-    if(datVar$probmean3[n]+datVar$probrollscore[n]>0 & datVar$probmean3[n]+datVar$probrollscore[n]<1){
-      datVar$probmean3[n]<-datVar$probmean3[n]+datVar$probrollscore[n]
-    }else if(datVar$probmean3[n]+datVar$probrollscore[n]<0){
-      datVar$probmean3[n]<-0
-    }else if(datVar$probmean3[n]+datVar$probrollscore[n]>1){
-      datVar$probmean3[n]<-1
+    if(datVar[n,pos+4]+datVar[n,pos+3]>0 & datVar[n,pos+4]+datVar[n,pos+3]<1){
+      datVar[n,pos+4]<-datVar[n,pos+4]+datVar[n,pos+3]
+    }else if(datVar[n,pos+4]+datVar[n,pos+3]<0){
+      datVar[n,pos+4]<-0
+    }else if(datVar[n,pos+4]+datVar[n,pos+3]>1){
+      datVar[n,pos+4]<-1
     }
   }
   
-  datVar$probmean<-(datVar$probmean2+datVar$probmean3)/2 #average
-  #datVar$probmean<-pmax(datVar$probmean2,datVar$probmean3) #max
-  #datVar$probmean<-pmin(datVar$probmean2,datVar$probmean3) #min
+  datVar[,pos+5]<-(datVar[,pos+2]+datVar[,pos+4])/2 #average
+  #datVar$probmean<-pmax(datVar[n,pos+2],datVar[n,pos+3]) #max
+  #datVar$probmean<-pmin(datVar[n,pos+2],datVar[n,pos+3]) #min
   
-  sdata<-sdata[which(sdata[,1]!=unique(sdata[,1])[w]),]
-  datVar<-datVar[,c(1:length(sdata))]
-  sdata<-rbind(sdata,datVar)
+  datTab<-rbind(datTab,datVar)
   }
-  return(sdata)
+  return(datTab)
 }
 
 after_model_write <-function(mdata,finaldatrun){
@@ -663,30 +661,27 @@ after_model_write <-function(mdata,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
+  runcor<-(specfeatrun-1) #adjust column value for lack of detection type in full mooring run. 
   for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
-    CompVar<-CompVar[order(CompVar$meantime),]
+    CompVar<-CompVar[order(CompVar[,10-runcor]),]
     print(paste("For mooring",o))
     r=0
     n=0
-    newrow<-CompVar[0,]
+    newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar$meantime[q+1]<=(CompVar$meantime[q]+timediffself)){
-        if(CompVar$probmean[q+1]+probdist<CompVar$probmean[q]|CompVar$probmean[q+1]-probdist>CompVar$probmean[q]){#take only the best one
-         # print(q)
-          newdat<-CompVar[0,]
-          newdat[1:2,]<-CompVar[c(q,q+1),]
-          newdat<-newdat[order(newdat$probmean),]
-          IDvec<-c(IDvec,newdat$Selection)
-          newrow[r+1,]<-newdat[2,]
-          r=r+1
+      if(CompVar[q+1,10-runcor]<=(CompVar[q,10-runcor]+timediffself)){
+        if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
+          newdat<-CompVar[c(q,q+1),]
+          newdat<-newdat[order(newdat[,pos-2]),]
+          IDvec<-c(IDvec,newdat[,2])
+          newrow<-rbind(newrow,newdat[2,])
         }else{
           #print(q)
-          newdat<-CompVar[0,]
-          newdat[1:2,]<-CompVar[c(q,q+1),]
-          IDvec<-c(IDvec,newdat$Selection)
+          newdat<-CompVar[c(q,q+1),]
+          IDvec<-c(IDvec,newdat[,2])
           s<-as.numeric(min(newdat[,3]))
           e<-as.numeric(max(newdat[,4]))
           l<-as.numeric(min(newdat[,5]))
@@ -695,24 +690,29 @@ adaptive_compare<-function(Compdata,specfeatrun){
           mt<-(s+e)/2
           mf<-(h+l)/2
           fr<-(h-l)
+          if(specfeatrun==1){
+            row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
+          }else{
+            row<-c(newdat[1,1],newdat[1,2],s,e,l,h,mf,fr,mt)
+          }
+
+          row2<-spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun)
           
-          newrow[r+1,]<-data.frame(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
-          newrow[r+1,]<-spectral_features(newrow[r+1,],specfeatrun)
+          row<-c(row,row2[c(6:length(row2))],c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
           
-          newrow[r+1,]$probmean<-mean(newdat$probmean)
-          newrow[r+1,]$probstderr<-mean(newdat$probstderr)
-          newrow[r+1,]$n<-mean(newdat$n)
-                                   
-          r=r+1
+          newrow<-rbind(newrow,row)
+          if(newrow[1,1]==0){
+            newrow<-matrix(newrow[2,],ncol=length(newrow[2,]))
+          }
         }
           
         }
 
       }
-      if(r>0){
-        CompVar<-subset(CompVar,!(CompVar$Selection %in% IDvec))
+      if(newrow[1,1]!=0){
+        CompVar<-subset(CompVar,!(CompVar[,2] %in% IDvec))
         CompVar<-rbind(CompVar,newrow)
-        CompVar<-CompVar[order(CompVar$meantime),]
+        CompVar<-CompVar[order(CompVar[,10-runcor]),]
         n=n+1
       }
     if(n>0){
@@ -779,19 +779,29 @@ spectral_features<- function(specdata,libb,whichRun){
   }
   mooringslib<-libb
   
-  specdata<-cbind(specdata,matrix(,nrow(specdata),34))
+  if(is.null(nrow(specdata))){
+    rowcount<-1
+    specdata<-c(specdata,matrix(1,rowcount,32))
+    specdata<-rbind(specdata,matrix(1,rowcount,32+5)) #make 
+    
+  }else{
+    rowcount<-nrow(specdata)
+    specdata<-cbind(specdata,matrix(1,rowcount,32))
+    
+  }
+  
   
 print("extracting spectral parameters")
-for(z in 1:nrow(specdata)){
+for(z in 1:rowcount){
   print(z)
   #store reused calculations to avoid indexing 
-
   Start<-specdata[z,2]
   End<-  specdata[z,3]
   Low<-specdata[z,4]
   High<-specdata[z,5]
   
   foo <-readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
+
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
   sample_rate.clip<-4000
@@ -818,69 +828,72 @@ for(z in 1:nrow(specdata)){
   specdata[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
   specdata[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
   specdata[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  specdata[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specdata[z,14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specdata[z,15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specdata[z,16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  specdata[z,17] = foo.specprop$sd[1] #specprop sd
-  specdata[z,18] = foo.specprop$sem[1] #specprop sem
-  specdata[z,19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specdata[z,20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specdata[z,21] = foo.specprop$Q25[1] # specprop q25
-  specdata[z,22] = foo.specprop$Q75[1] #specprop q75
-  specdata[z,23] = foo.specprop$IQR[1] #specprop IQR
-  specdata[z,24] = foo.specprop$cent[1] #specrop cent
-  specdata[z,25] = foo.specprop$skewness[1] #specprop skewness
-  specdata[z,26] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specdata[z,27] = foo.specprop$sfm[1] #specprop sfm
-  specdata[z,28] = foo.specprop$sh[1] #specprop sh
-  specdata[z,29] = foo.specprop$prec[1] #specprop prec
-  specdata[z,30] = M(foo) #amp env median
-  specdata[z,31] = H(foo) #total entropy
+  #specdata[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specdata[z,13] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specdata[z,14] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specdata[z,15] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  specdata[z,16] = foo.specprop$sd[1] #specprop sd
+  specdata[z,17] = foo.specprop$sem[1] #specprop sem
+  specdata[z,18] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specdata[z,19] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specdata[z,20] = foo.specprop$Q25[1] # specprop q25
+  specdata[z,21] = foo.specprop$Q75[1] #specprop q75
+  specdata[z,22] = foo.specprop$IQR[1] #specprop IQR
+  specdata[z,23] = foo.specprop$cent[1] #specrop cent
+  specdata[z,24] = foo.specprop$skewness[1] #specprop skewness
+  specdata[z,25] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specdata[z,26] = foo.specprop$sfm[1] #specprop sfm
+  specdata[z,27] = foo.specprop$sh[1] #specprop sh
+  specdata[z,28] = foo.specprop$prec[1] #specprop prec
+  specdata[z,29] = M(foo) #amp env median
+  specdata[z,30] = H(foo) #total entropy
  # specdata$resonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
-  specdata[z,32]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specdata[z,33]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specdata[z,34]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specdata[z,35]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specdata[z,36]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specdata[z,37]<-Dfrange #dfrange
-  specdata[z,38]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specdata[z,31]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specdata[z,32]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specdata[z,33]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specdata[z,34]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specdata[z,35]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specdata[z,36]<-Dfrange #dfrange
+  specdata[z,37]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
-  wl<-512
-  if(wl >= samples)  wl <- samples - 1 
-  if (wl %% 2 != 0) wl <- wl - 1
+  #wl<-512
+  #if(wl >= samples)  wl <- samples - 1 
+  #if (wl %% 2 != 0) wl <- wl - 1
   
-  # get frequency windows length for smoothing
-  step <- sample_rate.clip/wl/1000
-  fsmooth = 0.1
-  fsmooth <- fsmooth/step
+  ## get frequency windows length for smoothing
+  #step <- sample_rate.clip/wl/1000
+  #fsmooth = 0.1
+  #fsmooth <- fsmooth/step
   
-  # number of samples
-  n <- nrow(foo.meanspec)
+  ## number of samples
+  #n <- nrow(foo.meanspec)
   
-  # smoothing parameter
-  FWL <- fsmooth - 1
+  ## smoothing parameter
+  #FWL <- fsmooth - 1
   
-  zx<-NULL
-  # smooth 
-  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
-  zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
+  ## smooth #still fucked up
+  #zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
+  #zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
   
-  # make minimum amplitude 0
-  zx <- zx - min(zx)
-  zx[zx < 0] <- 0
+  ## make minimum amplitude 0
+  #zx <- zx - min(zx)
+  #zx[zx < 0] <- 0
   
-  # normalize amplitude from 0 to 1
-  zx <- zx/max(zx)
+  ## normalize amplitude from 0 to 1
+  #zx <- zx/max(zx)
   
-  meanpeakf <- zf[which.max(zx)] + (step / 2)
+  #meanpeakf <- zf[which.max(zx)] + (step / 2)
   
   # return low and high freq
-  specdata[z,39]<-meanpeakf #meanpeakf
+  #specdata[z,39]<-meanpeakf #meanpeakf
 
-    }
+  }
+  if(rowcount>1){
   return(specdata)
+  }else{
+  return(specdata[1,])
+  }
 }
 
 process_data<-function(whichRun){
@@ -1821,6 +1834,10 @@ data[which(data$detectionType=="FN"),9]<-2
 #remove FN from data
 data<-data[which(data$detectionType==0|data$detectionType==1),]
 data$detectionType<-as.numeric(data$detectionType)
+data$Low.Freq..Hz.<-as.numeric(data$Low.Freq..Hz.)
+data$High.Freq..Hz.<-as.numeric(data$High.Freq..Hz.)
+data$Begin.Time..s.<-as.numeric(data$Begin.Time..s.)
+data$End.Time..s.<-as.numeric(data$End.Time..s.)
 
 
 #######1 mooring test######
@@ -1856,6 +1873,7 @@ write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 
+
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -1868,10 +1886,15 @@ data2$detectionType<-as.factor(data2$detectionType)
   
   data2<-data[,c(1,2,5,6,7,8,9:length(data))]
   data2$detectionType<-as.factor(data2$detectionType)
+  
+  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(unique(data2$`soundfiles[n]`)))
+  
 }
 
 if(runTestModel=="y"){
 
+pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+  
 #names(data2)[1]<-"Mooring"
 
 my.xval = list()
@@ -1940,19 +1963,21 @@ data3$n<-n
 
 ######################
 #adaptively combine detections based on probability
-data3<-adaptive_compare(data3,1)
+data3Mat<- data.matrix(data3)
+data3Mat<-adaptive_compare(data3Mat,1) 
+data3<-data3Mat
 
 #simulate context over time using probability scores 
 data3<-context_sim(data3)
 
 #number of TPs in data3
-finTPs<-sum(as.numeric(as.character(data3[which(data3$probmean>CUTmean),]$detectionType)))
+finTPs<-sum(as.numeric(as.character(data3[which(data3[,pos-2]>CUTmean),7])))
 
-finFPs<-(nrow(data3[which(data3$probmean>CUTmean),])-finTPs)
+finFPs<-(nrow(data3[which(data3[,pos-2]>CUTmean),])-finTPs)
 finRat<-finTPs/finFPs
 
-pp2<-data3$probmean
-ll2<-data3$detectionType
+pp2<-data3[,pos-2]
+ll2<-data3[,7]
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
 
@@ -1969,8 +1994,18 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(data3$probmean,data3$probstderr, col = ifelse(data3$detectionType==1,'blue','red'),cex=0.25)
+plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==1,'blue','red'),cex=0.25)
 abline(v=CUTmean)
+
+#plot of probabilities after context sim:
+plot(data3[,pos+5])
+lines(lowess(data3[,pos+5]))
+lines(lowess(data3[,pos+4]))
+lines(lowess(data3[,pos+2]))
+lines(lowess(data3[,pos-2]))
+lines(lowess(data3[,pos+3]*10))
+lines(lowess(data3[,pos+1]*10))
+
 
 #see freq breakdown of calls 
 cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
@@ -1982,7 +2017,7 @@ cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue",
 
 
 #write data to drive
-after_model_write(data3,1)
+after_model_write(data3,1) #need to change to vector 
 
 beep(10)
 
@@ -2243,12 +2278,12 @@ for(m in allMoorings){
   }
 }
 
-
-
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 DetecTab2<-process_data(2)
+
+DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
@@ -2295,11 +2330,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
 findata<-MoorTab
 
-#create columns to be used later 
-findata$probmean<-0
-findata$probstderr<-0
-findata$probn<-0
-findata$detectionType<-0
 
 #make interference columns into factors
 if(length(findata)>17){
@@ -2309,6 +2339,11 @@ if(length(findata)>17){
 }
 
 findata<-spectral_features(findata,2)
+
+#create columns to be used later 
+findata$probmean<-0
+findata$probstderr<-0
+findata$probn<-0
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
 if(runProcessGT=="n"){
