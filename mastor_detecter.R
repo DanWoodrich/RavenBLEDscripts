@@ -552,8 +552,7 @@ context_sim <-function(sdata){
   return(datTab)
 }
 
-after_model_write <-function(mdata,finaldatrun){
-  mdata[,1]<-substr(mdata[,1],1,11)
+after_model_write <-function(mdata,libb,finaldatrun){
   MoorVar1<-NULL
   for(v in 1:length(unique(mdata[,1]))){
     if(finaldatrun==1){
@@ -561,20 +560,20 @@ after_model_write <-function(mdata,finaldatrun){
     }else{
       name<-"full"
     }
-    MoorVar1<-mdata[which(mdata[,1]==sort(unique(mdata[,1]))[v]),]
+    MoorVar1<-mdata[which(substr(libb[mdata[,1],2],1,11)==substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11)),]
+
+    MoorVar1<-MoorVar1[which(MoorVar1[,pos-2]>CUTmean),]
     
-    MoorVar1<-MoorVar1[which(MoorVar1$probmean>CUTmean),]
-    
-    numTPtruth<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),2]
+    numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),2]
     
     if(finaldatrun==2){
-    numTP<-TPtottab[which(stri_detect_fixed(sort(unique(mdata[,1]))[v],TPtottab$MoorCor)),1]*TPRthresh
+    numTP<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),1]*TPRthresh
     detTotal<-nrow(MoorVar1)
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
     }else{
       #use real TP values for GT data. 
-      numTP<-sum(as.numeric(as.character(MoorVar1$detectionType)))
+      numTP<-sum(as.numeric(MoorVar1[,7])-1)
       numFP<-(nrow(MoorVar1)-numTP)
       numFN<-numTPtruth-numTP
     }
@@ -585,12 +584,11 @@ after_model_write <-function(mdata,finaldatrun){
     #save stats and parameters to excel file
     detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
     detecEval<-detecEval[0,]
-    detecEval[,2]<-as.character(detecEval[,2])
-    detecEval[,13]<-as.character(detecEval[,13])
+    detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     if(dettype=="spread"|dettype=="combined"){
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(spec,paste(name,substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11)),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     }else{
-      detecEval[1,]<-c(spec,paste(name,sort(unique(mdata[,1]))[v]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(spec,paste(name,substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11)),NA,dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), NA,NA,NA,NA,NA,timediff,timediffself,paste(Mindur,Maxdur,sep=","),1,FO,LMS," ")
     }
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -600,7 +598,7 @@ after_model_write <-function(mdata,finaldatrun){
     if(finaldatrun==2){    
     MoorVar1<-MoorVar1[,c(2:8)]
     
-    write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+    write.table(MoorVar1,paste(outputpath,runname,"/",sub(".wav", "", substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11)),"FINAL_Model_Applied_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
     MoorVar2<-mdata[which(mdata[,1]==sort(unique(mdata[,1])))[v],]
     MoorVar3<-data.frame(MoorVar2$Selection,MoorVar2$FileOffsetBegin,MoorVar2$FileOffsetEnd,MoorVar2$`Low Freq (Hz)`,MoorVar2$`High Freq (Hz)`,MoorVar2$sound.files,MoorVar2$File,MoorVar2$probmean,MoorVar2$probstderr,MoorVar2$probn)
@@ -608,32 +606,32 @@ after_model_write <-function(mdata,finaldatrun){
     write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
     }else{
-      RavenExport<-data.frame(MoorVar1$Selection)
+      RavenExport<-data.frame(MoorVar1[,1])
       RavenExport[,2]<-"Spectrogram 1"
       RavenExport[,3]<-1
-      RavenExport[,4]<-MoorVar1$Begin.Time..s.
-      RavenExport[,5]<-MoorVar1$End.Time..s.
-      RavenExport[,6]<-MoorVar1$Low.Freq..Hz.
-      RavenExport[,7]<-MoorVar1$High.Freq..Hz.
-      RavenExport[,8]<-as.numeric(as.character(MoorVar1$detectionType))
-      RavenExport[,9]<-as.character(MoorVar1$probmean)
-      RavenExport[,10]<-as.character(MoorVar1$probstderr)
-      RavenExport[,11]<-as.character(MoorVar1$n)
+      RavenExport[,4]<-MoorVar1[,3]
+      RavenExport[,5]<-MoorVar1[,4]
+      RavenExport[,6]<-MoorVar1[,5]
+      RavenExport[,7]<-MoorVar1[,6]
+      RavenExport[,8]<-as.numeric(as.character(MoorVar1[,7]))
+      RavenExport[,9]<-as.character(MoorVar1[,pos-2])
+      RavenExport[,10]<-as.character(MoorVar1[,pos-1])
+      RavenExport[,11]<-as.character(MoorVar1[,pos])
       
       colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detectionType","probs","err","n")
       
       RavenExport[which(RavenExport[,8]==1),8]<-"TP"
       RavenExport[which(RavenExport[,8]==0),8]<-"FP"
       
-      write.table(RavenExport,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      write.table(RavenExport,paste(outputpath,runname,"/",sub(" .wav", "", libb[as.numeric(sort(unique(mdata[,1]))[v]),2]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         
       }
   }
   numTPtruth<-sum(TPtottab$GTtot)
-  mdata<-mdata[which(mdata$probmean>CUTmean),]
+  mdata<-mdata[which(mdata[,pos-2]>CUTmean),]
   
   if(finaldatrun==1){
-  numTP<-sum(as.numeric(as.character(mdata$detectionType)))
+  numTP<-sum(as.numeric(mdata[,7])-1)
   numFP<-(nrow(mdata)-numTP)
   numFN<-numTPtruth-numTP
   }else{
@@ -645,8 +643,7 @@ after_model_write <-function(mdata,finaldatrun){
   
   detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
   detecEval<-detecEval[0,]
-  detecEval[,2]<-as.character(detecEval[,2])
-  detecEval[,13]<-as.character(detecEval[,13])
+  detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
   if(dettype=="spread"|dettype=="combined"){
     detecEval[1,]<-c(spec,paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),timediff,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
@@ -660,18 +657,17 @@ after_model_write <-function(mdata,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
-  runcor<-(specfeatrun-1) #adjust column value for lack of detection type in full mooring run. 
   for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
-    CompVar<-CompVar[order(CompVar[,10-runcor]),]
+    CompVar<-CompVar[order(CompVar[,10]),]
     print(paste("For mooring",o))
     r=0
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar[q+1,10-runcor]<=(CompVar[q,10-runcor]+timediffself)){
+      if(CompVar[q+1,10]<=(CompVar[q,10]+timediffself)){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
@@ -689,11 +685,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           mt<-(s+e)/2
           mf<-(h+l)/2
           fr<-(h-l)
-          if(specfeatrun==1){
-            row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
-          }else{
-            row<-c(newdat[1,1],newdat[1,2],s,e,l,h,mf,fr,mt)
-          }
+          row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
 
           row2<-spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun)
           
@@ -711,7 +703,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
       if(newrow[1,1]!=0){
         CompVar<-subset(CompVar,!(CompVar[,2] %in% IDvec))
         CompVar<-rbind(CompVar,newrow)
-        CompVar<-CompVar[order(CompVar[,10-runcor]),]
+        CompVar<-CompVar[order(CompVar[,10]),]
         n=n+1
       }
     if(n>0){
@@ -776,8 +768,7 @@ spectral_features<- function(specdata,libb,whichRun){
       specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
     }
   }
-  mooringslib<-libb
-  
+
   if(is.null(nrow(specdata))){
     rowcount<-1
     specdata<-c(specdata,matrix(1,rowcount,32))
@@ -799,7 +790,7 @@ for(z in 1:rowcount){
   Low<-specdata[z,4]
   High<-specdata[z,5]
   
-  foo <-readWave(paste(specpath,mooringslib[which(as.numeric(mooringslib[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
 
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave")
@@ -1213,7 +1204,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
@@ -1946,7 +1937,7 @@ n<-NULL
 for(x in 1:nrow(probstab)){
   probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
   probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  n[x]<-length(which(is.na(probstab[x,2:length(probstab)])))
+  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
 }
 
 CUTmean<-mean(CUTvec)
@@ -2005,18 +1996,19 @@ lines(lowess(data3[,pos-2]))
 lines(lowess(data3[,pos+3]*10))
 lines(lowess(data3[,pos+1]*10))
 
-
+data3datFrame<-as.data.frame(data3)
+data3datFrame$detectionType<-as.factor(data3datFrame$detectionType)
 #see freq breakdown of calls 
-cdplot(data3$detectionType ~ data3$meanfreq, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$freqrange, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$specprop.mode, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$meanpeakf, data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$High.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3$detectionType ~ data3$Low.Freq..Hz., data3, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+#cdplot(data3datFrame$detectionType ~ data3datFrame$specprop.mode, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+#cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 
 
 #write data to drive
-after_model_write(data3,1) #need to change to vector 
+after_model_write(data3,moorlib,1) #need to change to vector 
 
 beep(10)
 
@@ -2336,6 +2328,8 @@ if(length(findata)>17){
     findata[,n]<-as.factor(findata[,n])
   }
 }
+#
+pos<-length(findata)+3
 
 findata<-spectral_features(findata,2)
 
