@@ -221,7 +221,7 @@ sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
 dir.create(paste(pathh,"/",whiten2,"/",sep=""))
 print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="F:\\Accessory\\sox-14-4-2")
+sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
 durList<-duration_store(numPass)
 if(numPass==1){
   return(durList[[1]])
@@ -1126,39 +1126,45 @@ DetecTab2$File<-""
 DetecTab2$FileStartSec<-0
 DetecTab2$FileOffsetBegin<-0
 DetecTab2$FileOffsetEnd<-0
+DetecTab2$MoorStartSec<-0
+DetecTab2$MoorOffsetBegin<-0
+DetecTab2$MoorOffsetEnd<-0
 for(w in unique(DetecTab2$sound.files)){
   print(paste("calculate file ID and begin time and end time relative to file for sound.files",w))
   DetecVar<-DetecTab2[which(DetecTab2$sound.files==w),]
   durVar<-durTab[which(durTab$CombSF==w),]
   for(c in 1:nrow(DetecVar)){
-    DetecVar$File[c]<-as.character(durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),2])
-    DetecVar$FileStartSec[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$CumDur)),4]
+    index<-findInterval(DetecVar[c,14], c(0,durVar$CumDur))
+    DetecVar$File[c]<-as.character(durVar[index,2])
+    DetecVar$FileStartSec[c]<-durVar[index,4]-durVar[index,3]
+    DetecVar$MoorStartSec[c]<-durVar[index,7]-durVar[index,3]
   }
-  DetecVar$FileStartSec<-DetecVar$FileStartSec-DetecVar$FileStartSec[1]
   DetecVar$FileOffsetBegin<-DetecVar$`Begin Time (s)`-DetecVar$FileStartSec
   DetecVar$FileOffsetEnd<-DetecVar$`End Time (s)`-DetecVar$FileStartSec  
+  DetecVar$MoorOffsetBegin<-DetecVar$FileOffsetBegin+DetecVar$MoorStartSec
+  DetecVar$MoorOffsetEnd<-DetecVar$FileOffsetEnd+DetecVar$MoorStartSec  
   DetecTab2<-DetecTab2[-which(DetecTab2$sound.files==w),]
   DetecTab2<-rbind(DetecTab2,DetecVar)
   
 }
 
-DetecTab2$MoorStartSec<-0
-DetecTab2$MoorOffsetBegin<-0
-DetecTab2$MoorOffsetEnd<-0
-for(w in unique(DetecTab2$Mooring)){
-  print(paste("calculate file ID and begin time and end time relative to file for Mooring",w))
-  DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
-  durVar<-durTab[which(durTab$Mooring==w),]
-  for(c in 1:nrow(DetecVar)){
-    DetecVar$MoorStartSec[c]<-durVar[findInterval(DetecVar[c,13], c(0,durVar$MoorCumDur)),4]
-  }
-  DetecVar$MoorStartSec<-DetecVar$MoorStartSec-DetecVar$MoorStartSec[1]
-  DetecVar$MoorOffsetBegin<-DetecVar$`Begin Time (s)`-DetecVar$MoorStartSec
-  DetecVar$MoorOffsetEnd<-DetecVar$`End Time (s)`-DetecVar$MoorStartSec  
-  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==w),]
-  DetecTab2<-rbind(DetecTab2,DetecVar)
-  
-}
+#DetecTab2$MoorStartSec<-0
+#DetecTab2$MoorOffsetBegin<-0
+#DetecTab2$MoorOffsetEnd<-0
+#for(w in unique(DetecTab2$Mooring)){
+#  print(paste("calculate file ID and begin time and end time relative to file for Mooring",w))
+#  DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
+#  durVar<-durTab[which(durTab$Mooring==w),]
+#  for(c in 1:nrow(DetecVar)){
+#    index<-findInterval(DetecVar[c,14], c(0,durVar$MoorCumDur))
+#    DetecVar$MoorStartSec[c]<-durVar[index,7]-durVar[index,3]
+#  }
+#  DetecVar$MoorOffsetBegin<-DetecVar$`Begin Time (s)`+DetecVar$MoorStartSec
+#  DetecVar$MoorOffsetEnd<-DetecVar$`End Time (s)`+DetecVar$MoorStartSec  
+#  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==w),]
+#  DetecTab2<-rbind(DetecTab2,DetecVar)
+#  
+#}
 
 DetecTab2$FileStartSec<-NULL
 DetecTab2$MoorStartSec<-NULL
@@ -1170,7 +1176,7 @@ return(DetecTab2)
 }
 
 #paths
-drivepath<-"F:/"
+drivepath<-"E:/"
 #dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
@@ -1205,8 +1211,8 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ##########sections to run
 runRavenGT<-"n"
 runProcessGT<-"n"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runTestModel<-"n" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1454,7 +1460,7 @@ if(whiten=="n"){
 #path to ground truth table
 GT<-list()
 for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste("F:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- read.delim(paste("E:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
 
@@ -1487,15 +1493,15 @@ resltsTabInt<- NULL
 for(m in moorings){
   if(whiten=="n"){
   whiten2<-"No_whiten"
-  sound_files <- dir(paste("F:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-  sound_filesfullpath <- paste("F:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="F:\\Accessory\\sox-14-4-2")
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
   }
   
   
@@ -1781,7 +1787,7 @@ spec<-spec
 #define this table to compare counts after running model
 TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
 
-detfiles<-list.files(paste("F:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
+detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
 
 #extract mooring names from moorings used in run
 mooringpat=NULL
@@ -1797,9 +1803,9 @@ if(whiten=="y"){
 
 #only choose soundfiles that match those used in run
 soundfiles<-NULL
-for(n in 1:length(dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
-  if(substr(dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
-    soundfiles<-c(soundfiles,dir(paste("F:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
+for(n in 1:length(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
+  if(substr(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
+    soundfiles<-c(soundfiles,dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
   }
 }
 
@@ -1810,7 +1816,7 @@ detfiles<-sort(detfiles)
 
 data=NULL
 for(n in 1:length(detfiles)){
-  data2<-read.csv(paste("F:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
+  data2<-read.csv(paste("E:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
   data2<-cbind(soundfiles[n],data2)
   data<-rbind(data,data2)
 }
@@ -2042,7 +2048,7 @@ beep(10)
 #print(mean(AUC_avg))
 
 #save last model
-save(data.rf, file = paste("F:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
+save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 }
 
@@ -2055,7 +2061,7 @@ save(data.rf, file = paste("F:/DetectorRunOutput/",runname,"/an_example_model.rd
 
 if(runNewData=="y"){
 
-allDataPath<-"F:/Datasets"
+allDataPath<-"E:/Datasets"
 allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
 if(whiten!="y"){
@@ -2076,9 +2082,9 @@ if(fileSizeInt>340&fileSizeInt<680){
 }
 
 if(moorType=="HG"){
-  sfpath<-paste("F:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
-  sfpath<-paste("F:/Full_datasets/",dir(allDataPath)[1],sep = "")
+  sfpath<-paste("E:/Full_datasets/",dir(allDataPath)[1],sep = "")
 }
 
 #
@@ -2231,7 +2237,7 @@ for(m in allMoorings){
     }
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
-    for(b in 1:(length(bigFile_breaks)-1)){
+    for(b in 6:6){ #1:(length(bigFile_breaks)-1)
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
@@ -2272,65 +2278,66 @@ for(m in allMoorings){
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
-DetecTab2<-process_data(2)
+findata<-process_data(2)
 
-DetecTab2$detectionType<-0
+findata$detectionType<-0
 
 #Define table for later excel file export. 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+colClasses = c("character","character","character","character","character","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
+#commented out 
 
-MoorTab<-NULL
-MoorVar<-NULL
-for(v in 1:length(unique(DetecTab2$Mooring))){
-  print(paste("Adding interference detector variables to",sort(unique(DetecTab2$Mooring))[v]))   
-  MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-  
-  #Define useful comlumns in MoorVar
-  sound.files <- MoorVar[,12]
-  MoorVar <- MoorVar[,c(1:7,13,14:17)]
-  MoorVar<-cbind(sound.files,MoorVar)
-  
-    #compare detections to sources of interference
-    if(interfere=="y"){
-      for(n in 1:max(resltsTabInt$detectorCount)){
-        MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-        MoorVar[,n+14]<-0
-        colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
-        MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
-        print(paste("       Compare with detector",MoorInt[1,10]))   
-        for(g in 1:nrow(MoorVar)){
-          hvec <- which(MoorInt$meantime<(MoorVar$meantime[g]+2)&MoorInt$meantime>(MoorVar$meantime[g]-2))
-          if(length(hvec>0)){
-          for(h in min(hvec):max(hvec)){
-            if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
-              MoorVar[g,n+14]<-1
-            }
-          }
-        }
-      }
-      }
-    }
+#MoorTab<-NULL
+#MoorVar<-NULL
+#for(v in 1:length(unique(DetecTab2$Mooring))){
+#  print(paste("Adding interference detector variables to",sort(unique(DetecTab2$Mooring))[v]))   
+#  MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
+#  
+#  #Define useful comlumns in MoorVar
+#  sound.files <- MoorVar[,12]
+#  MoorVar <- MoorVar[,c(1:7,13,14:17)]
+#  MoorVar<-cbind(sound.files,MoorVar)
+#  
+#    #compare detections to sources of interference
+#    if(interfere=="y"){
+#      for(n in 1:max(resltsTabInt$detectorCount)){
+#        MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
+#        MoorVar[,n+14]<-0
+#        colnames(MoorVar)[length(MoorVar)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
+#        MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
+#        print(paste("       Compare with detector",MoorInt[1,10]))   
+#        for(g in 1:nrow(MoorVar)){
+#          hvec <- which(MoorInt$meantime<(MoorVar$meantime[g]+2)&MoorInt$meantime>(MoorVar$meantime[g]-2))
+#          if(length(hvec>0)){
+#          for(h in min(hvec):max(hvec)){
+#            if((MoorInt[h,4]<MoorVar[g,9] & MoorInt[h,5]> MoorVar[g,9])|(MoorInt[h,4]> MoorVar[g,5] & MoorInt[h,5]< MoorVar[g,6])){
+#              MoorVar[g,n+14]<-1
+#            }
+#          }
+#        }
+#      }
+#      }
+#    }
   
   #write.table(MoorVar[,2:7],paste(outputpath,runname,"/",unique(DetecTab2$Mooring)[v],"FINAL_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
-  MoorTab<-rbind(MoorTab,MoorVar)
+#  MoorTab<-rbind(MoorTab,MoorVar)
   #MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
-}
+#}
 
 findata<-MoorTab
 
-
 #make interference columns into factors
-if(length(findata)>17){
-  for(n in 18:length(findata)){
-    findata[,n]<-as.factor(findata[,n])
-  }
-}
+#if(length(findata)>17){
+#  for(n in 18:length(findata)){
+#    findata[,n]<-as.factor(findata[,n])
+#  }
+#}
 #
 pos<-length(findata)+3
 
+findataMat<- data.matrix(data[c(1,5,6,7,8)])
 findata<-spectral_features(findata,2)
 
 #create columns to be used later 
