@@ -793,9 +793,11 @@ for(z in 1:rowcount){
   foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
 
   sample_rate.og<-foo@samp.rate
-  foo<-ffilter(foo,from=Low,to=High,output="Wave")
+  foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
+  if(whichRun==1){
   sample_rate.clip<-4000
   foo<-downsample(foo,sample_rate.clip)
+  }
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
@@ -803,7 +805,7 @@ for(z in 1:rowcount){
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
-  foo.autoc = autoc(foo, plot=F) #
+  foo.autoc = autoc(foo, plot=F,wl=256) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=90) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
   Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
@@ -1210,9 +1212,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -2326,7 +2328,7 @@ detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName,
   #MoorVar$Moorpred<-c(MoorVar$Moorpred,predict(data.rf,MoorVar,type="prob"))
 #}
 
-findata<-MoorTab
+#findata<-MoorTab
 
 #make interference columns into factors
 #if(length(findata)>17){
@@ -2337,13 +2339,13 @@ findata<-MoorTab
 #
 pos<-length(findata)+3
 
-findataMat<- data.matrix(data[c(1,5,6,7,8)])
-findata<-spectral_features(findata,2)
+moorlib<-cbind(seq(1,length(unique(findata$sound.files)),1),as.character(unique(findata$sound.files)))
 
-#create columns to be used later 
-findata$probmean<-0
-findata$probstderr<-0
-findata$probn<-0
+findata$sound.files<-as.factor(findata$sound.files)
+findataMat<- data.matrix(findata[c(13,4,5,6,7)])
+findataMat<-spectral_features(findataMat,moorlib,2)
+
+
 
 #Generate and run a set amount of models from the original GT data. Probabilities are averaged for each mooring. 
 if(runProcessGT=="n"){
@@ -2356,10 +2358,11 @@ if(runProcessGT=="n"){
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
-  data2<-data[,c(1,2,5,6,7,8,9:length(data))]
+  data2<-data[,c(9,13:length(data))]
   data2$detectionType<-as.factor(data2$detectionType)
 }
 data2$detectionType<-as.factor(data2$detectionType)
+#data2<-data[,c(7,11:length(data))] #if running full workflow change so that data2 path is reduced to only detectionType and variables
 
 AUC_avg<-c()
 #generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
@@ -2369,8 +2372,8 @@ for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
   #apply model to data
-  data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7)
-  pred<-predict(data.rf,findata[,17:length(findata)],type="prob")
+  data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7,na.action=na.roughfix)
+  pred<-predict(data.rf,findataMat[,6:ncol(findataMat)],type="prob")
   #assess same model performance on GT data 
   pred2<-predict(data.rf,train[[2]],type="prob")
   ROCRpred<-prediction(pred2[,2],train[[2]]$detectionType)
@@ -2392,23 +2395,28 @@ for(p in 1:CV){
 
 probmean<-NULL
 probstderr<-NULL
+n<-NULL
+
 for(x in 1:nrow(probstab)){
 probmean[x]<-mean(as.numeric(probstab[x,]))
 probstderr[x]<-std.error(as.numeric(probstab[x,]))
+n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
 }
 
 CUTmean<-mean(CUTvec)
 CUTstd.err<-std.error(CUTvec)
 
-findata$probmean<-probmean
-findata$probstderr<-probstderr
-findata$probn<-CV
+#create columns to be used later 
+findata<-cbind(findata,probmean)
+findata<-cbind(findata,probstderr)
+findata<-cbind(findata,n)
+
 #combine or eliminate detections within timediffself parameter
 findata<-adaptive_compare(findata,2)
 
 #apply models and average probabilities. ASSUMPTIONS for stats to make sense: Full mooring is run, and all HG data is included in GT. 
 MoorVar<-NULL
-for(v in 1:length(unique(findata$sound.files))){
+for(v in 1:length(unique(findata[,1]))){
   
   MoorVar1<-findata[which(findata$sound.files==sort(unique(findata$sound.files))[v]),]
   
