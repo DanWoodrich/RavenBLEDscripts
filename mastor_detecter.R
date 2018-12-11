@@ -37,16 +37,13 @@ decimateData<-function(dpath,whichRun){
     fend<-MooringsDat[3,colnames(MooringsDat)==m]
   }else if(whichRun==2){
     fstart<-1
-    fend<-NULL
+    fend<-length(dir(dpath,pattern=".wav"))
   }
-    if(!file.exists(paste(dpath,whiten2,"_decimate_by_",decimationFactor,sep=""))){
-      dir.create(paste(dpath,whiten2,"_decimate_by_",decimationFactor,sep=""))
+    if(!file.exists(paste(dpath,whiten2,sep=""))){
+      dir.create(paste(dpath,whiten2,sep=""))
       dpath2<-dpath
-      dpath<-paste(dpath2,whiten2,"_decimate_by_",decimationFactor,sep="_")
-      if(is.null(fend)){
-      fend<-length(dir(dpath2))
-      }
-      for(z in dir(dpath2)[fstart:fend]){
+      dpath<-paste(dpath2,whiten2,sep="")
+      for(z in dir(dpath2,pattern=".wav")[fstart:fend]){
         wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
         wav<-wav@left
@@ -60,8 +57,6 @@ decimateData<-function(dpath,whichRun){
       write.table(paste("This data has been decimated by factor of",decimationFactor),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
-    dpath<-paste(dpath2,whiten2,"_decimate_by_",decimationFactor,sep="")
-    return(dpath)
 }
 
 
@@ -1537,19 +1532,22 @@ for(m in moorings){
   
   if(whiten=="n"){
   whiten2<-"No_whiten"
+  if(decimate=="y"){
+    whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+  }
   sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
   sound_files <- dir(sfpath)[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
   sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
-  if(file.exists(combSound)){
-  }else{
+  if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
-    dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
+    endPath<-paste(startcombpath,spec,"/",whiten2,sep="")
+    dir.create(endPath)
     if(decimate=="y"){
-    sfpath<-paste(sfpath,whiten2,"_decimate_by_",decimationFactor,sep="")
-    sound_filesfullpath<-paste(sfpath,"/",sound_files,sep="")
+    sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
+    decimateData(sfpath,1)
     }
     sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
     
@@ -1558,6 +1556,9 @@ for(m in moorings){
   
   }else{
   whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  if(decimate=="y"){
+    whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+  }
   }
 
   combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
@@ -2147,7 +2148,7 @@ durTab2<-NULL
 
 #decimate dataset. 
 if(decimate=="y"){
-sfpath<-decimateData(sfpath,2)
+decimateData(sfpath,2)
 ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 }
 
