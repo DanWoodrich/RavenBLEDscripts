@@ -30,6 +30,41 @@ library(stringr)
 library(stringi)
 library(signal)
 
+#decimate dataset. 
+decimateData<-function(dpath,whichRun){
+  if(whichRun==1){
+    fstart<-MooringsDat[2,colnames(MooringsDat)==m]
+    fend<-MooringsDat[3,colnames(MooringsDat)==m]
+  }else if(whichRun==2){
+    fstart<-1
+    fend<-NULL
+  }
+    if(!file.exists(paste(dpath,whiten2,"_decimate_by_",decimationFactor,sep=""))){
+      dir.create(paste(dpath,whiten2,"_decimate_by_",decimationFactor,sep=""))
+      dpath2<-dpath
+      dpath<-paste(dpath2,whiten2,"_decimate_by_",decimationFactor,sep="_")
+      if(is.null(fend)){
+      fend<-length(dir(dpath2))
+      }
+      for(z in dir(dpath2)[fstart:fend]){
+        wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
+        wav.samp.rate<-wav@samp.rate
+        wav<-wav@left
+        for(h in decimationSteps){
+          wav<-decimate(wav,h)
+        }
+        wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
+        #wav<-normalize(wav,unit="16")
+        writeWave.nowarn(wav, filename=paste(dpath,"/",z,sep=""),extensible = FALSE)
+      }
+      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      
+    }
+    dpath<-paste(dpath2,whiten2,"_decimate_by_",decimationFactor,sep="")
+    return(dpath)
+}
+
+
 RW_algo<-function(RWdata,detector){
   #coerce to matrix to "vectorize" algorithm
   resltsTSPVmat<-data.matrix(RWdata[,c(13,14,15)])
@@ -1212,10 +1247,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1490,22 +1525,35 @@ decimationSteps<-prime.factor(decimationFactor)
 
 ##################start script#################
 if(runRavenGT=="y"){
+  
+if(decimate=="y"){
+  ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
+}
+  
 #run sound files:
 resltsTab <- NULL
 resltsTabInt<- NULL
 for(m in moorings){
+  
   if(whiten=="n"){
   whiten2<-"No_whiten"
-  sound_files <- dir(paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = ""))[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
-  sound_filesfullpath <- paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sound_files,sep = "")
+  sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
+  sound_files <- dir(sfpath)[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+  
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(file.exists(combSound)){
   }else{
     dir.create(paste(startcombpath,spec,sep=""))
-    dir.create(paste(startcombpath,spec,"/",whiten2,"/",sep=""))
+    dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
+    if(decimate=="y"){
+    sfpath<-paste(sfpath,whiten2,"_decimate_by_",decimationFactor,sep="")
+    sound_filesfullpath<-paste(sfpath,"/",sound_files,sep="")
+    }
     sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
-  }
+    
+    }
   
   
   }else{
@@ -2099,27 +2147,8 @@ durTab2<-NULL
 
 #decimate dataset. 
 if(decimate=="y"){
-  ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
-    if(!file.exists(paste(sfpath,"decimate_by",decimationFactor,sep="_"))){
-      dir.create(paste(sfpath,"decimate_by",decimationFactor,sep="_"))
-      sfpath2<-sfpath
-      sfpath<-paste(sfpath2,"decimate_by",decimationFactor,sep="_")
-      for(z in dir(sfpath2)){
-        wav<-readWave(paste(sfpath2,"/",z,sep=""),unit="sample")
-        wav.samp.rate<-wav@samp.rate
-        wav<-wav@left
-        for(h in decimationSteps){
-        wav<-decimate(wav,h)
-        }
-        wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
-        #wav<-normalize(wav,unit="16")
-        writeWave.nowarn(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
-      }
-      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
-      
-    }
-  sfpath2<-sfpath
-  sfpath<-paste(sfpath2,"decimate_by",decimationFactor,sep="_")
+sfpath<-decimateData(sfpath,2)
+ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 }
 
 for(m in allMoorings){
@@ -2364,16 +2393,14 @@ data2$detectionType<-as.factor(data2$detectionType)
 
 colnames(data2)<-c(colnames(data2)[1],c(letters,strrep(letters,2))[1:(ncol(data2)-1)])
 
-AUC_avg<-c()
 #generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
-f=1
 CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
   #apply model to data
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7,na.action=na.roughfix)
-  pred<-predict(data.rf,findataMat[,11:ncol(findataMat)],type="prob")
+  pred<-predict(data.rf,findataMat[,6:ncol(findataMat)],type="prob")
   #assess same model performance on GT data 
   pred2<-predict(data.rf,train[[2]],type="prob")
   ROCRpred<-prediction(pred2[,2],train[[2]]$detectionType)
@@ -2385,12 +2412,11 @@ for(p in 1:CV){
   CUTvec<-c(CUTvec,CUT)
   
 
-  if(f==1){
+  if(p==1){
     probstab<-pred[,2]
   }else{
     probstab<-data.frame(probstab,pred[,2])
   }  
-  f=f+1
 }
 
 probmean<-NULL
