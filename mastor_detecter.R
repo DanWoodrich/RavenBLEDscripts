@@ -32,18 +32,23 @@ library(signal)
 
 #decimate dataset. 
 decimateData<-function(dpath,whichRun){
+  print(paste("decimate file",dpath))
   if(whichRun==1){
     fstart<-MooringsDat[2,colnames(MooringsDat)==m]
     fend<-MooringsDat[3,colnames(MooringsDat)==m]
+    dpath2<-dpath
+    dpath<-paste(dpath2,whiten2,sep="")
   }else if(whichRun==2){
     fstart<-1
     fend<-length(dir(dpath,pattern=".wav"))
+    dpath2<-dpath
+    dpath<-paste(dpath,"decimate_by",decimationFactor,sep="_")
   }
-    if(!file.exists(paste(dpath,whiten2,sep=""))){
-      dir.create(paste(dpath,whiten2,sep=""))
-      dpath2<-dpath
-      dpath<-paste(dpath2,whiten2,sep="")
+  
+    if(!file.exists(dpath2)){
+      dir.create(paste(dpath,sep=""))
       for(z in dir(dpath2,pattern=".wav")[fstart:fend]){
+        print(paste(z,"to",dpath))
         wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
         wav<-wav@left
@@ -784,22 +789,26 @@ durList<-list(durTab,durTab2)
 spectral_features<- function(specdata,libb,whichRun){
   if(whichRun==1){
     if(whiten=="y"){
-      specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+      specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<-paste(startcombpath,"/",spec,"/No_whiten","/",sep="")
+      specpath<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
         }
   }else{
     if(whiten=="y" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+      specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,"/",sep="")
+      specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="n" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten","/",sep="")
+      specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten",sep="")
     }else{
-      specpath<-paste(startcombpath,"/Entire_full_No_whiten","/",sep="")
+      specpath<-paste(startcombpath,"/Entire_full_No_whiten",sep="")
     }
   }
 
+  if(decimate=="y"){
+    specpath<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
+  }
+  
   if(is.null(nrow(specdata))){
     rowcount<-1
     specdata<-c(specdata,matrix(1,rowcount,32))
@@ -1242,7 +1251,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
@@ -1543,12 +1552,12 @@ for(m in moorings){
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
-    endPath<-paste(startcombpath,spec,"/",whiten2,sep="")
-    dir.create(endPath)
+    dir.create(paste(whiten2,"_decimate_by_",decimationFactor,sep=""))
     if(decimate=="y"){
     sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
     decimateData(sfpath,1)
     }
+    print(paste("SoXing file",combSound))
     sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
     
     }
@@ -1562,12 +1571,13 @@ for(m in moorings){
   }
 
   combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  endPath<-paste(startcombpath,spec,"/",whiten2,sep="")
   
 #run pulse and fin/mooring detector, if selected:
 if(interfere=="y"){
   for(i in interfereVec){
     print(paste("Running detector for",m))
-    resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
+    resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = endPath,detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
     resltVarInt$Mooring<-m
     resltVarInt$detector<-i
     resltVarInt$detectorType<-"intereference"
@@ -1584,7 +1594,7 @@ if(dettype=="spread"|dettype=="combined"){
   for(q in 1:length(detectorssprshort)){
     for(r in detectorssprshort[[q]]){
       print(paste("Running detector for",m))
-      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
+      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = endPath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
       resltVar$Mooring<-m
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
@@ -1600,7 +1610,7 @@ if(dettype=="spread"|dettype=="combined"){
 if(dettype=="single"|dettype=="combined"){
   for(n in detectorssinshort){
     print(paste("Running detector for",m))
-    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = paste(startcombpath,spec,"/",whiten2,sep=""),detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
+    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = endPath,detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
     resltVar$Mooring<-m
     resltVar$detector<-n
     resltVar$detectorType<-"single"
@@ -1851,6 +1861,10 @@ if(whiten=="y"){
   soundfile<-(paste("Bbandp",LMS*100,"x_FO",FO,sep=""))
 }else{
   soundfile<-"No_whiten"
+}
+
+if(decimate=="y"){
+  soundfile<-paste(soundfile,"_decimate_by_",decimationFactor,sep="")
 }
 
 #only choose soundfiles that match those used in run
