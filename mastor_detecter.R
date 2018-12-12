@@ -1251,7 +1251,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
@@ -1356,7 +1356,7 @@ groupInt<-c(0.45)
 fileCombinesize<-345
 
 decimate<-"y"
-decimationFactor<-10
+decimationFactor<-16
 
 ############################
 
