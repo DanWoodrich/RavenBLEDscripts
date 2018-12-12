@@ -45,7 +45,7 @@ decimateData<-function(dpath,whichRun){
     dpath<-paste(dpath,"decimate_by",decimationFactor,sep="_")
   }
   
-    if(!file.exists(dpath2)){
+    if(!dir.exists(dpath2)){
       dir.create(paste(dpath,sep=""))
       for(z in dir(dpath2,pattern=".wav")[fstart:fend]){
         print(paste(z,"to",dpath))
@@ -1552,7 +1552,7 @@ for(m in moorings){
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
-    dir.create(paste(whiten2,"_decimate_by_",decimationFactor,sep=""))
+    dir.create(paste(startcombpath,spec,"/",whiten2,"_decimate_by_",decimationFactor,sep=""))
     if(decimate=="y"){
     sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
     decimateData(sfpath,1)
