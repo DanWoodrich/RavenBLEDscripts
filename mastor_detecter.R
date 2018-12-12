@@ -835,9 +835,6 @@ for(z in 1:rowcount){
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   if(whichRun==1){
-  sample_rate.clip<-4000
-  foo<-downsample(foo,sample_rate.clip)
-  }
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
@@ -1251,8 +1248,8 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"y"
+runRavenGT<-"n"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
@@ -1324,7 +1321,7 @@ FO<-100 #filter order
 LMS<-.10 #LMS step size
 
 ###########################Model paramaters
-CV=30 #number of cross validation models to create (more consistent results with greater number of models)
+CV=50 #number of cross validation models to create (more consistent results with greater number of models)
 TPRthresh=.9 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
 
 #context sim parameters
@@ -2191,6 +2188,9 @@ for(m in allMoorings){
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
       whiten2<-"Entire_No_whiten"
+      if(decimate=="y"){
+        whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+      }
       if(a==1){
       pathh<-paste(startcombpath,spec,sep="")
       }else{
@@ -2212,6 +2212,9 @@ for(m in allMoorings){
       
     }else if(whiten=="n" & moorType!="HG"){
       whiten2<-"Entire_full_No_whiten"
+      if(decimate=="y"){
+        whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+      }
       if(a==1){
         pathh<-paste(startcombpath,sep="")
       }else{
@@ -2237,11 +2240,17 @@ for(m in allMoorings){
   if(a==1){
     if(whiten=="y" & moorType=="HG"){
       whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      if(decimate=="y"){
+        whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+      }
       filePath<- paste(pathh,whiten2,sep="")
       durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
       break
     }else if(whiten=="y" & moorType!="HG"){
       whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      if(decimate=="y"){
+        whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+      }
       filePath<- paste(pathh,whiten2,sep="")
       durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))  
       break
@@ -2524,7 +2533,7 @@ plot(as.numeric(probmean),probstderr, col = ifelse(as.numeric(probmean) < CUTmea
 plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTmean)|(as.numeric(probstderr)>CUTstd.err)),'red','green'))
 
 cor.test(as.numeric(probmean),probstderr)
+
 }
 
 }
-  
