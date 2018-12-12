@@ -1545,7 +1545,7 @@ for(m in moorings){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
   sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
-  sound_files <- dir(sfpath)[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_files <- dir(sfpath,pattern=".wav")[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
   sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
