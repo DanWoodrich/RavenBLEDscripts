@@ -811,12 +811,12 @@ spectral_features<- function(specdata,libb,whichRun){
   
   if(is.null(nrow(specdata))){
     rowcount<-1
-    specdata<-c(specdata,matrix(1,rowcount,32))
-    specdata<-rbind(specdata,matrix(1,rowcount,32+5)) #make 
+    specdata<-c(specdata,matrix(1,rowcount,33))
+    specdata<-rbind(specdata,matrix(1,rowcount,33+5)) #make 
     
   }else{
     rowcount<-nrow(specdata)
-    specdata<-cbind(specdata,matrix(1,rowcount,32))
+    specdata<-cbind(specdata,matrix(1,rowcount,33))
     
   }
   
@@ -833,16 +833,16 @@ for(z in 1:rowcount){
   foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
 
   sample_rate.og<-foo@samp.rate
-  foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
+  #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
-  foo.meanspec = meanspec(foo, plot=F,ovlp=90)#not sure what ovlp parameter does but initially set to 90 #
+  foo.meanspec = meanspec(foo, plot=F,ovlp=90,wl=128)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
-  foo.autoc = autoc(foo, plot=F,wl=256) #
-  foo.dfreq = dfreq(foo, plot=F, ovlp=90) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
+  foo.autoc = autoc(foo, plot=F,wl=128) #
+  foo.dfreq = dfreq(foo, plot=F, ovlp=90,wl=128) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
   Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
   Mindom <- min(foo.dfreq, na.rm = TRUE)
@@ -874,7 +874,7 @@ for(z in 1:rowcount){
   specdata[z,27] = foo.specprop$sh[1] #specprop sh
   specdata[z,28] = foo.specprop$prec[1] #specprop prec
   specdata[z,29] = M(foo) #amp env median
-  specdata[z,30] = H(foo) #total entropy
+  specdata[z,30] = H(foo,wl=128) #total entropy
  # specdata$resonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
   specdata[z,31]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
@@ -885,36 +885,33 @@ for(z in 1:rowcount){
   specdata[z,36]<-Dfrange #dfrange
   specdata[z,37]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
-  #wl<-512
-  #if(wl >= samples)  wl <- samples - 1 
-  #if (wl %% 2 != 0) wl <- wl - 1
+  wl<-128
   
   ## get frequency windows length for smoothing
-  #step <- sample_rate.clip/wl/1000
-  #fsmooth = 0.1
-  #fsmooth <- fsmooth/step
+  step <- sample_rate.og/wl/1000
+  fsmooth = 0.1
+  fsmooth <- fsmooth/step
   
   ## number of samples
-  #n <- nrow(foo.meanspec)
+  n <- nrow(foo.meanspec)
   
   ## smoothing parameter
-  #FWL <- fsmooth - 1
+  FWL <- fsmooth - 1
   
   ## smooth #still fucked up
-  #zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
-  #zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
+  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
+  zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
   
   ## make minimum amplitude 0
-  #zx <- zx - min(zx)
-  #zx[zx < 0] <- 0
+  zx <- zx - min(zx)
+  zx[zx < 0] <- 0
   
   ## normalize amplitude from 0 to 1
-  #zx <- zx/max(zx)
-  
-  #meanpeakf <- zf[which.max(zx)] + (step / 2)
+  zx <- zx/max(zx)
   
   # return low and high freq
-  #specdata[z,39]<-meanpeakf #meanpeakf
+  specdata[z,38]  <- zf[which.max(zx)] + (step / 2)
+
 
   }
   if(rowcount>1){
@@ -1247,9 +1244,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
+runRavenGT<-"n"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
@@ -1632,6 +1629,7 @@ if(runProcessGT=="y"){
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data(1)
+resltsTab<-NULL
 
 DetecTab2$detectionType<-0
 
@@ -1816,6 +1814,8 @@ detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
 detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
+
+DetecTab2<-NULL
 
 beep(10)
 ###################
