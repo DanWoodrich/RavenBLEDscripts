@@ -14,7 +14,7 @@ drive2<-paste(drive2,":/Full_datasets/",sep="")
 
 copyvec<-dir(drive1)[which(dir(drive1)%in%GTmoorings)]
 
-for(i in dir(drive1)){
+for(i in copyvec){
   dir.create(paste(drive2,i,sep=""))
   for(n in dir(paste(drive1,i,sep="/"))){
     file.copy(from=paste(drive1,i,"/",n,"/",dir(paste(drive1,i,"/",n,sep="/")),sep=""),to=paste(drive2,i,sep=""))
