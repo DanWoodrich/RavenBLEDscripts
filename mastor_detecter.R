@@ -12,6 +12,8 @@
 #install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix")
 
 library(e1071)  
+library(foreach)
+library(doParallel)
 #library(caret)  
 library(randomForest)
 library(seewave)
@@ -65,138 +67,155 @@ decimateData<-function(dpath,whichRun){
 }
 
 
-RW_algo<-function(RWdata,detector){
-  #coerce to matrix to "vectorize" algorithm
-  resltsTSPVmat<-data.matrix(RWdata[,c(13,14,15)])
+parAlgo<-function(dataaa){
+  num_cores <- detectCores() - 1
+  cluz <- makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo"))
+  
   wantedSelections<-c()
-  for(f in unique(resltsTSPVmat[,2])){
-    #print(paste("calculating run for",f,"of",maxgrp))
-    groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-    grpvec<-groupdat[,1]
+  if(spec=="RW"){
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
+      tempSelects<-RW_algo(resltsTSPVmat=dataaa,f=grouppp)
+      as.integer(tempSelects)
+  }
+  }else if(spec=="GS"){
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
+      GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+  }
+  }
+  stopCluster(cluz)
+  return(wantedSelections)
+}
+
+RW_algo<-function(resltsTSPVmat,f){
+  wantedSelections<-c()
+  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+  grpvec<-groupdat[,1]
+  colClasses = c("numeric","numeric","numeric","numeric","numeric")
+  runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+  
+  for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
+    RM<-groupdat[g,1]
+    groupdat<-cbind(groupdat,0)
+    groupdat[,3+g]<-99
+    groupdat[g,3+g]<-2
+    skipvec<-0
+    for(h in g:(nrow(groupdat)-1)){
+      rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
+      if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[detector])){
+        break
+      }  
+      if(RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
+        groupdat[h+1,3+g]<-1
+        skipvec<-c(skipvec,(grpvec[h+1]-RM))
+        RM<-grpvec[h+1]
+      }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[detector]+1)>grpvec[h+1]&RM-(detskip[detector]+1)<=grpvec[h+1]){
+        groupdat[h+1,3+g]<-0
+      }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[detector]+1)<=grpvec[h+1]|RM-(detskip[detector]+1)>grpvec[h+1])){
+        groupdat[h+1,3+g]<-98
+      }
+      if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]){
+        groupdat[h+1,3+g]<-1
+        groupdat[h,3+g]<-98
+        skipvec<-c(skipvec,(grpvec[h+1]-RM))
+        RM<-grpvec[h+1]
+      }else if(groupdat[h,3]==groupdat[h+1,3]){
+        groupdat[h+1,3+g]<-98
+      }
+    }
+    runsum[g,1]<-g
+    runsum[g,2]<-sum(groupdat[,3+g]==1)
+    runsum[g,3]<-sum(groupdat[,3+g]==0)
+    runsum[g,4]<-(sum(groupdat[,3+g]==1)+sum(groupdat[,3+g]==0)+1)
+    runsum[g,5]<-max(skipvec)
+  }
+  runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
+  runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
+  runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
+  runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
+  runsum<-runsum[1,] #choose first one
+  
+  #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
+  kill="n"
+  if((runsum[,2]+1)<grpsize[detector]){
+    kill="y"
+  }
+  if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
+    groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+    groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
+    grpvec2<-groupdat2[,1]
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
-    runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-    
-    for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
-      RM<-groupdat[g,1]
-      groupdat<-cbind(groupdat,0)
-      groupdat[,3+g]<-99
-      groupdat[g,3+g]<-2
-      skipvec<-0
-      for(h in g:(nrow(groupdat)-1)){
-        rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
-        if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[detector])){
+    runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+    for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
+      RM2<-groupdat2[g,1]
+      groupdat2<-cbind(groupdat2,0)
+      groupdat2[,3+g]<-99
+      groupdat2[g,3+g]<-2
+      skipvec2<-0
+      for(h in g:(nrow(groupdat2)-1)){
+        rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
+        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
           break
         }  
-        if(RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
-          groupdat[h+1,3+g]<-1
-          skipvec<-c(skipvec,(grpvec[h+1]-RM))
-          RM<-grpvec[h+1]
-        }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[detector]+1)>grpvec[h+1]&RM-(detskip[detector]+1)<=grpvec[h+1]){
-          groupdat[h+1,3+g]<-0
-        }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[detector]+1)<=grpvec[h+1]|RM-(detskip[detector]+1)>grpvec[h+1])){
-          groupdat[h+1,3+g]<-98
+        if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+          groupdat2[h+1,3+g]<-1
+          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+          RM2<-grpvec2[h+1]
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-0
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-98
         }
-        if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]){
-          groupdat[h+1,3+g]<-1
-          groupdat[h,3+g]<-98
-          skipvec<-c(skipvec,(grpvec[h+1]-RM))
-          RM<-grpvec[h+1]
-        }else if(groupdat[h,3]==groupdat[h+1,3]){
-          groupdat[h+1,3+g]<-98
+        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
+          groupdat2[h+1,3+g]<-1
+          groupdat2[h,3+g]<-98
+          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
+          RM2<-grpvec2[h+1]
+        }else if(groupdat2[h,3]==groupdat2[h+1,3]){
+          groupdat2[h+1,3+g]<-98
         }
       }
-      runsum[g,1]<-g
-      runsum[g,2]<-sum(groupdat[,3+g]==1)
-      runsum[g,3]<-sum(groupdat[,3+g]==0)
-      runsum[g,4]<-(sum(groupdat[,3+g]==1)+sum(groupdat[,3+g]==0)+1)
-      runsum[g,5]<-max(skipvec)
+      runsum2[g,1]<-g
+      runsum2[g,2]<-sum(groupdat2[,3+g]==1)
+      runsum2[g,3]<-sum(groupdat2[,3+g]==0)
+      runsum2[g,4]<-(sum(groupdat2[,3+g]==1)+sum(groupdat2[,3+g]==0)+1)
+      runsum2[g,5]<-max(-skipvec2)
     }
-    runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
-    runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
-    runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
-    runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
-    runsum<-runsum[1,] #choose first one
+    runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
+    runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
+    runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
+    runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
+    runsum2<-runsum2[1,] #choose first one
     
-    #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
-    kill="n"
-    if((runsum[,2]+1)<grpsize[detector]){
-      kill="y"
-    }
-    if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
-      groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-      groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
-      grpvec2<-groupdat2[,1]
-      colClasses = c("numeric","numeric","numeric","numeric","numeric")
-      runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-      for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
-        RM2<-groupdat2[g,1]
-        groupdat2<-cbind(groupdat2,0)
-        groupdat2[,3+g]<-99
-        groupdat2[g,3+g]<-2
-        skipvec2<-0
-        for(h in g:(nrow(groupdat2)-1)){
-          rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
-          if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
-            break
-          }  
-          if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
-            groupdat2[h+1,3+g]<-1
-            skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
-            RM2<-grpvec2[h+1]
-          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
-            groupdat2[h+1,3+g]<-0
-          }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
-            groupdat2[h+1,3+g]<-98
-          }
-          if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
-            groupdat2[h+1,3+g]<-1
-            groupdat2[h,3+g]<-98
-            skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
-            RM2<-grpvec2[h+1]
-          }else if(groupdat2[h,3]==groupdat2[h+1,3]){
-            groupdat2[h+1,3+g]<-98
-          }
-        }
-        runsum2[g,1]<-g
-        runsum2[g,2]<-sum(groupdat2[,3+g]==1)
-        runsum2[g,3]<-sum(groupdat2[,3+g]==0)
-        runsum2[g,4]<-(sum(groupdat2[,3+g]==1)+sum(groupdat2[,3+g]==0)+1)
-        runsum2[g,5]<-max(-skipvec2)
-      }
-      runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
-      runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
-      runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
-      runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
-      runsum2<-runsum2[1,] #choose first one
-      
-      downsweep<-groupdat2[,c(1:3,3+runsum2[,1])]
-      downsweep<-downsweep[which(downsweep[,4]==2|downsweep[,4]==1),]
-      if(is.null(nrow(downsweep))){
-        kill="n"
+    downsweep<-groupdat2[,c(1:3,3+runsum2[,1])]
+    downsweep<-downsweep[which(downsweep[,4]==2|downsweep[,4]==1),]
+    if(is.null(nrow(downsweep))){
+      kill="n"
+    }else{
+      downsweep<-downsweep[,c(1:3)]
+      upsweep<-groupdat[,c(1:3,3+runsum[,1])]
+      upsweep<-upsweep[which(upsweep[,4]==2|upsweep[,4]==1),]
+      upsweep<-upsweep[,c(1:3)]
+      if(mean(downsweep[,3])<mean(upsweep[,3])&downsweep[1,1]<upsweep[nrow(upsweep),1]&downsweep[nrow(downsweep),3]==upsweep[1,3]){
+        kill="s"
+        wantedSelections<-c(rownames(downsweep[,]))
+        wantedSelections<-c(rownames(upsweep[2:nrow(upsweep),]))
+      }else if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
+        kill="y"
       }else{
-        downsweep<-downsweep[,c(1:3)]
-        upsweep<-groupdat[,c(1:3,3+runsum[,1])]
-        upsweep<-upsweep[which(upsweep[,4]==2|upsweep[,4]==1),]
-        upsweep<-upsweep[,c(1:3)]
-        if(mean(downsweep[,3])<mean(upsweep[,3])&downsweep[1,1]<upsweep[nrow(upsweep),1]&downsweep[nrow(downsweep),3]==upsweep[1,3]){
-          kill="s"
-          wantedSelections<-c(wantedSelections,rownames(downsweep[,]))
-          wantedSelections<-c(wantedSelections,rownames(upsweep[2:nrow(upsweep),]))
-        }else if(runsum2[,2]>=runsum[,2]+downsweepCompAdjust){
-          kill="y"
-        }else{
-          kill="n"
-        }
+        kill="n"
       }
-    }
-    
-    
-    if(kill=="n"){
-      groupdat<-groupdat[,c(1:3,3+runsum[,1])]
-      wantedSelections<-c(wantedSelections,rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
     }
   }
-  return(wantedSelections)
+  
+  
+  if(kill=="n"){
+    groupdat<-groupdat[,c(1:3,3+runsum[,1])]
+    wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
+  }
+  return(as.integer(wantedSelections))
 }
 
 GS_algo<-function(GSdata,detector){
@@ -811,12 +830,12 @@ spectral_features<- function(specdata,libb,whichRun){
   
   if(is.null(nrow(specdata))){
     rowcount<-1
-    specdata<-c(specdata,matrix(1,rowcount,33))
-    specdata<-rbind(specdata,matrix(1,rowcount,33+5)) #make 
+    specdata<-c(specdata,matrix(1,rowcount,31))
+    specdata<-rbind(specdata,matrix(1,rowcount,29+5)) #make 
     
   }else{
     rowcount<-nrow(specdata)
-    specdata<-cbind(specdata,matrix(1,rowcount,33))
+    specdata<-cbind(specdata,matrix(1,rowcount,29))
     
   }
   
@@ -841,7 +860,7 @@ for(z in 1:rowcount){
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90,wl=128)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
-  foo.autoc = autoc(foo, plot=F,wl=128) #
+  #foo.autoc = autoc(foo, plot=F,wl=128) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=90,wl=128) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
   Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
@@ -854,36 +873,36 @@ for(z in 1:rowcount){
   specdata[z,8] = th(foo.env) #temporal entropy
   specdata[z,9] = sh(foo.spec) #shannon entropy
   specdata[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  specdata[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  specdata[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  #specdata[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+ # specdata[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
   #specdata[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specdata[z,13] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specdata[z,14] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specdata[z,15] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  specdata[z,16] = foo.specprop$sd[1] #specprop sd
-  specdata[z,17] = foo.specprop$sem[1] #specprop sem
-  specdata[z,18] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specdata[z,19] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specdata[z,20] = foo.specprop$Q25[1] # specprop q25
-  specdata[z,21] = foo.specprop$Q75[1] #specprop q75
-  specdata[z,22] = foo.specprop$IQR[1] #specprop IQR
-  specdata[z,23] = foo.specprop$cent[1] #specrop cent
-  specdata[z,24] = foo.specprop$skewness[1] #specprop skewness
-  specdata[z,25] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specdata[z,26] = foo.specprop$sfm[1] #specprop sfm
-  specdata[z,27] = foo.specprop$sh[1] #specprop sh
-  specdata[z,28] = foo.specprop$prec[1] #specprop prec
-  specdata[z,29] = M(foo) #amp env median
-  specdata[z,30] = H(foo,wl=128) #total entropy
- # specdata$resonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
+  specdata[z,11] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specdata[z,12] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specdata[z,13] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  #specdata[z,16] = foo.specprop$sd[1] #specprop sd
+  #specdata[z,17] = foo.specprop$sem[1] #specprop sem
+  specdata[z,14] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specdata[z,15] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specdata[z,16] = foo.specprop$Q25[1] # specprop q25
+  specdata[z,17] = foo.specprop$Q75[1] #specprop q75
+  specdata[z,18] = foo.specprop$IQR[1] #specprop IQR
+  specdata[z,19] = foo.specprop$cent[1] #specrop cent
+  specdata[z,20] = foo.specprop$skewness[1] #specprop skewness
+  specdata[z,21] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specdata[z,22] = foo.specprop$sfm[1] #specprop sfm
+  specdata[z,23] = foo.specprop$sh[1] #specprop sh
+  specdata[z,24] = foo.specprop$prec[1] #specprop prec
+  specdata[z,25] = M(foo) #amp env median
+  specdata[z,26] = H(foo,wl=128) #total entropy
+ # specdata$reonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
-  specdata[z,31]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specdata[z,32]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specdata[z,33]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specdata[z,34]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specdata[z,35]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specdata[z,36]<-Dfrange #dfrange
-  specdata[z,37]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specdata[z,27]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specdata[z,28]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specdata[z,29]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specdata[z,30]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specdata[z,31]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specdata[z,32]<-Dfrange #dfrange
+  specdata[z,33]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
   wl<-128
   
@@ -910,7 +929,7 @@ for(z in 1:rowcount){
   zx <- zx/max(zx)
   
   # return low and high freq
-  specdata[z,38]  <- zf[which.max(zx)] + (step / 2)
+  specdata[z,34]  <- zf[which.max(zx)] + (step / 2)
 
 
   }
@@ -971,16 +990,17 @@ if(dettype=="spread"|dettype=="combined"){
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-      
-
+      Matdata<<-data.matrix(resltsTSPV[,c(13,14,15)])
+      detector<<-d
+    
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
-      if(spec=="RW"){
-      wantedSelections<-RW_algo(resltsTSPV,d)
-      }else if(spec=="GS"){
-        
-      }
-      
+
+      wantedSelections<-parAlgo(Matdata)
+
+      Matdata<<-NULL
+      detector<<-NULL
+      test<<-wantedSelections
       resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
       
       if(nrow(resltsTSPV)==0){
