@@ -2,7 +2,22 @@
 
 GTmoorings<-c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3")
   
-drive1<-""
-drive2<-"E:/Full_datasets"
+drive1<-"G"
+drive2<-"F"
 
-for(dir())
+####################
+
+dir.create(paste(drive2,":/Full_datasets/",sep=""))
+
+drive1<-paste(drive1,":/Waves/",sep="")
+drive2<-paste(drive2,":/Full_datasets/",sep="")
+
+copyvec<-dir(drive1)[which(dir(drive1)%in%GTmoorings)]
+
+for(i in dir(drive1)){
+  dir.create(paste(drive2,i,sep=""))
+  for(n in dir(paste(drive1,i,sep="/"))){
+    file.copy(from=paste(drive1,i,"/",n,"/",dir(paste(drive1,i,"/",n,sep="/")),sep=""),to=paste(drive2,i,sep=""))
+  }
+
+}
