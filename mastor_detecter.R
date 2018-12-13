@@ -834,7 +834,6 @@ for(z in 1:rowcount){
 
   sample_rate.og<-foo@samp.rate
   foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
-  if(whichRun==1){
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
@@ -1248,9 +1247,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"n"
-runTestModel<-"y" #run model on GT data
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
@@ -1529,7 +1528,7 @@ if(runRavenGT=="y"){
   
 if(decimate=="y"){
   ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
-}
+  }
   
 #run sound files:
 resltsTab <- NULL
