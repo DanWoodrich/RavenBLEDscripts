@@ -2142,31 +2142,37 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 ################################################
 
 if(runNewData=="y"){
+  
+  if(whiten!="y"){
+    fileSizeInt<-(fileCombinesize*decimationFactor)
+  }else{
+    fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
+  }
+  if(fileSizeInt>340&fileSizeInt<680){
+    fileSizeInt<-340
+  }else if(fileSizeInt>=680){
+    fileSizeInt2<-fileSizeInt
+    fileSizeInt<-340
+    iterate_SF<-c(1,2)
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+  }else{
+    iterate_SF<-1
+  }
+  
+  if(moorType=="HG"){
+    allDataPath<-"E:/Datasets"
+  }else{
+    allDataPath<-"E:/Full_datasets"
+  }
+  
+allMoorings<-dir(allDataPath) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
-allDataPath<-"E:/Datasets"
-allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
-
-if(whiten!="y"){
-fileSizeInt<-(fileCombinesize*decimationFactor)
-}else{
-fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
-}
-
-if(fileSizeInt>340&fileSizeInt<680){
-  fileSizeInt<-340
-}else if(fileSizeInt>=680){
-  fileSizeInt2<-fileSizeInt
-  fileSizeInt<-340
-  iterate_SF<-c(1,2)
-  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
-}else{
-  iterate_SF<-1
-}
+for(m in allMoorings){
 
 if(moorType=="HG"){
-  sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste("E:/Datasets/",[m],"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
-  sfpath<-paste("E:/Full_datasets/",dir(allDataPath)[1],sep = "")
+  sfpath<-paste("E:/Full_datasets/",[m],sep = "")
 }
 
 #
@@ -2182,7 +2188,6 @@ decimateData(sfpath,2)
 ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 }
 
-for(m in allMoorings){
 
   for(a in iterate_SF){
     if(a==1){
@@ -2353,7 +2358,7 @@ for(m in allMoorings){
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
-}
+}#test just to decimate temporary delete this
 
 findata<-process_data(2)
 
