@@ -2353,6 +2353,8 @@ for(m in allMoorings){
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
+}
+
 findata<-process_data(2)
 
 findata$detectionType<-0
@@ -2555,4 +2557,3 @@ cor.test(as.numeric(probmean),probstderr)
 
 }
 
-}
