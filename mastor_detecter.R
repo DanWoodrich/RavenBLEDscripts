@@ -125,6 +125,29 @@ RW_algo<-function(resltsTSPVmat,f){
         groupdat[h+1,3+g]<-98
       }
     }
+    #replace 1s that are more than 0.5s apart from last in sequence to 0s
+      if(any(groupdat[,4]==1)){
+        grouptemp<-groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]
+        for(c in 1:(nrow(grouptemp)-1)){
+          if(grouptemp[c,3]+0.5<grouptemp[c+1,3]){
+            grouptemp[(c+1):nrow(grouptemp),4]<-99
+            groupdat[which(rownames(groupdat) %in% rownames(grouptemp)),3+g]<-grouptemp[,4]
+            break
+          }
+        }
+      grouptemp<-NULL
+        }
+      
+    if(any(groupdat[,4]==1)){
+      grouptemp<-tail(groupdat[which(groupdat[,4]==1),3])
+      last<-tail(groupdat[which(groupdat[,4]==1),3])[length(grouptemp)]
+      if(any(groupdat[,4]==0&groupdat[,3]>last)){
+      groupdat[which(groupdat[,4]==0&groupdat[,3]>last),4]<-99 #change trailing 0s to 99s
+      }
+      grouptemp<-NULL
+      last<-NULL
+    }
+      
     runsum[g,1]<-g
     runsum[g,2]<-sum(groupdat[,3+g]==1)
     runsum[g,3]<-sum(groupdat[,3+g]==0)
@@ -132,10 +155,12 @@ RW_algo<-function(resltsTSPVmat,f){
     runsum[g,5]<-max(skipvec)
   }
   runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
-  runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
   runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
+  runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
   runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
   runsum<-runsum[1,] #choose first one
+  
+  #find other good runs g
   
   #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
   kill="n"
@@ -1000,7 +1025,6 @@ if(dettype=="spread"|dettype=="combined"){
 
       Matdata<<-NULL
       detector<<-NULL
-      test<<-wantedSelections
       resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
       
       if(nrow(resltsTSPV)==0){
@@ -1265,9 +1289,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
