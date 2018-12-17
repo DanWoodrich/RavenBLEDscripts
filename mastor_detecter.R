@@ -1255,12 +1255,14 @@ return(DetecTab2)
 }
 
 #paths
-drivepath<-"E:/"
+
 #dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
+  drivepath<-"F:/"
 }else{
   user<-"danby456"
+  drivepath<-"F:/"
 }
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
@@ -1539,7 +1541,7 @@ if(whiten=="n"){
 #path to ground truth table
 GT<-list()
 for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste("E:/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- read.delim(paste(drivepath,"Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
 
@@ -1581,7 +1583,7 @@ for(m in moorings){
   if(decimate=="y"){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
-  sfpath<-paste("E:/Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
+  sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
   sound_files <- dir(sfpath,pattern=".wav")[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
   sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   
@@ -1889,7 +1891,7 @@ spec<-spec
 #define this table to compare counts after running model
 TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
 
-detfiles<-list.files(paste("E:/DetectorRunOutput/",runname,sep=""),pattern = "RF")  
+detfiles<-list.files(paste(drivepath,"DetectorRunOutput/",runname,sep=""),pattern = "RF")  
 
 #extract mooring names from moorings used in run
 mooringpat=NULL
@@ -1909,9 +1911,9 @@ if(decimate=="y"){
 
 #only choose soundfiles that match those used in run
 soundfiles<-NULL
-for(n in 1:length(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep="")))){
-  if(substr(dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
-    soundfiles<-c(soundfiles,dir(paste("E:/Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
+for(n in 1:length(dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep="")))){
+  if(substr(dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
+    soundfiles<-c(soundfiles,dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
   }
 }
 
@@ -1922,7 +1924,7 @@ detfiles<-sort(detfiles)
 
 data=NULL
 for(n in 1:length(detfiles)){
-  data2<-read.csv(paste("E:/DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
+  data2<-read.csv(paste(drivepath,"DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
   data2<-cbind(soundfiles[n],data2)
   data<-rbind(data,data2)
 }
@@ -2154,7 +2156,7 @@ beep(10)
 #print(mean(AUC_avg))
 
 #save last model
-save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
+save(data.rf, file = paste(drivepath,"DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 }
 
@@ -2166,31 +2168,37 @@ save(data.rf, file = paste("E:/DetectorRunOutput/",runname,"/an_example_model.rd
 ################################################
 
 if(runNewData=="y"){
+  
+  if(whiten!="y"){
+    fileSizeInt<-(fileCombinesize*decimationFactor)
+  }else{
+    fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
+  }
+  if(fileSizeInt>340&fileSizeInt<680){
+    fileSizeInt<-340
+  }else if(fileSizeInt>=680){
+    fileSizeInt2<-fileSizeInt
+    fileSizeInt<-340
+    iterate_SF<-c(1,2)
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+  }else{
+    iterate_SF<-1
+  }
+  
+  if(moorType=="HG"){
+    allDataPath<-paste(drivepath,"Datasets",sep="")
+  }else{
+    allDataPath<-paste(drivepath,"Full_datasets",sep="")
+  }
+  
+allMoorings<-dir(allDataPath) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
 
-allDataPath<-"E:/Datasets"
-allMoorings<-dir(allDataPath)[1] #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
-
-if(whiten!="y"){
-fileSizeInt<-(fileCombinesize*decimationFactor)
-}else{
-fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
-}
-
-if(fileSizeInt>340&fileSizeInt<680){
-  fileSizeInt<-340
-}else if(fileSizeInt>=680){
-  fileSizeInt2<-fileSizeInt
-  fileSizeInt<-340
-  iterate_SF<-c(1,2)
-  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
-}else{
-  iterate_SF<-1
-}
+for(m in allMoorings){
 
 if(moorType=="HG"){
-  sfpath<-paste("E:/Datasets/",dir(allDataPath)[1],"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
-  sfpath<-paste("E:/Full_datasets/",dir(allDataPath)[1],sep = "")
+  sfpath<-paste(drivepath,"Full_datasets/",m,sep = "")
 }
 
 #
@@ -2206,7 +2214,6 @@ decimateData(sfpath,2)
 ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 }
 
-for(m in allMoorings){
 
   for(a in iterate_SF){
     if(a==1){
@@ -2376,6 +2383,8 @@ for(m in allMoorings){
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
+
+}#test just to decimate temporary delete this
 
 findata<-process_data(2)
 
@@ -2579,4 +2588,3 @@ cor.test(as.numeric(probmean),probstderr)
 
 }
 
-}
