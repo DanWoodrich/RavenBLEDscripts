@@ -1262,7 +1262,7 @@ if(dir.exists("C:/Users/ACS-3")){
   drivepath<-"F:/"
 }else{
   user<-"danby456"
-  drivepath<-"F:/"
+  drivepath<-"E:/"
 }
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
@@ -1291,9 +1291,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1315,16 +1315,16 @@ interfere<-"n"
 
 interfereVec<-c(dir(BLEDpath)[6])
 
-
+ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
+ParamsTab[,3]<-as.character(ParamsTab[,3])
 
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
 detectorsspr<-list()
-if(!user=="danby456"){
-detectorsspr[[1]] <- dir(BLEDpath)[22:39] #add more spreads with notation detectorspr[[x]]<-... #15-32
-}else{
-detectorsspr[[1]] <- dir(BLEDpath)[3:20] #add more spreads with notation detectorspr[[x]]<-... #15-32
-}
+spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
+spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
+detectorsspr[[1]] <- dir(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
+
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
 }
@@ -1334,71 +1334,34 @@ detectorssin <- c(dir(BLEDpath)[2]
                   ) #list single detectors to run 
 detectorssinshort<- detectorssin
 }
-##################Sampling rate of sound files
 
-samplingRate<-16384 #hz
+###############input parameters
+Maxdur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
+Mindur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
+timediffself<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
+probdist<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
+timediff<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediff"),3])
+downsweepCompMod<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
+downsweepCompAdjust<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
+whiten<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
+FO<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
+LMS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
+CV<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
+TPRthresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
+greatcallThresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="greatcallThresh"),3])
+maxBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxBonus"),3])
+goodcallBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="goodcallBonus"),3]) 
+maxPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxPenalty"),3] )
+badcallPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
+grpsize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
+allowedZeros<-as.numeric(ParamsTab[which(ParamsTab[,2]=="allowedZeros"),3]) 
+detskip<-as.numeric(ParamsTab[which(ParamsTab[,2]=="detskip"),3] )
+groupInt<-as.numeric(ParamsTab[which(ParamsTab[,2]=="groupInt"),3] )
+fileCombinesize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="fileCombinesize"),3] )
+decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
+decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
 
-##########################max min length parameters (applies on R final detections, can also change in Raven to change initial box size)
-
-Maxdur<-3.5
-Mindur<-0.2
-
-############################Combine detector  parameters
-timediffself<-1.25
-probdist<-.2 #how apart the probabilities can be before only choosing the best one. If within probdist of each other, combine them and average probability
-
-#multiple detectors
-freqdiff<-100
-timediff<-1
-
-#############################compare with downsweeps parameters
-downsweepCompMod<-2
-downsweepCompAdjust<-(4)
-
-############################Whiten parameters (need to have done this in Raven previously)
-
-#Pre whiten data?(y or n)
-whiten<-"n"
-FO<-100 #filter order
-LMS<-.10 #LMS step size
-
-###########################Model paramaters
-CV=50 #number of cross validation models to create (more consistent results with greater number of models)
-TPRthresh=.9 #estimated number of TP's to retain from total that initially go into model. Results can vary if data does not resemble GT data. 
-
-#context sim parameters
-greatcallThresh<-0.8 #level at which rolling score will reset to greatcallLevel
-maxBonus<-0.05 #Maximum bonus level. Same as reset value when greatcallThresh is reached. 
-
-goodcallBonus<-0.1 #increase factor for every call within resonable range (-maxPenalty to greatcallThresh)
-
-maxPenalty<-(-0.35) #same abs value as lowest value for "good calls" that give bonus 
-badcallPenalty<-(-0.001) #constant decrease every detection below threshold
-
-############################Spread parameters. must be same length as number of spread detectors you are running
-#p7 good ones: 2,1,3,0.75
-#p9 working ones: 3,2,3,.25
-#p10 good ones: 3,2,4,0.5
-#(SPREAD) enter the desired smallest sequence size for detection. 
-grpsize<-c(4)
-
-#(SPREAD) allowed consecutive descending boxes allowed to still constitute an ascending sequence. Will end sequence after the maximum has been exceeded
-allowedZeros<-c(2)
-
-#(SPREAD) threshold of how many detectors at most can be skipped to be counted as sequential increase. 
-detskip<-c(3)
-
-#(SPREAD) max time distance for detectors to be considered in like group 
-groupInt<-c(0.45)
-
-############################file combine parameters
-fileCombinesize<-300
-
-decimate<-"y"
-decimationFactor<-16
-
-############################
-
+########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
@@ -1451,85 +1414,7 @@ detnum<-if(dettype=="spread"){
     }
 
 ###########################make txt file of params for run:
-colClasses = c("numeric", "character","character")
-ParamSum <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
-colnames(ParamSum)<-c("Parameter","Value","Description")
-
-ParamSum[1,1]<-"Run name:"
-ParamSum[1,2]<- runname
-ParamSum[1,3]<-""
-ParamSum[2,1]<-"Run type:"
-ParamSum[2,2]<- runtype
-ParamSum[2,3]<-"All available moorings ('all') or specific moorings ('spf')"
-ParamSum[3,1]<-"Detector type:"
-ParamSum[3,2]<- dettype
-ParamSum[3,3]<-"Type of detector(s) used in run. spread, single, or combined (both)"
-ParamSum[3,1]<-"Number/name of detectors ran:"
-ParamSum[3,2]<- paste(detnum,paste(detlist2,collapse=" "))
-ParamSum[3,3]<-"Number of detectors used in run"
-ParamSum[4,1]<-"Species:"
-ParamSum[4,2]<- spec
-ParamSum[4,3]<-"Call type that detector(s) will look for (RW=right whale,GS=gunshot etc.)"
-ParamSum[5,1]<-"Time threshold for combination:"
-ParamSum[5,2]<- paste(paste(timediff,"s",sep=""),paste(timediffself,"s",sep=""),sep=",")
-ParamSum[5,3]<-"Maximum second difference between detection mean time to be considered a combined detection. Self and between detectors"
-ParamSum[6,1]<-"Frequency threshold for combination:"
-ParamSum[6,2]<- paste(freqdiff,"Hz",sep="")
-ParamSum[6,3]<-"Maximum Hz difference between detection mean freq to be considered a combined detection"
-ParamSum[7,1]<-"Min/Max duration for final detections"
-ParamSum[7,2]<- paste(Mindur,Maxdur)
-ParamSum[7,3]<- " "
-ParamSum[8,1]<-"Number/name spread detectors ran:"
-ParamSum[8,2]<- paste(length(sonlydetlist),paste(sonlydetlist2,collapse="/"))
-ParamSum[8,3]<- " "
-
-
-if(dettype=="spread"|dettype=="combined"){
-  
-#different table for spread parameters
-colClasses = c("numeric", "character","character")
-ParamSum2 <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
-colnames(ParamSum2)<-c("Parameter","Value","Description")
-
-ParamSum2[1,1]<-"Spread group size:"
-ParamSum2[1,2]<- paste(grpsize,collapse = ",")
-ParamSum2[1,3]<-"Minimum amount of detections needed to be considered a detection group"
-ParamSum2[2,1]<-"Zeros:"
-ParamSum2[2,2]<- paste(allowedZeros,collapse = ",")
-ParamSum2[2,3]<-"Maximum number of consecutive descending boxes allowed in an ascending sequence"
-ParamSum2[3,1]<-"Skip threshold:"
-ParamSum2[3,2]<- paste(detskip,collapse = ",")
-ParamSum2[3,3]<-"Maximum amount of skips between detector rank to count towards ascending sequence distinction"
-ParamSum2[4,1]<-"Time threshold for group:"
-ParamSum2[4,2]<- paste(groupInt,collapse = ",")
-ParamSum2[4,3]<-"Maximum second difference between detection mean time to be considered a detection group"
-ParamSum2[5,1]<-"Detectors ran in each spread:"
-ParamSum2[5,2]<- paste(detlist,collapse = ",")
-ParamSum2[5,3]<- " "
-
-  ParamSum<-rbind(ParamSum,ParamSum2)
-}
-
-
-if(whiten=="y"){
-
-colClasses = c("numeric", "character","character")
-ParamSum3 <- read.csv(text="Parameter,Value,Description",colClasses = colClasses)
-colnames(ParamSum3)<-c("Parameter","Value","Description")
-
-ParamSum3[1,1]<-"Whiten Filter Order (FO)"
-ParamSum3[1,2]<- FO
-ParamSum3[1,3]<-" "
-ParamSum3[2,1]<-"Whiten LMS step size (x10^-9)" 
-ParamSum3[2,2]<- LMS
-ParamSum3[2,3]<-" " 
-
-ParamSum<-rbind(ParamSum,ParamSum3)
-
-}
-
-
-write.table(ParamSum,paste(outputpath,runname,"/","Params_",dettype,"_",runname,".txt",sep=""),quote=FALSE,row.names=FALSE,col.names=TRUE)
+write.csv(ParamsTab,paste(outputpath,runname,"/",spec,".csv",sep=""),row.names = FALSE)
 
 ######################################Manipulate factors and calculate various things 
 #set FO and LMS to NA if no whiten
@@ -1603,7 +1488,7 @@ for(m in moorings){
   
   
   }else{
-  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,sep = "")
   if(decimate=="y"){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
