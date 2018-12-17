@@ -1262,7 +1262,7 @@ if(dir.exists("C:/Users/ACS-3")){
   drivepath<-"F:/"
 }else{
   user<-"danby456"
-  drivepath<-"F:/"
+  drivepath<-"E:/"
 }
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
@@ -1358,7 +1358,7 @@ downsweepCompAdjust<-(4)
 ############################Whiten parameters (need to have done this in Raven previously)
 
 #Pre whiten data?(y or n)
-whiten<-"n"
+whiten<-"y"
 FO<-100 #filter order
 LMS<-.10 #LMS step size
 
@@ -1603,7 +1603,7 @@ for(m in moorings){
   
   
   }else{
-  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,"/",sep = "")
+  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,sep = "")
   if(decimate=="y"){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
