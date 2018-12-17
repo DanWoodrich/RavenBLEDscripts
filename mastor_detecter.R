@@ -1392,7 +1392,7 @@ detskip<-c(3)
 groupInt<-c(0.45)
 
 ############################file combine parameters
-fileCombinesize<-345
+fileCombinesize<-300
 
 decimate<-"y"
 decimationFactor<-16
@@ -2174,13 +2174,13 @@ if(runNewData=="y"){
   }else{
     fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
   }
-  if(fileSizeInt>340&fileSizeInt<680){
-    fileSizeInt<-340
-  }else if(fileSizeInt>=680){
+  if(fileSizeInt>300&fileSizeInt<600){
+    fileSizeInt<-300
+  }else if(fileSizeInt>=600){
     fileSizeInt2<-fileSizeInt
-    fileSizeInt<-340
+    fileSizeInt<-300
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/300))) 
   }else{
     iterate_SF<-1
   }
@@ -2205,6 +2205,8 @@ if(runNewData=="y"){
   if(whiten=="y"){
     allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
   }
+  
+  allMoorings<-allMoorings[1] #dont want to loop yet 
 
 for(m in allMoorings){
 
@@ -2254,9 +2256,9 @@ decimateData(sfpath,2)
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
-      pathh<-paste(startcombpath,spec,sep="")
+      pathh<-paste(startcombpath,spec,"/",m,"/",sep="")
       }else{
-      pathh<-paste(startcombpath,spec,"/temp/",sep="")    
+      pathh<-paste(startcombpath,spec,"/",m,"/temp/",sep="")    
       }
       combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
@@ -2278,9 +2280,9 @@ decimateData(sfpath,2)
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
-        pathh<-paste(startcombpath,sep="")
+        pathh<-paste(startcombpath,"/",m,"/",sep="")
       }else{
-        pathh<-paste(startcombpath,"/temp/",sep="")    
+        pathh<-paste(startcombpath,"/",m,"/temp/",sep="")    
       }
       combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
@@ -2323,7 +2325,7 @@ decimateData(sfpath,2)
   if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
     unlink(paste(startcombpath,whiten2,sep=""),recursive=TRUE)
     dir.create(paste(startcombpath,whiten2,sep=""))
-    file.copy(paste(paste(pathh,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,whiten2,sep=""))
+    file.copy(paste(paste(pathh,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
     shell(paste("rmdir",shQuote(pathh),"/s","/q"))
     durTab<-durTab2
     
@@ -2391,7 +2393,6 @@ decimateData(sfpath,2)
       }
     }  
   }
-}
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
@@ -2596,6 +2597,7 @@ plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTm
 
 cor.test(as.numeric(probmean),probstderr)
 
+}
 }
 }
 
