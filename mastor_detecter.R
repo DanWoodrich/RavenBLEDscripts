@@ -301,7 +301,7 @@ sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
 dir.create(paste(pathh,"/",whiten2,"/",sep=""))
 print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
 durList<-duration_store(numPass)
 if(numPass==1){
   return(durList[[1]])
@@ -2191,7 +2191,20 @@ if(runNewData=="y"){
     allDataPath<-paste(drivepath,"Full_datasets",sep="")
   }
   
-allMoorings<-dir(allDataPath) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
+  if(decimate=="y"){
+    ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
+    
+    allMoorings<-dir(allDataPath,pattern=paste("_decimate_by_",decimationFactor,sep="")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
+  if(!is.null(allMoorings)){
+    decDone<-TRUE
+    }else{
+    allMoorings<-dir(allDataPath)
+    }
+    }
+  
+  if(whiten=="y"){
+    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
+  }
 
 for(m in allMoorings){
 
@@ -2209,9 +2222,8 @@ durTab<-NULL
 durTab2<-NULL
 
 #decimate dataset. 
-if(decimate=="y"){
+if(decimate=="y"&!decDone){
 decimateData(sfpath,2)
-ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 }
 
 
@@ -2343,7 +2355,7 @@ ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
     }
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
-    for(b in 6:6){ #1:(length(bigFile_breaks)-1)
+    for(b in 1:(length(bigFile_breaks)-1)){ #1:(length(bigFile_breaks)-1)
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
@@ -2383,8 +2395,6 @@ ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
-
-}#test just to decimate temporary delete this
 
 findata<-process_data(2)
 
@@ -2586,5 +2596,6 @@ plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTm
 
 cor.test(as.numeric(probmean),probstderr)
 
+}
 }
 
