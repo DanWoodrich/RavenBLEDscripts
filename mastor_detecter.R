@@ -1290,10 +1290,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runRavenGT<-"n"
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1482,7 +1482,7 @@ for(m in moorings){
     decimateData(sfpath,1)
     }
     print(paste("SoXing file",combSound))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2")
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     
     }
   
@@ -1995,9 +1995,9 @@ abline(h=0.5,lty=3)
 #lines(lowess(data3moors[,pos+5]))
 #lines(lowess(data3moors[,pos+4]))
 #lines(lowess(data3moors[,pos+2]))
-lines((data3moors[,pos+3]*10)+0.5,col="blue") #backwards through data 
-lines((data3moors[,pos+1]*10)+0.5,col="orange") #forwards through data
-lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*10))+0.5,col="green")
+lines((data3moors[,pos+3]*6),col="blue") #backwards through data 
+lines((data3moors[,pos+1]*6),col="orange") #forwards through data
+lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*6)),col="green")
 }
 
 data3datFrame<-as.data.frame(data3)
@@ -2085,10 +2085,12 @@ if(runNewData=="y"){
     ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
     
     allMoorings<-dir(allDataPath,pattern=paste("_decimate_by_",decimationFactor,sep="")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
-  if(!is.null(allMoorings)){
+    
+    if(length(allMoorings)!=0){
     decDone<-TRUE
     }else{
     allMoorings<-dir(allDataPath)
+    decDone<-FALSE
     }
     }
   
