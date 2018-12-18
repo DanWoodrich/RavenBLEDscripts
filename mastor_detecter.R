@@ -82,7 +82,8 @@ parAlgo<-function(dataaa){
   }
   }else if(spec=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
-      GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+      tempSelects<-GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+      as.integer(tempSelects)
   }
   }
   stopCluster(cluz)
@@ -243,58 +244,79 @@ RW_algo<-function(resltsTSPVmat,f){
   return(as.integer(wantedSelections))
 }
 
-GS_algo<-function(GSdata,detector){
-  #coerce to matrix to "vectorize" algorithm
-  resltsTSPVmat<-data.matrix(GSdata[,c(13,14,15)])
+GS_algo<-function(resltsTSPVmat,f){
   wantedSelections<-c()
-  for(f in unique(resltsTSPVmat[,2])){
-    #print(paste("calculating run for",f,"of",maxgrp))
-    groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-    groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
-    grpvec2<-groupdat2[,1]
-    colClasses = c("numeric","numeric","numeric","numeric","numeric")
-    runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-    for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
-      RM2<-groupdat2[g,1]
-      groupdat2<-cbind(groupdat2,0)
-      groupdat2[,3+g]<-99
-      groupdat2[g,3+g]<-2
-      skipvec2<-0
-      for(h in g:(nrow(groupdat2)-1)){
-        rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
-        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
+  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+  grpvec<-groupdat[,1]
+  colClasses = c("numeric","numeric","numeric","numeric","numeric")
+  runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+  
+  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+  groupdat<-groupdat[order(groupdat[,3],-groupdat[,1]),]#reverse the order it counts stacks detections
+  grpvec<-groupdat[,1]
+  colClasses = c("numeric","numeric","numeric","numeric","numeric")
+  runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+  for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
+    RM<-groupdat[g,1]
+    groupdat<-cbind(groupdat,0)
+    groupdat[,3+g]<-99
+    groupdat[g,3+g]<-2
+    skipvec<-0
+    for(h in g:(nrow(groupdat)-1)){
+      rsltvec0s2<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
+      if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
+        break
+      }  
+      if(RM>grpvec[h+1]&RM-(detskip[detector]+1)<grpvec[h+1]){
+        groupdat[h+1,3+g]<-1
+        skipvec<-c(skipvec,(grpvec[h+1]-RM))
+        RM<-grpvec[h+1]
+      }else if((RM<=grpvec[h+1])&RM-(detskip[detector]+1)<grpvec[h+1]&RM+(detskip[detector]+1)>=grpvec[h+1]){
+        groupdat[h+1,3+g]<-0
+      }else if((RM<=grpvec[h+1])&(RM-(detskip[detector]+1)>=grpvec[h+1])|RM+(detskip[detector]+1)<grpvec[h+1]){
+        groupdat[h+1,3+g]<-98
+      }
+    }
+    
+    #replace 1s that are more than 0.5s apart from last in sequence to 0s
+    if(any(groupdat[,4]==1)){
+      grouptemp<-groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]
+      for(c in 1:(nrow(grouptemp)-1)){
+        if(grouptemp[c,3]+0.5<grouptemp[c+1,3]){
+          grouptemp[(c+1):nrow(grouptemp),4]<-99
+          groupdat[which(rownames(groupdat) %in% rownames(grouptemp)),3+g]<-grouptemp[,4]
           break
-        }  
-        if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
-          groupdat2[h+1,3+g]<-1
-          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
-          RM2<-grpvec2[h+1]
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
-          groupdat2[h+1,3+g]<-0
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
-          groupdat2[h+1,3+g]<-98
-        }
-        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
-          groupdat2[h+1,3+g]<-1
-          groupdat2[h,3+g]<-98
-          skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
-          RM2<-grpvec2[h+1]
-        }else if(groupdat2[h,3]==groupdat2[h+1,3]){
-          groupdat2[h+1,3+g]<-98
         }
       }
-      runsum2[g,1]<-g
-      runsum2[g,2]<-sum(groupdat2[,3+g]==1)
-      runsum2[g,3]<-sum(groupdat2[,3+g]==0)
-      runsum2[g,4]<-(sum(groupdat2[,3+g]==1)+sum(groupdat2[,3+g]==0)+1)
-      runsum2[g,5]<-max(-skipvec2)
+      grouptemp<-NULL
     }
-    runsum2<-runsum2[which(runsum2[,2]==max(runsum2[,2])),] #choose w most ones
-    runsum2<-runsum2[which(runsum2[,3]==min(runsum2[,3])),] #choose w least 0s
-    runsum2<-runsum2[which(runsum2[,5]==min(runsum2[,5])),] #choose w smallest maximum skip (most gradual)
-    runsum2<-runsum2[which(runsum2[,4]==min(runsum2[,4])),] #choose w least length
-    runsum2<-runsum2[1,] #choose first one
+    
+    if(any(groupdat[,4]==1)){
+      grouptemp<-tail(groupdat[which(groupdat[,4]==1),3])
+      last<-tail(groupdat[which(groupdat[,4]==1),3])[length(grouptemp)]
+      if(any(groupdat[,4]==0&groupdat[,3]>last)){
+        groupdat[which(groupdat[,4]==0&groupdat[,3]>last),4]<-99 #change trailing 0s to 99s
+      }
+      grouptemp<-NULL
+      last<-NULL
+    }
+    runsum[g,1]<-g
+    runsum[g,2]<-sum(groupdat[,3+g]==1)
+    runsum[g,3]<-sum(groupdat[,3+g]==0)
+    runsum[g,4]<-(sum(groupdat[,3+g]==1)+sum(groupdat[,3+g]==0)+1)
+    runsum[g,5]<-max(-skipvec)
   }
+  runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
+  runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
+  runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
+  runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
+  runsum<-runsum[1,] #choose first one
+
+  if((runsum[,2]+1)>=grpsize[detector]){
+  groupdat<-groupdat[,c(1:3,3+runsum[,1])]
+  wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
+  }
+return(as.integer(wantedSelections))
 }
 
 sox.write<-function(numPass){
@@ -1271,16 +1293,19 @@ ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
 outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
+#Enter the name of the species you'd like to evaluate (RW,GS):
+spec <- "GS"
+
+ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
+ParamsTab[,3]<-as.character(ParamsTab[,3])
+
 #moorings completed 
-allmooringsGT<- c("BS15_AU_02a","BS14_AU_04","AW12_AU_BS3","BS13_AU_04","BS16_AU_02a","BS15_AU_02b","AW14_AU_BS3") #add as complete GTs 
-allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-allmooringsSF[[1]]<-c(1,104)
-allmooringsSF[[2]]<-c(1,179)
-allmooringsSF[[3]]<-c(1,217)
-allmooringsSF[[4]]<-c(1,304)
-allmooringsSF[[5]]<-c(1,175)
-allmooringsSF[[6]]<-c(1,62)
-allmooringsSF[[7]]<-c(1,160)
+allmooringsGT<- str_split(ParamsTab[which(ParamsTab[,2]=="allmooringsGT"),3],",",simplify=TRUE)
+allmooringsSFpre<-str_split(ParamsTab[which(ParamsTab[,2]=="allmooringsSF"),3],",",simplify=TRUE)
+allmooringsSF<-list()
+for(u in 1:length(allmooringsSFpre)){
+  allmooringsSF[[u]]<-c(as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[1]),as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[2]))
+}
 
 #############################
 
@@ -1308,16 +1333,11 @@ dettype<- "spread"
 #for newData: enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
 moorType<-"FULL"
 
-#Enter the name of the species you'd like to evaluate (RW,GS):
-spec <- "RW"
 
 #compare detections with pulses and fin/mooring noise, other sources of intereference y or n
 interfere<-"n"
 
 interfereVec<-c(dir(BLEDpath)[6])
-
-ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
-ParamsTab[,3]<-as.character(ParamsTab[,3])
 
 if(dettype=="spread"|dettype=="combined"){
 #make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
@@ -1427,7 +1447,7 @@ if(whiten=="n"){
 #path to ground truth table
 GT<-list()
 for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste(drivepath,"Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- read.delim(paste(drivepath,"/",spec,"/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
 
