@@ -1291,9 +1291,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -2208,8 +2208,8 @@ decimateData(sfpath,2)
   }
 
   if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
-    unlink(paste(startcombpath,whiten2,sep=""),recursive=TRUE)
-    dir.create(paste(startcombpath,whiten2,sep=""))
+    unlink(paste(startcombpath,m,"/",whiten2,sep=""),recursive=TRUE)
+    dir.create(paste(startcombpath,m,"/",whiten2,sep=""))
     file.copy(paste(paste(pathh,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
     shell(paste("rmdir",shQuote(pathh),"/s","/q"))
     durTab<-durTab2
