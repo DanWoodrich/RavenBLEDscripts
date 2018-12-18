@@ -623,7 +623,7 @@ context_sim <-function(sdata){
     }
   }
   
-  datVar[,pos+5]<-(datVar[,pos+2]+datVar[,pos+4])/2 #average
+  datVar[,pos+5]<-pmax(datVar[,pos+2],datVar[,pos+4]) #max
   #datVar$probmean<-pmax(datVar[n,pos+2],datVar[n,pos+3]) #max
   #datVar$probmean<-pmin(datVar[n,pos+2],datVar[n,pos+3]) #min
   
@@ -1965,8 +1965,8 @@ finTPs<-sum(as.numeric(as.character(data3[which(data3[,pos-2]>CUTmean),7])))
 finFPs<-(nrow(data3[which(data3[,pos-2]>CUTmean),])-finTPs)
 finRat<-finTPs/finFPs
 
-pp2<-data3[,pos-2]
-ll2<-data3[,7]
+pp2<-as.vector(data3[,pos-2])
+ll2<-as.numeric(as.character(data3[,7]))-1
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
 
@@ -1983,17 +1983,21 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==1,'blue','red'),cex=0.25)
+plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
 #plot of probabilities after context sim:
-plot(data3[,pos+5])
-lines(lowess(data3[,pos+5]))
-lines(lowess(data3[,pos+4]))
-lines(lowess(data3[,pos+2]))
-lines(lowess(data3[,pos-2]))
-lines(lowess(data3[,pos+3]*10))
-lines(lowess(data3[,pos+1]*10))
+for(n in unique(data3[,1])){
+data3moors<-data3[which(data3[,1]==n),]
+plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==n),2])
+abline(h=CUTmean,col="red")
+lines(lowess(data3moors[,pos+5]))
+#lines(lowess(data3moors[,pos+4]))
+#lines(lowess(data3moors[,pos+2]))
+lines((data3moors[,pos+3]*10)+0.5,col="blue") #backwards through data 
+lines((data3moors[,pos+1]*10)+0.5,col="orange") #forwards through data
+lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*10))+0.5,col="green")
+}
 
 data3datFrame<-as.data.frame(data3)
 data3datFrame$detectionType<-as.factor(data3datFrame$detectionType)
@@ -2059,13 +2063,13 @@ if(runNewData=="y"){
   }else{
     fileSizeInt<-(fileCombinesize*decimationFactor*3) #whitened files are smaller so still under 6 gigs. 
   }
-  if(fileSizeInt>300&fileSizeInt<600){
-    fileSizeInt<-300
-  }else if(fileSizeInt>=600){
+  if(fileSizeInt>340&fileSizeInt<680){
+    fileSizeInt<-340
+  }else if(fileSizeInt>=680){
     fileSizeInt2<-fileSizeInt
-    fileSizeInt<-300
+    fileSizeInt<-340
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/300))) 
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
   }else{
     iterate_SF<-1
   }
@@ -2090,8 +2094,6 @@ if(runNewData=="y"){
   if(whiten=="y"){
     allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
   }
-  
-  allMoorings<-allMoorings[1] #dont want to loop yet 
 
 for(m in allMoorings){
 
@@ -2141,9 +2143,9 @@ decimateData(sfpath,2)
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
-      pathh<-paste(startcombpath,spec,"/",m,"/",sep="")
+      pathh<-paste(startcombpath,spec,sep="")
       }else{
-      pathh<-paste(startcombpath,spec,"/",m,"/temp/",sep="")    
+      pathh<-paste(startcombpath,spec,"/temp/",sep="")    
       }
       combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
@@ -2165,9 +2167,9 @@ decimateData(sfpath,2)
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
-        pathh<-paste(startcombpath,"/",m,"/",sep="")
+        pathh<-paste(startcombpath,sep="")
       }else{
-        pathh<-paste(startcombpath,"/",m,"/temp/",sep="")    
+        pathh<-paste(startcombpath,"/temp/",sep="")    
       }
       combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
@@ -2278,6 +2280,7 @@ decimateData(sfpath,2)
       }
     }  
   }
+}
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
 write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
@@ -2482,7 +2485,6 @@ plot(as.numeric(probmean),probstderr, col = ifelse(((as.numeric(probmean) < CUTm
 
 cor.test(as.numeric(probmean),probstderr)
 
-}
 }
 }
 
