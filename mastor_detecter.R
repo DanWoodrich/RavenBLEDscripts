@@ -1291,7 +1291,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
@@ -1991,7 +1991,8 @@ for(n in unique(data3[,1])){
 data3moors<-data3[which(data3[,1]==n),]
 plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==n),2])
 abline(h=CUTmean,col="red")
-lines(lowess(data3moors[,pos+5]))
+abline(h=0.5,lty=3)
+#lines(lowess(data3moors[,pos+5]))
 #lines(lowess(data3moors[,pos+4]))
 #lines(lowess(data3moors[,pos+2]))
 lines((data3moors[,pos+3]*10)+0.5,col="blue") #backwards through data 
