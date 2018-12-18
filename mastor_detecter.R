@@ -1290,10 +1290,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1482,7 +1482,7 @@ for(m in moorings){
     decimateData(sfpath,1)
     }
     print(paste("SoXing file",combSound))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe="E:\\Accessory\\sox-14-4-2")
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2")
     
     }
   
@@ -2211,6 +2211,7 @@ decimateData(sfpath,2)
 
   if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
     unlink(paste(startcombpath,m,"/",whiten2,sep=""),recursive=TRUE)
+    dir.create(paste(startcombpath,m,sep=""))
     dir.create(paste(startcombpath,m,"/",whiten2,sep=""))
     file.copy(paste(paste(pathh,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
     shell(paste("rmdir",shQuote(pathh),"/s","/q"))
@@ -2283,7 +2284,7 @@ decimateData(sfpath,2)
 }
 
 #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-write.csv(durTab,paste(filePath,"/SFiles_and_durations.csv",sep=""),row.names = F)
+write.csv(durTab,paste(startcombpath,m,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 
 findata<-process_data(2)
 
