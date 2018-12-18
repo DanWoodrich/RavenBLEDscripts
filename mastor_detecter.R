@@ -299,7 +299,8 @@ GS_algo<-function(GSdata,detector){
 
 sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
-dir.create(paste(pathh,"/",whiten2,"/",sep=""))
+dir.create(paste(pathh,"/",m,sep=""))
+dir.create(paste(pathh,"/",m,"/",whiten2,"/",sep=""))
 print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
 sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
 durList<-duration_store(numPass)
@@ -2127,7 +2128,7 @@ decimateData(sfpath,2)
       sound_files_all <- dir(filePath,pattern=".wav") #
       fileSizeInt <- fileSizeInt2
       sfpath<-filePath
-      if(!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+      if(!file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
       bigFile_breaks<-c(seq(1,length(sound_files_all),fileSizeInt),length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
       }else{
         bigFile_breaks<-seq(from=1,by=fileSizeInt,length.out=length(sound_files_all)) #[sample.int(58,size=2,replace=F)] #last index for run test. 
@@ -2150,9 +2151,9 @@ decimateData(sfpath,2)
       }else{
       pathh<-paste(startcombpath,spec,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
-        durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
+        durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
         filePath<- paste(pathh,whiten2,sep="")
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
@@ -2161,7 +2162,7 @@ decimateData(sfpath,2)
       }else{
         did2=NULL
         durTab<-sox.write(1)
-        filePath<- paste(pathh,whiten2,sep="")
+        filePath<- paste(pathh,"/",m,"/",whiten2,sep="")
       }
       
     }else if(whiten=="n" & moorType!="HG"){
@@ -2174,9 +2175,9 @@ decimateData(sfpath,2)
       }else{
         pathh<-paste(startcombpath,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
-      if(file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
-        durTab <-read.csv(paste(pathh,whiten2,"/SFiles_and_durations.csv",sep=""))   
+      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
+        durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))   
         filePath<- paste(pathh,whiten2,sep="")
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
@@ -2185,7 +2186,7 @@ decimateData(sfpath,2)
       }else{
         did2=NULL
         durTab<-sox.write(1)
-        filePath<- paste(pathh,whiten2,sep="")
+        filePath<- paste(pathh,"/",m,"/",whiten2,sep="")
       }
 
 
@@ -2216,7 +2217,7 @@ decimateData(sfpath,2)
     unlink(paste(startcombpath,m,"/",whiten2,sep=""),recursive=TRUE)
     dir.create(paste(startcombpath,m,sep=""))
     dir.create(paste(startcombpath,m,"/",whiten2,sep=""))
-    file.copy(paste(paste(pathh,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
+    file.copy(paste(paste(pathh,"/",m,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",m,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
     shell(paste("rmdir",shQuote(pathh),"/s","/q"))
     durTab<-durTab2
     
