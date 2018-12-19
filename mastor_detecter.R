@@ -53,6 +53,12 @@ decimateData<-function(dpath,whichRun){
         print(paste(z,"to",dpath))
         wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
+        if(wav@samp.rate<16384){
+        dfact<-16384/wav@samp.rate
+        decdo<-prime.factor(decimationFactor/dfact)
+        }else{
+        decdo<-decimationSteps
+        }
         wav<-wav@left
         for(h in decimationSteps){
           wav<-decimate(wav,h)
@@ -61,7 +67,7 @@ decimateData<-function(dpath,whichRun){
         #wav<-normalize(wav,unit="16")
         writeWave.nowarn(wav, filename=paste(dpath,"/",z,sep=""),extensible = FALSE)
       }
-      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      write.table(paste("This data has been decimated by factor of",decimationFactor,"from 16384 (less if a lower sample rate"),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
 }
@@ -1316,9 +1322,9 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
@@ -1499,15 +1505,12 @@ for(m in moorings){
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
-    print(paste("SoXing file",combSound))
-    
     if(decimate=="y"){
     sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
     decimateData(sfpath,1)
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-    }else{
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[as.numeric(MooringsDat[2,colnames(MooringsDat)==m]):as.numeric(MooringsDat[3,colnames(MooringsDat)==m])],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     }
+    print(paste("SoXing file",combSound))
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     }
   
   
