@@ -2060,6 +2060,31 @@ save(data.rf, file = paste(drivepath,"DetectorRunOutput/",runname,"/an_example_m
 
 if(runNewData=="y"){
   
+  if(moorType=="HG"){
+    allDataPath<-paste(drivepath,"Datasets",sep="")
+  }else{
+    allDataPath<-paste(drivepath,"Full_datasets",sep="")
+  }
+  
+  if(decimate=="y"){
+    ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
+    
+    allMoorings<-dir(allDataPath,pattern=paste("_decimate_by_",decimationFactor,sep="")) 
+    
+    if(length(allMoorings)!=0){
+    decDone<-TRUE
+    }else{
+    allMoorings<-dir(allDataPath)
+    decDone<-FALSE
+    }
+    }
+  
+  if(whiten=="y"){
+    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) 
+  }
+
+for(m in allMoorings){
+  
   if(whiten!="y"){
     fileSizeInt<-(fileCombinesize*decimationFactor)
   }else{
@@ -2076,30 +2101,6 @@ if(runNewData=="y"){
     iterate_SF<-1
   }
   
-  if(moorType=="HG"){
-    allDataPath<-paste(drivepath,"Datasets",sep="")
-  }else{
-    allDataPath<-paste(drivepath,"Full_datasets",sep="")
-  }
-  
-  if(decimate=="y"){
-    ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
-    
-    allMoorings<-dir(allDataPath,pattern=paste("_decimate_by_",decimationFactor,sep="")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
-    
-    if(length(allMoorings)!=0){
-    decDone<-TRUE
-    }else{
-    allMoorings<-dir(allDataPath)
-    decDone<-FALSE
-    }
-    }
-  
-  if(whiten=="y"){
-    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) #Just AW12_AU_BS3 right now, need fully analyzed GT to test on full mooring
-  }
-
-for(m in allMoorings){
 
 if(moorType=="HG"){
   sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
@@ -2154,7 +2155,7 @@ decimateData(sfpath,2)
       combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
-        filePath<- paste(pathh,whiten2,sep="")
+        filePath<- paste(pathh,"/",m,whiten2,sep="")
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
@@ -2178,7 +2179,7 @@ decimateData(sfpath,2)
       combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))   
-        filePath<- paste(pathh,whiten2,sep="")
+        filePath<- paste(pathh,"/",m,"/",whiten2,sep="")
         did2=NULL
       }else if(a==2&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
@@ -2285,10 +2286,11 @@ decimateData(sfpath,2)
       }
     }  
   }
+  #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
+  write.csv(durTab,paste(startcombpath,m,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
 }
 
-#write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-write.csv(durTab,paste(startcombpath,m,"/",whiten2,"/SFiles_and_durations.csv",sep=""),row.names = F)
+
 
 findata<-process_data(2)
 
