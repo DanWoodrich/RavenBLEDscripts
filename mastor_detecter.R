@@ -36,8 +36,8 @@ library(signal)
 decimateData<-function(dpath,whichRun){
   print(paste("decimate file",dpath))
   if(whichRun==1){
-    fstart<-MooringsDat[2,colnames(MooringsDat)==m]
-    fend<-MooringsDat[3,colnames(MooringsDat)==m]
+    fstart<-as.numeric(MooringsDat[2,colnames(MooringsDat)==m])
+    fend<-as.numeric(MooringsDat[3,colnames(MooringsDat)==m])
     dpath2<-dpath
     dpath<-paste(dpath2,whiten2,sep="")
   }else if(whichRun==2){
@@ -1316,10 +1316,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1402,6 +1402,7 @@ moorings<- colnames(MooringsDat)
   }else{
   }
   moorings<-colnames(MooringsDat)
+  
 }
 
 
@@ -1447,7 +1448,7 @@ if(whiten=="n"){
 #path to ground truth table
 GT<-list()
 for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste(drivepath,"/",spec,"/Selection tables/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",spec,"/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
 
@@ -1490,21 +1491,23 @@ for(m in moorings){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
   sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
-  sound_files <- dir(sfpath,pattern=".wav")[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]] #based on amount analyzed in GT set
+  sound_files <- dir(sfpath,pattern=".wav")[as.numeric(MooringsDat[2,colnames(MooringsDat)==m]):as.numeric(MooringsDat[3,colnames(MooringsDat)==m])] #based on amount analyzed in GT set
   sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
-  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",as.numeric(MooringsDat[2,colnames(MooringsDat)==m]),"-",as.numeric(MooringsDat[3,colnames(MooringsDat)==m]),".wav",sep="")
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
+    print(paste("SoXing file",combSound))
+    
     if(decimate=="y"){
     sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
     decimateData(sfpath,1)
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
+    }else{
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[as.numeric(MooringsDat[2,colnames(MooringsDat)==m]):as.numeric(MooringsDat[3,colnames(MooringsDat)==m])],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     }
-    print(paste("SoXing file",combSound))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[MooringsDat[2,colnames(MooringsDat)==m]:MooringsDat[3,colnames(MooringsDat)==m]],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-    
     }
   
   
@@ -1515,7 +1518,7 @@ for(m in moorings){
   }
   }
 
-  combname<- paste(m,"_files",MooringsDat[2,colnames(MooringsDat)==m],"-",MooringsDat[3,colnames(MooringsDat)==m],".wav",sep="")
+  combname<- paste(m,"_files",as.numeric(MooringsDat[2,colnames(MooringsDat)==m]),"-",as.numeric(MooringsDat[3,colnames(MooringsDat)==m]),".wav",sep="")
   endPath<-paste(startcombpath,spec,"/",whiten2,sep="")
   
 #run pulse and fin/mooring detector, if selected:
