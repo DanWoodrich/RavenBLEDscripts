@@ -53,15 +53,21 @@ decimateData<-function(dpath,whichRun){
         print(paste(z,"to",dpath))
         wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
         wav.samp.rate<-wav@samp.rate
+        if(wav@samp.rate<16384){
+        dfact<-16384/wav@samp.rate
+        decdo<-prime.factor(decimationFactor/dfact)
+        }else{
+        decdo<-decimationSteps
+        }
         wav<-wav@left
-        for(h in decimationSteps){
+        for(h in decdo){
           wav<-decimate(wav,h)
         }
-        wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
+        wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
         #wav<-normalize(wav,unit="16")
         writeWave.nowarn(wav, filename=paste(dpath,"/",z,sep=""),extensible = FALSE)
       }
-      write.table(paste("This data has been decimated by factor of",decimationFactor),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      write.table(paste("This data has been decimated by factor of",decdo),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
 }
@@ -74,20 +80,19 @@ parAlgo<-function(dataaa){
   
   clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo"))
   
-  wantedSelections<-c()
   if(spec=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
-      tempSelects<-RW_algo(resltsTSPVmat=dataaa,f=grouppp)
-      as.integer(tempSelects)
-  }
+      RW_algo(resltsTSPVmat=dataaa,f=grouppp)
+    }
+    wantedSelections<-do.call('c', wantedSelections)
   }else if(spec=="GS"){
-    wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
-      tempSelects<-GS_algo(resltsTSPVmat=dataaa,f=grouppp)
-      as.integer(tempSelects)
-  }
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+      GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+    }
+    wantedSelections<-do.call('c', wantedSelections)
   }
   stopCluster(cluz)
-  return(wantedSelections)
+  return(as.integer(wantedSelections))
 }
 
 RW_algo<-function(resltsTSPVmat,f){
@@ -241,7 +246,7 @@ RW_algo<-function(resltsTSPVmat,f){
     groupdat<-groupdat[,c(1:3,3+runsum[,1])]
     wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
   }
-  return(as.integer(wantedSelections))
+  return(wantedSelections)
 }
 
 GS_algo<-function(resltsTSPVmat,f){
@@ -316,7 +321,7 @@ GS_algo<-function(resltsTSPVmat,f){
   groupdat<-groupdat[,c(1:3,3+runsum[,1])]
   wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
   }
-return(as.integer(wantedSelections))
+return(wantedSelections)
 }
 
 sox.write<-function(numPass){
@@ -912,9 +917,9 @@ for(m in unique(libb[,3])){
   
 
   
-print("extracting spectral parameters")
+#print("extracting spectral parameters")
 for(z in 1:rowcount){
-  print(z)
+  #print(z)
   #store reused calculations to avoid indexing 
   Start<-specVar[z,2]
   End<-  specVar[z,3]
@@ -1069,9 +1074,9 @@ if(dettype=="spread"|dettype=="combined"){
     
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
-
+      print(system.time(parAlgo(Matdata)))
       wantedSelections<-parAlgo(Matdata)
-
+      
       Matdata<<-NULL
       detector<<-NULL
       resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
@@ -1525,15 +1530,12 @@ for(m in moorings){
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
-    print(paste("SoXing file",combSound))
-    
     if(decimate=="y"){
     sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
     decimateData(sfpath,1)
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-    }else{
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath[as.numeric(MooringsDat[2,colnames(MooringsDat)==m]):as.numeric(MooringsDat[3,colnames(MooringsDat)==m])],collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     }
+    print(paste("SoXing file",combSound))
+    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
     }
   
   
@@ -1901,6 +1903,7 @@ data$Selection<-seq(1,nrow(data))
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),1)
+print("extracting features from FFT of each putative call")
 dataMat<-spectral_features(dataMat,moorlib,1)
 
 dataMat<-data.frame(dataMat)
