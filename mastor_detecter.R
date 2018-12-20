@@ -854,60 +854,84 @@ durList<-list(durTab,durTab2)
 }
 
 spectral_features<- function(specdata,libb,whichRun){
+  
+  specTab<-NULL
+  
+for(m in unique(libb[,3])){
+  
+  specVar<-NULL
+    
   if(whichRun==1){
     if(whiten=="y"){
       specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,sep="")
     }else{
       specpath<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
-        }
-  }else{
-    if(whiten=="y" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,sep="")
-    }else if(whiten=="y" & moorType!="HG"){
-      specpath<-paste(startcombpath,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,sep="")
-    }else if(whiten=="n" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",spec,"/Entire_No_whiten",sep="")
-    }else{
-      specpath<-paste(startcombpath,"/Entire_full_No_whiten",sep="")
     }
+    
+    if(is.null(nrow(specdata))){
+      rowcount<-1
+      specVar<-c(specdata,matrix(1,rowcount,29))
+      specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
+      
+    }else{
+      rowcount<-nrow(specdata)
+      specVar<-cbind(specdata,matrix(1,rowcount,29))
+      
+    }
+    
+  }else{
+    
+    if(whiten=="y" & moorType=="HG"){
+      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,sep="")
+    }else if(whiten=="y" & moorType!="HG"){
+      specpath<-paste(startcombpath,"/",m,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,sep="")
+    }else if(whiten=="n" & moorType=="HG"){
+      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
+    }else{
+      specpath<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
+    }
+    
+    
+    if(is.null(nrow(specdata))){
+      rowcount<-1
+      specVar<-c(specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),],matrix(1,rowcount,29))
+      specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
+      
+    }else{
+      rowcount<-nrow(specdata)
+      specVar<-cbind(specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),],matrix(1,rowcount,29))
+      
+    }
+    
   }
-
+  
+  
   if(decimate=="y"){
     specpath<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
-  if(is.null(nrow(specdata))){
-    rowcount<-1
-    specdata<-c(specdata,matrix(1,rowcount,31))
-    specdata<-rbind(specdata,matrix(1,rowcount,29+5)) #make 
-    
-  }else{
-    rowcount<-nrow(specdata)
-    specdata<-cbind(specdata,matrix(1,rowcount,29))
-    
-  }
-  
+
   
 print("extracting spectral parameters")
 for(z in 1:rowcount){
   print(z)
   #store reused calculations to avoid indexing 
-  Start<-specdata[z,2]
-  End<-  specdata[z,3]
-  Low<-specdata[z,4]
-  High<-specdata[z,5]
+  Start<-specVar[z,2]
+  End<-  specVar[z,3]
+  Low<-specVar[z,4]
+  High<-specVar[z,5]
   
-  foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specdata[z,1]),2],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specVar[z,1]),2],sep=""),Start,End,units="seconds")
 
   sample_rate.og<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
   foo.spec <- spec(foo,plot=F, PSD=T)
-  #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specdata$Low.Freq..Hz.[z],specdata$High.Freq..Hz.[z])
+  #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=90,wl=128)#not sure what ovlp parameter does but initially set to 90 #
-  #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specdata$Low.Freq..Hz.[z]/1000,specdata$High.Freq..Hz.[z]/1000)
+  #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
   #foo.autoc = autoc(foo, plot=F,wl=128) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=90,wl=128) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
@@ -915,42 +939,42 @@ for(z in 1:rowcount){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  specdata[z,6] = rugo(foo@left / max(foo@left)) #rugosity
-  specdata[z,7] = crest(foo)$C #crest factor
+  specVar[z,6] = rugo(foo@left / max(foo@left)) #rugosity
+  specVar[z,7] = crest(foo)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  specdata[z,8] = th(foo.env) #temporal entropy
-  specdata[z,9] = sh(foo.spec) #shannon entropy
-  specdata[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  #specdata[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
- # specdata[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  #specdata[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specdata[z,11] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specdata[z,12] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specdata[z,13] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  #specdata[z,16] = foo.specprop$sd[1] #specprop sd
-  #specdata[z,17] = foo.specprop$sem[1] #specprop sem
-  specdata[z,14] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specdata[z,15] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specdata[z,16] = foo.specprop$Q25[1] # specprop q25
-  specdata[z,17] = foo.specprop$Q75[1] #specprop q75
-  specdata[z,18] = foo.specprop$IQR[1] #specprop IQR
-  specdata[z,19] = foo.specprop$cent[1] #specrop cent
-  specdata[z,20] = foo.specprop$skewness[1] #specprop skewness
-  specdata[z,21] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specdata[z,22] = foo.specprop$sfm[1] #specprop sfm
-  specdata[z,23] = foo.specprop$sh[1] #specprop sh
-  specdata[z,24] = foo.specprop$prec[1] #specprop prec
-  specdata[z,25] = M(foo) #amp env median
-  specdata[z,26] = H(foo,wl=128) #total entropy
- # specdata$reonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
+  specVar[z,8] = th(foo.env) #temporal entropy
+  specVar[z,9] = sh(foo.spec) #shannon entropy
+  specVar[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
+  #specVar[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+ # specVar[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  #specVar[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specVar[z,11] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specVar[z,12] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specVar[z,13] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  #specVar[z,16] = foo.specprop$sd[1] #specprop sd
+  #specVar[z,17] = foo.specprop$sem[1] #specprop sem
+  specVar[z,14] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specVar[z,15] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specVar[z,16] = foo.specprop$Q25[1] # specprop q25
+  specVar[z,17] = foo.specprop$Q75[1] #specprop q75
+  specVar[z,18] = foo.specprop$IQR[1] #specprop IQR
+  specVar[z,19] = foo.specprop$cent[1] #specrop cent
+  specVar[z,20] = foo.specprop$skewness[1] #specprop skewness
+  specVar[z,21] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specVar[z,22] = foo.specprop$sfm[1] #specprop sfm
+  specVar[z,23] = foo.specprop$sh[1] #specprop sh
+  specVar[z,24] = foo.specprop$prec[1] #specprop prec
+  specVar[z,25] = M(foo) #amp env median
+  specVar[z,26] = H(foo,wl=128) #total entropy
+ # specVar$reonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
   #warbler params
-  specdata[z,27]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specdata[z,28]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specdata[z,29]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specdata[z,30]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specdata[z,31]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specdata[z,32]<-Dfrange #dfrange
-  specdata[z,33]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specVar[z,27]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specVar[z,28]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specVar[z,29]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specVar[z,30]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specVar[z,31]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specVar[z,32]<-Dfrange #dfrange
+  specVar[z,33]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
   wl<-128
   
@@ -977,14 +1001,16 @@ for(z in 1:rowcount){
   zx <- zx/max(zx)
   
   # return low and high freq
-  specdata[z,34]  <- zf[which.max(zx)] + (step / 2)
+  specVar[z,34]  <- zf[which.max(zx)] + (step / 2)
 
 
-  }
+}
+specTab<-rbind(specTab,specVar)
+}
   if(rowcount>1){
-  return(specdata)
+  return(specTab)
   }else{
-  return(specdata[1,])
+  return(specTab[1,])
   }
 }
 
@@ -1294,7 +1320,7 @@ outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
 outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
-spec <- "GS"
+spec <- "RW"
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
 ParamsTab[,3]<-as.character(ParamsTab[,3])
@@ -1316,10 +1342,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
+runRavenGT<-"n"
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
+runNewData<-"y" #run on data that has not been ground truthed. 
 
 #enter the run name:
 runname<- "new feature and algo as function test "
@@ -1874,7 +1900,7 @@ data$Selection<-seq(1,nrow(data))
 #"vectorize" data frame. 
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
-moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(unique(data$`soundfiles[n]`)))
+moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),1)
 dataMat<-spectral_features(dataMat,moorlib,1)
 
 dataMat<-data.frame(dataMat)
@@ -1900,8 +1926,8 @@ data2$detectionType<-as.factor(data2$detectionType)
   data2<-data[,c(1,2,5,6,7,8,9:length(data))]
   data2$detectionType<-as.factor(data2$detectionType)
   
-  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(unique(data2$`soundfiles[n]`)))
-  
+  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),1)
+
 }
 
 if(runTestModel=="y"){
@@ -2105,8 +2131,16 @@ if(runNewData=="y"){
   if(whiten=="y"){
     allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) 
   }
+  
+  #
+  #run sound files:
+  resltsTab <- NULL
+  resltsTabInt<- NULL
 
 for(m in allMoorings){
+  
+  durTab<-NULL
+  durTab2<-NULL
   
   if(whiten!="y"){
     fileSizeInt<-(fileCombinesize*decimationFactor)
@@ -2130,13 +2164,6 @@ if(moorType=="HG"){
 }else{
   sfpath<-paste(drivepath,"Full_datasets/",m,sep = "")
 }
-
-#
-#run sound files:
-resltsTab <- NULL
-resltsTabInt<- NULL
-durTab<-NULL
-durTab2<-NULL
 
 #decimate dataset. 
 if(decimate=="y"&!decDone){
@@ -2372,7 +2399,7 @@ detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName,
 #  }
 #}
 #
-moorlib<-cbind(seq(1,length(unique(findata$sound.files)),1),as.character(unique(findata$sound.files)))
+moorlib<-cbind(seq(1,length(unique(findata$sound.files)),1),as.character(sort(unique(findata$sound.files))),as.character(sort(unique(findata$Mooring))))
 
 findata$sound.files<-as.factor(findata$sound.files)
 findataMat<- data.matrix(findata[c(13,4,5,6,7)])
