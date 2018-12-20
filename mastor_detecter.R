@@ -893,9 +893,9 @@ spectral_features<- function(specdata,libb,whichRun){
   }
   
   
-print("extracting spectral parameters")
+#print("extracting spectral parameters")
 for(z in 1:rowcount){
-  print(z)
+  #print(z)
   #store reused calculations to avoid indexing 
   Start<-specdata[z,2]
   End<-  specdata[z,3]
@@ -1048,9 +1048,9 @@ if(dettype=="spread"|dettype=="combined"){
     
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
-
+      print(system.time(parAlgo(Matdata)))
       wantedSelections<-parAlgo(Matdata)
-
+      
       Matdata<<-NULL
       detector<<-NULL
       resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
@@ -1321,7 +1321,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ################Script function
 
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
@@ -1877,6 +1877,7 @@ data$Selection<-seq(1,nrow(data))
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(unique(data$`soundfiles[n]`)))
+print("extracting features from FFT of each putative call")
 dataMat<-spectral_features(dataMat,moorlib,1)
 
 dataMat<-data.frame(dataMat)
