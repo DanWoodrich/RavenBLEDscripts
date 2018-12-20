@@ -1325,7 +1325,11 @@ outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
 outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
-spec <- "RW"
+if(user=="ACS-3"){
+  spec <- "RW"
+}else{
+  spec <- "GS"
+}
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
 ParamsTab[,3]<-as.character(ParamsTab[,3])
@@ -1346,11 +1350,19 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 ################Script function
 
+if(user=="ACS-3"){
 ##########sections to run
 runRavenGT<-"n"
 runProcessGT<-"n"
 runTestModel<-"n" #run model on GT data
 runNewData<-"y" #run on data that has not been ground truthed. 
+}else{
+##########sections to run
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
+}
 
 #enter the run name:
 runname<- "new feature and algo as function test "
