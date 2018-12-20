@@ -60,14 +60,14 @@ decimateData<-function(dpath,whichRun){
         decdo<-decimationSteps
         }
         wav<-wav@left
-        for(h in decimationSteps){
+        for(h in decdo){
           wav<-decimate(wav,h)
         }
-        wav <- Wave(wav, right = numeric(0), samp.rate = wav.samp.rate/decimationFactor)
+        wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
         #wav<-normalize(wav,unit="16")
         writeWave.nowarn(wav, filename=paste(dpath,"/",z,sep=""),extensible = FALSE)
       }
-      write.table(paste("This data has been decimated by factor of",decimationFactor,"from 16384 (less if a lower sample rate"),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      write.table(paste("This data has been decimated by factor of",decdo),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
     }
 }
@@ -80,20 +80,19 @@ parAlgo<-function(dataaa){
   
   clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo"))
   
-  wantedSelections<-c()
   if(spec=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
-      tempSelects<-RW_algo(resltsTSPVmat=dataaa,f=grouppp)
-      as.integer(tempSelects)
-  }
+      RW_algo(resltsTSPVmat=dataaa,f=grouppp)
+    }
+    wantedSelections<-do.call('c', wantedSelections)
   }else if(spec=="GS"){
-    wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
-      tempSelects<-GS_algo(resltsTSPVmat=dataaa,f=grouppp)
-      as.integer(tempSelects)
-  }
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+      GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+    }
+    wantedSelections<-do.call('c', wantedSelections)
   }
   stopCluster(cluz)
-  return(wantedSelections)
+  return(as.integer(wantedSelections))
 }
 
 RW_algo<-function(resltsTSPVmat,f){
@@ -247,7 +246,7 @@ RW_algo<-function(resltsTSPVmat,f){
     groupdat<-groupdat[,c(1:3,3+runsum[,1])]
     wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
   }
-  return(as.integer(wantedSelections))
+  return(wantedSelections)
 }
 
 GS_algo<-function(resltsTSPVmat,f){
@@ -322,7 +321,7 @@ GS_algo<-function(resltsTSPVmat,f){
   groupdat<-groupdat[,c(1:3,3+runsum[,1])]
   wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
   }
-return(as.integer(wantedSelections))
+return(wantedSelections)
 }
 
 sox.write<-function(numPass){
@@ -1324,7 +1323,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 ##########sections to run
 runRavenGT<-"n"
 runProcessGT<-"y"
-runTestModel<-"n" #run model on GT data
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 
 #enter the run name:
