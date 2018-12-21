@@ -1078,7 +1078,7 @@ if(dettype=="spread"|dettype=="combined"){
     
       #updated algorithm, optimized for performance. avoids r bind
       print(paste("calculating best runs for each group"))
-      print(system.time(parAlgo(Matdata)))
+      #print(system.time(parAlgo(Matdata)))
       wantedSelections<-parAlgo(Matdata)
       
       Matdata<<-NULL
