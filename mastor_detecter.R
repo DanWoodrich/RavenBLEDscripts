@@ -74,7 +74,11 @@ decimateData<-function(dpath,whichRun){
 
 
 parAlgo<-function(dataaa){
-  num_cores <- detectCores() - 1
+  if(user<-"ACS-3"){
+  num_cores <- detectCores()
+  }else{
+  num_cores <- detectCores()-1
+  }
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
