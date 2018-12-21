@@ -81,7 +81,7 @@ parAlgo<-function(dataaa){
   clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo"))
   
   if(spec=="RW"){
-    wantedSelections<-foreach(grouppp=unique(dataaa[,2]),.combine=c) %dopar% {
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
       RW_algo(resltsTSPVmat=dataaa,f=grouppp)
     }
     wantedSelections<-do.call('c', wantedSelections)
