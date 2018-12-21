@@ -74,7 +74,7 @@ decimateData<-function(dpath,whichRun){
 
 
 parAlgo<-function(dataaa){
-  if(user<-"ACS-3"){
+  if(user=="ACS-3"){
   num_cores <- detectCores()
   }else{
   num_cores <- detectCores()-1
