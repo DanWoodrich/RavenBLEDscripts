@@ -291,10 +291,9 @@ GS_algo<-function(resltsTSPVmat,f){
       }
     }
     }
-   # runsum[g,6]<-groupdat[groupdat[1,]]
   }
-  
-  runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
+  #Stopped here: just need to select for runs that fit criteria. Then figure out how to export the data and create new groups. 
+  #runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
 
   if((runsum[,2]+1)>=grpsize[detector]){
   groupdat<-groupdat[,c(1:3,3+runsum[,1])]
