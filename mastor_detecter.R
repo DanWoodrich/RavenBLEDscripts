@@ -881,8 +881,9 @@ for(m in unique(libb[,3])){
       specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
       
     }else{
-      rowcount<-nrow(specdata)
-      specVar<-cbind(specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),],matrix(1,rowcount,29))
+      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<-nrow(specVar)
+      specVar<-cbind(specVar,matrix(1,rowcount,29))
       
     }
     
