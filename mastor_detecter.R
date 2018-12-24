@@ -86,12 +86,12 @@ parAlgo<-function(dataaa){
   
   if(spec=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      RW_algo(resltsTSPVmat=dataaa,f=grouppp)
+      RW_algo(resltsTSPVmat=dataaa[,1:3],f=grouppp)
     }
     wantedSelections<-do.call('c', wantedSelections)
   }else if(spec=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      GS_algo(resltsTSPVmat=dataaa,f=grouppp)
+      GS_algo(resltsTSPVmat=dataaa[,c(1:2,4:5)],f=grouppp)
     }
     wantedSelections<-do.call('c', wantedSelections)
   }
@@ -115,6 +115,9 @@ RW_algo<-function(resltsTSPVmat,f){
     for(h in g:(nrow(groupdat)-1)){
       rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
       if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[detector])){
+        for(q in 1:allowedZeros){
+          groupdat[h-(q-1),4+g]<-99
+        }
         break
       }  
       if(RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
@@ -147,16 +150,6 @@ RW_algo<-function(resltsTSPVmat,f){
         }
       grouptemp<-NULL
         }
-      
-    if(any(groupdat[,4]==1)){
-      grouptemp<-tail(groupdat[which(groupdat[,4]==1),3])
-      last<-tail(groupdat[which(groupdat[,4]==1),3])[length(grouptemp)]
-      if(any(groupdat[,4]==0&groupdat[,3]>last)){
-      groupdat[which(groupdat[,4]==0&groupdat[,3]>last),4]<-99 #change trailing 0s to 99s
-      }
-      grouptemp<-NULL
-      last<-NULL
-    }
       
     runsum[g,1]<-g
     runsum[g,2]<-sum(groupdat[,3+g]==1)
@@ -192,6 +185,9 @@ RW_algo<-function(resltsTSPVmat,f){
       for(h in g:(nrow(groupdat2)-1)){
         rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
         if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
+          for(q in 1:allowedZeros){
+            groupdat2[h-(q-1),4+g]<-99
+          }
           break
         }  
         if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
@@ -254,72 +250,50 @@ RW_algo<-function(resltsTSPVmat,f){
 }
 
 GS_algo<-function(resltsTSPVmat,f){
+  #timesepGS<-0.06
+  #groupdat[,3]=start time
+  #groupdat[,4]=end time 
   wantedSelections<-c()
   groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-  grpvec<-groupdat[,1]
-  colClasses = c("numeric","numeric","numeric","numeric","numeric")
-  runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-  
-  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-  groupdat<-groupdat[order(groupdat[,3],-groupdat[,1]),]#reverse the order it counts stacks detections
-  grpvec<-groupdat[,1]
-  colClasses = c("numeric","numeric","numeric","numeric","numeric")
-  runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+  groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detections
   for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
+    RT<-groupdat[g,3]
     RM<-groupdat[g,1]
     groupdat<-cbind(groupdat,0)
-    groupdat[,3+g]<-99
-    groupdat[g,3+g]<-2
+    groupdat[,4+g]<-99
+    groupdat[g,4+g]<-2
     skipvec<-0
+    if(any(groupdat[g,5:ncol(groupdat)]==1)&g>1){
+      #do not compute run
+    }else if(g==1|g>1){
     for(h in g:(nrow(groupdat)-1)){
-      rsltvec0s2<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
+      rsltvec0s2<-rle(groupdat[,4+g][! groupdat[,4+g] %in% 98])
       if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
+        for(q in 1:allowedZeros){
+          groupdat[h-(q-1),4+g]<-99
+        }
         break
       }  
-      if(RM>grpvec[h+1]&RM-(detskip[detector]+1)<grpvec[h+1]){
-        groupdat[h+1,3+g]<-1
-        skipvec<-c(skipvec,(grpvec[h+1]-RM))
-        RM<-grpvec[h+1]
-      }else if((RM<=grpvec[h+1])&RM-(detskip[detector]+1)<grpvec[h+1]&RM+(detskip[detector]+1)>=grpvec[h+1]){
-        groupdat[h+1,3+g]<-0
-      }else if((RM<=grpvec[h+1])&(RM-(detskip[detector]+1)>=grpvec[h+1])|RM+(detskip[detector]+1)<grpvec[h+1]){
-        groupdat[h+1,3+g]<-98
-      }
-    }
-    
-    #replace 1s that are more than 0.5s apart from last in sequence to 0s
-    if(any(groupdat[,4]==1)){
-      grouptemp<-groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]
-      for(c in 1:(nrow(grouptemp)-1)){
-        if(grouptemp[c,3]+0.5<grouptemp[c+1,3]){
-          grouptemp[(c+1):nrow(grouptemp),4]<-99
-          groupdat[which(rownames(groupdat) %in% rownames(grouptemp)),3+g]<-grouptemp[,4]
-          break
+      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepGS<0&RT-groupdat[h+1,3]+timesepGS>0)&(RT-groupdat[h+1,4]-timesepGS<0&groupdat[h+1,4]-RT+timesepGS>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+        if(RT-groupdat[h+1,3]-timesepGS<0&groupdat[h+1,3]-RT+timesepGS>0){
+          boxPos<-groupdat[h+1,3]
+        }else{
+          boxPos<-groupdat[h+1,4]
         }
+        groupdat[h+1,4+g]<-1
+        skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
+        RT<-groupdat[h+1,boxPos]
+        RM<-groupdat[h+1,1]
+      }else if(RT==groupdat[h+1,1]){
+        groupdat[h+1,4+g]<-99
+      }else{
+        groupdat[h+1,4+g]<-0
       }
-      grouptemp<-NULL
     }
-    
-    if(any(groupdat[,4]==1)){
-      grouptemp<-tail(groupdat[which(groupdat[,4]==1),3])
-      last<-tail(groupdat[which(groupdat[,4]==1),3])[length(grouptemp)]
-      if(any(groupdat[,4]==0&groupdat[,3]>last)){
-        groupdat[which(groupdat[,4]==0&groupdat[,3]>last),4]<-99 #change trailing 0s to 99s
-      }
-      grouptemp<-NULL
-      last<-NULL
     }
-    runsum[g,1]<-g
-    runsum[g,2]<-sum(groupdat[,3+g]==1)
-    runsum[g,3]<-sum(groupdat[,3+g]==0)
-    runsum[g,4]<-(sum(groupdat[,3+g]==1)+sum(groupdat[,3+g]==0)+1)
-    runsum[g,5]<-max(-skipvec)
   }
-  runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
-  runsum<-runsum[which(runsum[,5]==min(runsum[,5])),] #choose w smallest maximum skip (most gradual)
-  runsum<-runsum[which(runsum[,3]==min(runsum[,3])),] #choose w least 0s
-  runsum<-runsum[which(runsum[,4]==min(runsum[,4])),] #choose w least length
-  runsum<-runsum[1,] #choose first one
+  #Stopped here: just need to select for runs that fit criteria. Then figure out how to export the data and create new groups. 
+  #runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
 
   if((runsum[,2]+1)>=grpsize[detector]){
   groupdat<-groupdat[,c(1:3,3+runsum[,1])]
@@ -1073,7 +1047,7 @@ if(dettype=="spread"|dettype=="combined"){
       #remove groups based on grpsize value
       removegrp <- table(resltsTSPV$group)
       resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-      Matdata<<-data.matrix(resltsTSPV[,c(13,14,15)])
+      Matdata<<-data.matrix(resltsTSPV[,c(13,14,15,4,5)])
       detector<<-d
     
       #updated algorithm, optimized for performance. avoids r bind
@@ -1363,8 +1337,8 @@ runNewData<-"y" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"y"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
+runProcessGT<-"n"
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
@@ -2072,8 +2046,8 @@ lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*6)),col="green")
 data3datFrame<-as.data.frame(data3)
 data3datFrame$detectionType<-as.factor(data3datFrame$detectionType)
 #see freq breakdown of calls 
-cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
+cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #freqrange
 #cdplot(data3datFrame$detectionType ~ data3datFrame$specprop.mode, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 #cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
