@@ -2301,7 +2301,7 @@ decimateData(sfpath,2)
   
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
-    for(b in 1:(length(bigFile_breaks)-1)){
+    for(b in 1:length(bigFile_breaks)){
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(i in interfereVec){
         print(paste("Running detector for",combname))
@@ -2319,7 +2319,7 @@ decimateData(sfpath,2)
     }
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
-    for(b in 1:(length(bigFile_breaks)-1)){ #1:(length(bigFile_breaks)-1)
+    for(b in 1:length(bigFile_breaks)){ 
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
@@ -2339,7 +2339,7 @@ decimateData(sfpath,2)
   }
   
   if(dettype=="single"|dettype=="combined"){
-    for(b in 1:(length(bigFile_breaks)-1)){
+    for(b in 1:length(bigFile_breaks)-1){
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
