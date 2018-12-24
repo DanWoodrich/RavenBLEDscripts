@@ -1912,7 +1912,7 @@ data$Selection<-seq(1,nrow(data))
 #"vectorize" data frame. 
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
-moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),seq(1,length(unique(data$`soundfiles[n]`)),1)))
+moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
 dataMat<-spectral_features(dataMat,moorlib,1)
 
@@ -1939,7 +1939,7 @@ data2$detectionType<-as.factor(data2$detectionType)
   data2<-data[,c(1,2,5,6,7,8,9:length(data))]
   data2$detectionType<-as.factor(data2$detectionType)
   
-  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),seq(1,length(unique(data$`soundfiles[n]`)),1)))
+  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 
 }
 
