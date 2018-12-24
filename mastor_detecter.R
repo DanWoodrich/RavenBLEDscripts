@@ -2313,7 +2313,7 @@ decimateData(sfpath,2)
   }
   
   if(dettype=="single"|dettype=="combined"){
-    for(b in 1:length(bigFile_breaks)-1){
+    for(b in 1:length(bigFile_breaks)){
       combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
