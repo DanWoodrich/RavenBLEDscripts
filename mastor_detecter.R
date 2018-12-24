@@ -648,29 +648,33 @@ context_sim <-function(sdata){
 
 after_model_write <-function(mdata,libb,finaldatrun){
   MoorVar1<-NULL
-  for(v in 1:length(unique(mdata[,1]))){
+  for(v in 1:length(unique(libb[,3]))){
     if(finaldatrun==1){
       name<-"RFA"
     }else{
       name<-"full"
     }
-    MoorVar1<-mdata[which(substr(libb[mdata[,1],2],1,11)==substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11)),]
+    MoorVar1<-mdata[which(mdata[,1] %in% libb[which(libb[,3]==sort(unique(libb[,3]))[v]),1]),]
 
     MoorVar1<-MoorVar1[which(MoorVar1[,pos-2]>CUTmean),]
     
-    numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),2]
+   
     
-    if(finaldatrun==2){
-    numTP<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),1]*TPRthresh
-    detTotal<-nrow(MoorVar1)
+    if(finaldatrun==1){
+    numTP<-sum(as.numeric(MoorVar1[,7])-1)
+    numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),2]
+    #use real TP values for GT data. 
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
-    }else{
-      #use real TP values for GT data. 
-      numTP<-sum(as.numeric(MoorVar1[,7])-1)
-      numFP<-(nrow(MoorVar1)-numTP)
-      numFN<-numTPtruth-numTP
+
+    }else if(finaldatrun==2){
+    numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],3,13),TPtottab$MoorCor)),2]
+    numTP<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],3,13),TPtottab$MoorCor)),2]*TPRthresh
+    detTotal<-nrow(MoorVar1)
+    numFP<-(nrow(MoorVar1)-numTP)
+    numFN<-numTPtruth-numTP
     }
+
     TPhitRate <- numTP/numTPtruth*100
     TPR <- numTP/(numTP+numFN)
     TPdivFP<- numTP/numFP
@@ -848,7 +852,13 @@ spectral_features<- function(specdata,libb,whichRun){
   
   specTab<-NULL
   
-for(m in unique(libb[,3])){
+  if(is.null(nrow(specdata))){
+  moors<-libb[which(libb[,1] %in% unique(specdata[1])),3]
+  }else{
+    moors<-unique(libb[,3])
+  }
+  
+for(m in moors){
   
   specVar<-NULL
     
@@ -885,7 +895,7 @@ for(m in unique(libb[,3])){
     
     if(is.null(nrow(specdata))){
       rowcount<-1
-      specVar<-c(specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),],matrix(1,rowcount,29))
+      specVar<-c(specdata,matrix(1,rowcount,29))
       specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
       
     }else{
@@ -1902,7 +1912,7 @@ data$Selection<-seq(1,nrow(data))
 #"vectorize" data frame. 
 
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
-moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),1)
+moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),seq(1,length(unique(data$`soundfiles[n]`)),1)))
 print("extracting features from FFT of each putative call")
 dataMat<-spectral_features(dataMat,moorlib,1)
 
@@ -1929,7 +1939,7 @@ data2$detectionType<-as.factor(data2$detectionType)
   data2<-data[,c(1,2,5,6,7,8,9:length(data))]
   data2$detectionType<-as.factor(data2$detectionType)
   
-  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),1)
+  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),seq(1,length(unique(data$`soundfiles[n]`)),1)))
 
 }
 
@@ -2469,7 +2479,6 @@ CUTstd.err<-std.error(CUTvec)
 
 
 
-#combine or eliminate detections within timediffself parameter
 findataMat<-cbind(findataMat[,1],seq(1:nrow(findataMat)),findataMat[,2:5],0,((findataMat[,4]+findataMat[,5])/2),(findataMat[,5]-findataMat[,4]),((findataMat[,2]+findataMat[,3])/2),findataMat[,6:ncol(findataMat)])
 #create columns to be used later 
 findataMat<-cbind(findataMat,probmean)
@@ -2480,7 +2489,25 @@ pos<-ncol(findataMat)
 
 findataMat<-adaptive_compare(findataMat,2)
 
+#make value with NA 0
+findataMat[!rowSums(!is.finite(findataMat)),]
+findataMat[!is.finite(findataMat)] <- 0
+
 findataMat<-context_sim(findataMat)
+
+for(n in unique(findataMat[,1])){
+  findataMatmoors<-findataMat[which(findataMat[,1]==n),]
+  plot(findataMatmoors[,pos-2], col=findataMatmoors[,7],main=moorlib[which(moorlib[,1]==n),2])
+  abline(h=CUTmean,col="red")
+  abline(h=0.5,lty=3)
+  #lines(lowess(data3moors[,pos+5]))
+  #lines(lowess(data3moors[,pos+4]))
+  #lines(lowess(data3moors[,pos+2]))
+  lines((findataMatmoors[,pos+3]*18),col="blue") #backwards through data 
+  lines((findataMatmoors[,pos+1]*18),col="orange") #forwards through data
+  #lines(((pmax(findataMatmoors[,pos+1],findataMatmoors[,pos+3])*6)),col="green")
+}
+
 
 AUCadj<-NA
 after_model_write(findataMat,moorlib,2)
