@@ -105,11 +105,10 @@ RW_algo<-function(resltsTSPVmat,f){
   grpvec<-groupdat[,1]
   colClasses = c("numeric","numeric","numeric","numeric","numeric")
   runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
   
   for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
     RM<-groupdat[g,1]
-    groupdat<-cbind(groupdat,0)
-    groupdat[,3+g]<-99
     groupdat[g,3+g]<-2
     skipvec<-0
     for(h in g:(nrow(groupdat)-1)){
@@ -176,10 +175,10 @@ RW_algo<-function(resltsTSPVmat,f){
     grpvec2<-groupdat2[,1]
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
     runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
+    groupdat2<-cbind(groupdat,matrix(99,nrow(groupdat2),nrow(groupdat2)-(grpsize[detector]-1)))
+    
     for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
       RM2<-groupdat2[g,1]
-      groupdat2<-cbind(groupdat2,0)
-      groupdat2[,3+g]<-99
       groupdat2[g,3+g]<-2
       skipvec2<-0
       for(h in g:(nrow(groupdat2)-1)){
