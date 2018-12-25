@@ -82,21 +82,21 @@ parAlgo<-function(dataaa){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo"))
+  clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS"))
   
   if(spec=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
       RW_algo(resltsTSPVmat=dataaa[,1:3],f=grouppp)
     }
-    wantedSelections<-do.call('c', wantedSelections)
+    wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(spec=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
       GS_algo(resltsTSPVmat=dataaa[,c(1:2,4:5)],f=grouppp)
     }
-    wantedSelections<-do.call('cbind', wantedSelections)
+    #wantedSelections<-do.call('cbind', wantedSelections)
   }
   stopCluster(cluz)
-  return(as.integer(wantedSelections))
+  return(wantedSelections)
 }
 
 RW_algo<-function(resltsTSPVmat,f){
@@ -250,6 +250,7 @@ RW_algo<-function(resltsTSPVmat,f){
 }
 
 GS_algo<-function(resltsTSPVmat,f){
+  #for(f in unique(resltsTSPVmat[,2])){
   groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
   groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detections
   
@@ -304,10 +305,10 @@ GS_algo<-function(resltsTSPVmat,f){
     }
   }
   if(!is.null(rowID)){
-  return(as.matrix(rbind(rownombres,rowID)))
-  #return(wantedSelections)
-  #print(wantedSelections)
-    }
+  #print(as.matrix(rbind(rownombres,rowID)))
+ return(as.matrix(rbind(rownombres,rowID)))
+  }
+ # }
 }
 
 sox.write<-function(numPass){
