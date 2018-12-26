@@ -93,7 +93,7 @@ parAlgo<-function(dataaa){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
       GS_algo(resltsTSPVmat=dataaa[,c(1:2,4:5)],f=grouppp)
     }
-    #wantedSelections<-do.call('cbind', wantedSelections)
+    wantedSelections<-do.call('cbind', wantedSelections)
   }
   stopCluster(cluz)
   return(wantedSelections)
@@ -251,8 +251,7 @@ RW_algo<-function(resltsTSPVmat,f){
 GS_algo<-function(resltsTSPVmat,f){
   #for(f in unique(resltsTSPVmat[,2])){
   groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
-  groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detections
-  
+  groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
   groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
   
   for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
@@ -264,7 +263,7 @@ GS_algo<-function(resltsTSPVmat,f){
       #do not compute run
     }else if(g==1|g>1){
     for(h in g:(nrow(groupdat)-1)){
-      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepGS<0&RT-groupdat[h+1,3]+timesepGS>0)&(RT-groupdat[h+1,4]-timesepGS<0&groupdat[h+1,4]-RT+timesepGS>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepGS<0&RT-groupdat[h+1,3]+timesepGS>0)|(RT-groupdat[h+1,4]-timesepGS<0&groupdat[h+1,4]-RT+timesepGS>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
         if(RT-groupdat[h+1,3]-timesepGS<0&groupdat[h+1,3]-RT+timesepGS>0){
           boxPos<-3
         }else{
@@ -281,13 +280,6 @@ GS_algo<-function(resltsTSPVmat,f){
       }else{
         groupdat[h+1,4+g]<-0
       }
-    #rsltvec0s2<-rle(groupdat[,4+g][! groupdat[,4+g] %in% 98])
-    #if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
-    #  for(q in 0:(allowedZeros)){
-    #    groupdat[(h+1)-(q),4+g]<-99
-    #  }
-    #  break
-    #}  
     }
     }
   }
@@ -298,8 +290,8 @@ GS_algo<-function(resltsTSPVmat,f){
   rowID=NULL
   for(k in 5:ncol(groupdat)){
     if(length(which(groupdat[,k]==1))>=grpsize[detector]-1){
-      rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k])))
-      rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k]))))
+      rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k])),999999999)
+      rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k]))),999999999)
       p=p+1
     }
   }
@@ -1076,17 +1068,37 @@ if(dettype=="spread"|dettype=="combined"){
       
       Matdata<<-NULL
       detector<<-NULL
+      if(spec=="RW"){
       resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
+      }else if(spec=="GS"){
+      wantedSelections<-t(wantedSelections)
+      c=1
+      for(u in 1:nrow(wantedSelections)-1){
+        wantedSelections[u,2]<-c
+        if(wantedSelections[u+1,2]==999999999){
+        c=c+1
+      }
+      }
+      wantedSelections<-wantedSelections[which(wantedSelections[,1]!=999999999),]
+      wantedSelections<-wantedSelections[which(!duplicated(wantedSelections[,1])),] #throw out duplicates, later assign boxes just using first position of highest in group and last end time in group
+      resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% wantedSelections[,1]),]
+      
+      #create new groups values
+      for(u in 1:nrow(resltsTSPV)){
+        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2]
+      }
+      
+      }
       
       if(nrow(resltsTSPV)==0){
         write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       }else{
-        
         colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character","character")
         resltsTSPVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring, sound.files", colClasses = colClasses)
         colnames(resltsTSPVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring","sound.files")
         
         
+        if(spec=="RW"){
         p=1
         for(j in unique(resltsTSPV$group)){
           grpminfreq <- min(resltsTSPV[resltsTSPV$group==j,6])
@@ -1117,7 +1129,39 @@ if(dettype=="spread"|dettype=="combined"){
         
         resltsTSPVFinal<- resltsTSPVFinal[,1:7]
         write.table(resltsTSPVFinal,paste(outputpath,runname,"/",resltsTSPV$Mooring[1],"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        }else if(spec="GS"){
+          p=1
+          for(j in unique(resltsTSPV$group)){
+            grp<-resltsTSPV[resltsTSPV$group==j,]
+            grpminfreq <- min(grp[,6])
+            grpmaxfreq <- max(grp[,7])
+            grpstarttime <- min(grp[which.max(grp[,13]),4])
+            grpendtime <- max(grp[,5])
+            
+            resltsTSPVFinal[p,1]<-p
+            resltsTSPVFinal[p,4]<-grpstarttime
+            resltsTSPVFinal[p,5]<-grpendtime
+            resltsTSPVFinal[p,6]<-grpminfreq
+            resltsTSPVFinal[p,7]<-grpmaxfreq
+            resltsTSPVFinal[p,8]<-l
+            resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
+            resltsTSPVFinal[p,10]<-"spread"
+            resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
+            resltsTSPVFinal[p,12]<-as.character(resltsTSPV$Mooring[1])
+            resltsTSPVFinal[p,13]<-as.character(resltsTSPV$sound.files[1])
+            
+            p<-p+1
+          }
+          
+          
+          resltsTSPVFinal$View<-"Spectrogram 1"
+          resltsTSPVFinal$Channel<-1
+          
+          DetecTab<- rbind(DetecTab,resltsTSPVFinal)
+          
+          resltsTSPVFinal<- resltsTSPVFinal[,1:7]
       }
+        }
     }
     l<-l+1}
 }
