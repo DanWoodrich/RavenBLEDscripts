@@ -249,7 +249,7 @@ RW_algo<-function(resltsTSPVmat,f){
 }
 
 GS_algo<-function(resltsTSPVmat,f){
-  #for(f in unique(resltsTSPVmat[,2])){
+  for(f in unique(resltsTSPVmat[,2])){
   groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
   groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
   groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
@@ -263,19 +263,21 @@ GS_algo<-function(resltsTSPVmat,f){
       #do not compute run
     }else if(g==1|g>1){
     for(h in g:(nrow(groupdat)-1)){
-      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepGS<0&RT-groupdat[h+1,3]+timesepGS>0)|(RT-groupdat[h+1,4]-timesepGS<0&groupdat[h+1,4]-RT+timesepGS>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        if(RT-groupdat[h+1,3]-timesepGS<0&groupdat[h+1,3]-RT+timesepGS>0){
+      if(any(groupdat[h+1,5:ncol(groupdat)]==1)){
+        break
+      }
+      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-(timesepGS+.15/groupdat[h+1,1])<0&RT-groupdat[h+1,3]+(timesepGS+.15/groupdat[h+1,1])>0)|(RT-groupdat[h+1,4]-(timesepGS+.15/groupdat[h+1,1])<0&groupdat[h+1,4]-RT+(timesepGS+.15/groupdat[h+1,1])>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+        if(RT-groupdat[h+1,3]-(timesepGS+.15/groupdat[h+1,1])<0&groupdat[h+1,3]-RT+(timesepGS+.15/groupdat[h+1,1])>0){
           boxPos<-3
         }else{
           boxPos<-4
         }
         groupdat[h+1,4+g]<-1
         skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
-        RT<-groupdat[h+1,boxPos]
         RM<-groupdat[h+1,1]
       }else if(RT==groupdat[h+1,1]){
         groupdat[h+1,4+g]<-98
-      }else if(!(RT-groupdat[h+1,3]-timesepGS<0&RT-groupdat[h+1,3]+timesepGS>0)&(RT-groupdat[h+1,4]-timesepGS<0&groupdat[h+1,4]-RT+timesepGS>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+      }else if(!(RT-groupdat[h+1,3]-(timesepGS+.15/groupdat[h+1,1])<0&RT-groupdat[h+1,3]+(timesepGS+.15/groupdat[h+1,1])>0)&(RT-groupdat[h+1,4]-(timesepGS+.15/groupdat[h+1,1])<0&groupdat[h+1,4]-RT+(timesepGS+.15/groupdat[h+1,1])>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
         groupdat[h+1,4+g]<-98        
       }else{
         groupdat[h+1,4+g]<-0
@@ -283,8 +285,6 @@ GS_algo<-function(resltsTSPVmat,f){
     }
     }
   }
-  #Stopped here: just need to select for runs that fit criteria. Then figure out how to export the data and create new groups. 
-  #runsum<-runsum[which(runsum[,2]==max(runsum[,2])),] #choose w most ones
   p=1
   rownombres=NULL
   rowID=NULL
@@ -299,7 +299,7 @@ GS_algo<-function(resltsTSPVmat,f){
   #print(as.matrix(rbind(rownombres,rowID)))
  return(as.matrix(rbind(rownombres,rowID)))
   }
- # }
+  }
 }
 
 sox.write<-function(numPass){
