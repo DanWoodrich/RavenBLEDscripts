@@ -1129,7 +1129,7 @@ if(dettype=="spread"|dettype=="combined"){
         
         resltsTSPVFinal<- resltsTSPVFinal[,1:7]
         write.table(resltsTSPVFinal,paste(outputpath,runname,"/",resltsTSPV$Mooring[1],"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-        }else if(spec="GS"){
+        }else if(spec=="GS"){
           p=1
           for(j in unique(resltsTSPV$group)){
             grp<-resltsTSPV[resltsTSPV$group==j,]
@@ -1399,14 +1399,14 @@ runTestModel<-"n" #run model on GT data
 runNewData<-"y" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"n"
+runRavenGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
 #enter the run name:
-runname<- "new feature and algo as function test "
+runname<- "GS algo"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
