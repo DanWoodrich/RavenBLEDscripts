@@ -270,6 +270,7 @@ GS_algo<-function(resltsTSPVmat,f){
           boxPos<-4
         }
         groupdat[h+1,4+g]<-boxPos
+        RT<-groupdat[h+1,boxPos]
         skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
         RM<-groupdat[h+1,1]
       }else if(RT==groupdat[h+1,1]){
@@ -1036,16 +1037,22 @@ if(dettype=="spread"|dettype=="combined"){
       resltsTSPV$end<-as.numeric(as.character(resltsTSPV$end))
       resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
       
-      #need to order chronologically. 
-      resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$meantime,resltsTSPV$bottom.freq),]
+
+    
+
       
-      #assign groups based on groupInt value
-      f<-1
       
-      #index columns to process faster:
-      gTime<-resltsTSPV[,15]
-      gGroup<-resltsTSPV[,14]
-      
+      if(spec=="RW"){
+        #need to order chronologically. 
+        resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$meantime,resltsTSPV$bottom.freq),]
+        
+        #assign groups based on groupInt value
+        f<-1
+        
+        #index columns to process faster:
+        gTime<-resltsTSPV[,15]
+        gGroup<-resltsTSPV[,14]
+        
       print("assigning group values")
       for(z in 1:(nrow(resltsTSPV)-1)){
         if(gTime[z]+groupInt[d]>=gTime[z+1]){
@@ -1055,6 +1062,28 @@ if(dettype=="spread"|dettype=="combined"){
           gGroup[z+1]<-f
         }
       }
+      }else if(spec=="GS"){
+        
+        #need to order chronologically. 
+        resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$start,resltsTSPV$top.freq),]
+        
+        #assign groups based on groupInt value
+        f<-1
+        
+        #index columns to process faster:
+        gTimeS<-resltsTSPV$start        
+        gGroup<-resltsTSPV[,14]
+        print("assigning group values")
+        for(z in 1:(nrow(resltsTSPV)-1)){
+          if(gTimeS[z]+groupInt[d]>=gTimeS[z+1]){
+            gGroup[z+1]<-f
+          }else{
+            f<-f+1
+            gGroup[z+1]<-f
+          }
+        }
+      }
+      
       
       resltsTSPV[,14]<-gGroup
       
@@ -1402,7 +1431,7 @@ runTestModel<-"n" #run model on GT data
 runNewData<-"y" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
