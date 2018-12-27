@@ -249,7 +249,7 @@ RW_algo<-function(resltsTSPVmat,f){
 }
 
 GS_algo<-function(resltsTSPVmat,f){
-  for(f in unique(resltsTSPVmat[,2])){
+  #for(f in unique(resltsTSPVmat[,2])){
   groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
   groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
   groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
@@ -259,20 +259,17 @@ GS_algo<-function(resltsTSPVmat,f){
     RT<-groupdat[g,3]
     RM<-groupdat[g,1]
     skipvec<-0
-    if(any(groupdat[g,5:ncol(groupdat)]==1)&g>1){
+    if(any(groupdat[g,5:ncol(groupdat)]==3|groupdat[g,5:ncol(groupdat)]==4)&g>1){
       #do not compute run
     }else if(g==1|g>1){
     for(h in g:(nrow(groupdat)-1)){
-      if(any(groupdat[h+1,5:ncol(groupdat)]==1)){
-        break
-      }
       if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-(timesepGS+.15/groupdat[h+1,1])<0&RT-groupdat[h+1,3]+(timesepGS+.15/groupdat[h+1,1])>0)|(RT-groupdat[h+1,4]-(timesepGS+.15/groupdat[h+1,1])<0&groupdat[h+1,4]-RT+(timesepGS+.15/groupdat[h+1,1])>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
         if(RT-groupdat[h+1,3]-(timesepGS+.15/groupdat[h+1,1])<0&groupdat[h+1,3]-RT+(timesepGS+.15/groupdat[h+1,1])>0){
           boxPos<-3
         }else{
           boxPos<-4
         }
-        groupdat[h+1,4+g]<-1
+        groupdat[h+1,4+g]<-boxPos
         skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
         RM<-groupdat[h+1,1]
       }else if(RT==groupdat[h+1,1]){
@@ -282,6 +279,12 @@ GS_algo<-function(resltsTSPVmat,f){
       }else{
         groupdat[h+1,4+g]<-0
       }
+      if(g>1){
+      if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98|groupdat[h+1,4+g]!=99|groupdat[h+1,4+g]!=0)){
+        groupdat[h+1,4+g]<-0
+        break
+      }
+      }
     }
     }
   }
@@ -289,17 +292,17 @@ GS_algo<-function(resltsTSPVmat,f){
   rownombres=NULL
   rowID=NULL
   for(k in 5:ncol(groupdat)){
-    if(length(which(groupdat[,k]==1))>=grpsize[detector]-1){
-      rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k])),999999999)
-      rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==1|groupdat[,k]==2),k]))),999999999)
+    if(length(which(groupdat[,k]==3|groupdat[,k]==4))>=grpsize[detector]-1){
+      rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==4|groupdat[,k]==2),k])),999999999)
+      rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==4|groupdat[,k]==2),k]))),999999999)
       p=p+1
     }
   }
   if(!is.null(rowID)){
-  #print(as.matrix(rbind(rownombres,rowID)))
+  print(as.matrix(rbind(rownombres,rowID)))
  return(as.matrix(rbind(rownombres,rowID)))
   }
-  }
+# }
 }
 
 sox.write<-function(numPass){
