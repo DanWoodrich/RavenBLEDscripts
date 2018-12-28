@@ -652,9 +652,9 @@ after_model_write <-function(mdata,libb,finaldatrun){
     }
     MoorVar1<-mdata[which(mdata[,1] %in% libb[which(libb[,3]==sort(unique(libb[,3]))[v]),1]),]
 
-    MoorVar1<-MoorVar1[which(MoorVar1[,pos-2]>CUTmean),]
+    MoorVar1<-MoorVar1[which(MoorVar1[,pos+5]>CUTmean),]
     
-   
+    detTotal<-nrow(MoorVar1)
     
     if(finaldatrun==1){
     numTP<-sum(as.numeric(MoorVar1[,7])-1)
@@ -666,7 +666,6 @@ after_model_write <-function(mdata,libb,finaldatrun){
     }else if(finaldatrun==2){
     numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],3,13),TPtottab$MoorCor)),2]
     numTP<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],3,13),TPtottab$MoorCor)),2]*TPRthresh
-    detTotal<-nrow(MoorVar1)
     numFP<-(nrow(MoorVar1)-numTP)
     numFN<-numTPtruth-numTP
     }
@@ -1189,7 +1188,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
           for(b in 1:(nrow(resltsTSPVFinal)-1)){
             if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
-              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,3]
+              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
           }
           
           
@@ -1989,6 +1988,10 @@ if(length(data)>12){
   }
 }
 data$Selection<-seq(1,nrow(data))
+
+#temporary: to see how well RF works for longer GS
+data<-data[which((data[,6]-data[,5])>=0.25),]
+
 #TEMPORARY TO DEBUG, REMOVE
 #data<-splitdf(data,weight = 1/4)[[1]]
 
@@ -1997,6 +2000,7 @@ data$Selection<-seq(1,nrow(data))
 dataMat<- data.matrix(data[c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
+
 dataMat<-spectral_features(dataMat,moorlib,1)
 
 dataMat<-data.frame(dataMat)
@@ -2099,7 +2103,11 @@ data3$n<-n
 ######################
 #adaptively combine detections based on probability
 data3Mat<- data.matrix(data3)
+if(spec=="RW"){
 data3Mat<-adaptive_compare(data3Mat,1) 
+}else if(spec=="GS"){
+}
+
 data3<-data3Mat
 
 #simulate context over time using probability scores 
@@ -2155,6 +2163,9 @@ cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerbl
 #cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,12], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,26], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 
 
 #write data to drive
