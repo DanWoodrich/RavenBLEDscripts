@@ -1188,8 +1188,8 @@ if(dettype=="spread"|dettype=="combined"){
           #change end time of call to start of next call if they overlap. 
           resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
           for(b in 1:(nrow(resltsTSPVFinal)-1)){
-            if(dataMat[b,5]>dataMat[b+1,4])
-              dataMat[b,5]<-dataMat[b+1,3]
+            if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
+              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,3]
           }
           
           
