@@ -1997,7 +1997,7 @@ data<-data[which((data[,6]-data[,5])>=0.25),]
 
 #"vectorize" data frame. 
 
-dataMat<- data.matrix(data[c(1,5,6,7,8)])
+dataMat<- data.matrix(data[,c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
 
