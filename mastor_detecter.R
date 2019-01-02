@@ -1439,7 +1439,7 @@ runNewData<-"y" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -1505,7 +1505,7 @@ fileCombinesize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="fileCombinesize"),3]
 decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
 decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
-Filtype<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Filtype"),3] )
+Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 
 ########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -2143,9 +2143,9 @@ plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.
 abline(v=CUTmean)
 
 #plot of probabilities after context sim:
-for(n in unique(data3[,1])){
-data3moors<-data3[which(data3[,1]==n),]
-plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==n),2])
+for(m in unique(data3[,1])){
+data3moors<-data3[which(data3[,1]==m),]
+plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==m),2])
 abline(h=CUTmean,col="red")
 abline(h=0.5,lty=3)
 #lines(lowess(data3moors[,pos+5]))
