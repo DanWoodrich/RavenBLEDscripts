@@ -916,9 +916,9 @@ for(z in 1:rowcount){
   #store reused calculations to avoid indexing 
   Start<-specVar[z,2]
   End<-  specVar[z,3]
-  if(End-Start<0.25){
-    Start<-Start-(((0.25-(End-Start))/2))
-    End<-End+(((0.25-(End-Start))/2))
+  if(End-Start<0.1){
+    Start<-Start-(((0.1-(End-Start))/2))
+    End<-End+(((0.1-(End-Start))/2))
     
   }
   Low<-specVar[z,4]
@@ -2106,6 +2106,10 @@ data4<- data2
 data3$probmean<-probmean
 data3$probstderr<-probstderr
 data3$n<-n
+
+if(any(is.na(probmean))){
+data3<-data3[-which(is.na(data3$probmean)),]
+}
 
 ######################
 #adaptively combine detections based on probability
