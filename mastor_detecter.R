@@ -916,6 +916,11 @@ for(z in 1:rowcount){
   #store reused calculations to avoid indexing 
   Start<-specVar[z,2]
   End<-  specVar[z,3]
+  if(End-Start<0.25){
+    Start<-Start-(((0.25-(End-Start))/2))
+    End<-End+(((0.25-(End-Start))/2))
+    
+  }
   Low<-specVar[z,4]
   High<-specVar[z,5]
   
@@ -1992,7 +1997,7 @@ if(length(data)>12){
 data$Selection<-seq(1,nrow(data))
 
 #temporary: to see how well RF works for longer GS
-data<-data[which((data[,6]-data[,5])>=0.5),]
+#data<-data[which((data[,6]-data[,5])>=0.5),]
 
 #TEMPORARY TO DEBUG, REMOVE
 #data<-splitdf(data,weight = 1/4)[[1]]
@@ -2164,10 +2169,10 @@ cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerbl
 #cdplot(data3datFrame$detectionType ~ data3datFrame$specprop.mode, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 #cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
 cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,12], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
+cdplot(data3datFrame[,7] ~ data3datFrame[,12], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
 cdplot(data3datFrame[,7] ~ data3datFrame[,26], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
+cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
 
 
 #write data to drive
