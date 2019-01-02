@@ -699,7 +699,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
     write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
     }else{
-      RavenExport<-data.frame(MoorVar1[,1])
+      RavenExport<-data.frame(seq(1,nrow(MoorVar1[,1]),by=1))
       RavenExport[,2]<-"Spectrogram 1"
       RavenExport[,3]<-1
       RavenExport[,4]<-MoorVar1[,3]
