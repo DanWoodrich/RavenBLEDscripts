@@ -1006,7 +1006,11 @@ for(z in 1:rowcount){
   # return low and high freq
   specVar[z,34]  <- zf[which.max(zx)] + (step / 2)
 
-
+Start<-NULL
+End<-NULL
+Low<-NULL
+High<-NULL
+foo<-NULL
 }
 specTab<-rbind(specTab,specVar)
 }
