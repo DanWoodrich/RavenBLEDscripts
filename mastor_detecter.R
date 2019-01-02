@@ -713,8 +713,8 @@ after_model_write <-function(mdata,libb,finaldatrun){
       
       colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detectionType","probs","err","n")
       
-      RavenExport[which(RavenExport[,8]==1),8]<-"TP"
-      RavenExport[which(RavenExport[,8]==0),8]<-"FP"
+      RavenExport[which(RavenExport[,8]==2),8]<-"TP"
+      RavenExport[which(RavenExport[,8]==1),8]<-"FP"
       
       write.table(RavenExport,paste(outputpath,runname,"/",sub(" .wav", "", libb[as.numeric(sort(unique(mdata[,1]))[v]),2]),"Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         
@@ -1448,7 +1448,7 @@ runNewData<-"y" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
