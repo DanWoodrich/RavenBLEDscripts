@@ -859,7 +859,7 @@ for(m in moors){
     
   if(whichRun==1){
     if(whiten=="y"){
-      specpath<-paste(startcombpath,"/",spec,"/Bbandp",LMS*100,"x_FO",FO,sep="")
+      specpath<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
       specpath<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
     }
@@ -870,17 +870,18 @@ for(m in moors){
       specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
       
     }else{
-      rowcount<-nrow(specdata)
-      specVar<-cbind(specdata,matrix(1,rowcount,29))
+      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<-nrow(specVar)
+      specVar<-cbind(specVar,matrix(1,rowcount,29))
       
     }
     
   }else{
     
     if(whiten=="y" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_Bbandp",LMS*100,"x_FO",FO,sep="")
+      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      specpath<-paste(startcombpath,"/",m,"/Entire_full_Bbandp",LMS*100,"x_FO",FO,sep="")
+      specpath<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="n" & moorType=="HG"){
       specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
     }else{
@@ -1438,8 +1439,8 @@ runNewData<-"y" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
-runTestModel<-"n" #run model on GT data
+runProcessGT<-"n"
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
@@ -1504,6 +1505,7 @@ fileCombinesize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="fileCombinesize"),3]
 decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
 decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
+Filtype<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Filtype"),3] )
 
 ########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -1632,7 +1634,7 @@ for(m in moorings){
   
   
   }else{
-  whiten2 <- paste("/Bbandp",100*LMS,"x_","FO",FO,sep = "")
+  whiten2 <- paste("/",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
   if(decimate=="y"){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
@@ -1929,7 +1931,7 @@ for(n in 1:length(detfiles)){
 }
 
 if(whiten=="y"){
-  soundfile<-(paste("Bbandp",LMS*100,"x_FO",FO,sep=""))
+  soundfile<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
 }else{
   soundfile<-"No_whiten"
 }
@@ -1990,7 +1992,7 @@ if(length(data)>12){
 data$Selection<-seq(1,nrow(data))
 
 #temporary: to see how well RF works for longer GS
-data<-data[which((data[,6]-data[,5])>=0.25),]
+data<-data[which((data[,6]-data[,5])>=0.5),]
 
 #TEMPORARY TO DEBUG, REMOVE
 #data<-splitdf(data,weight = 1/4)[[1]]
@@ -2236,7 +2238,7 @@ if(runNewData=="y"){
     }
   
   if(whiten=="y"){
-    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")) 
+    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")) 
   }
   
   #
@@ -2352,7 +2354,7 @@ decimateData(sfpath,2)
   }
   if(a==1){
     if(whiten=="y" & moorType=="HG"){
-      whiten2 <- paste("Entire_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      whiten2 <- paste("Entire_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
@@ -2360,7 +2362,7 @@ decimateData(sfpath,2)
       durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
       break
     }else if(whiten=="y" & moorType!="HG"){
-      whiten2 <- paste("Entire_full_Bbandp",100*LMS,"x_","FO",FO,sep = "")
+      whiten2 <- paste("Entire_full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
