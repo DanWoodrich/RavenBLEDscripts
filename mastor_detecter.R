@@ -699,7 +699,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
     write.table(MoorVar3,paste(outputpath,runname,"/",sub(" .wav", "", sort(unique(mdata[,1]))[v]),"FINAL_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
     
     }else{
-      RavenExport<-data.frame(seq(1,nrow(MoorVar1[,1]),by=1))
+      RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
       RavenExport[,2]<-"Spectrogram 1"
       RavenExport[,3]<-1
       RavenExport[,4]<-MoorVar1[,3]
@@ -866,13 +866,13 @@ for(m in moors){
     
     if(is.null(nrow(specdata))){
       rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,29))
-      specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
+      specVar<-c(specdata,matrix(1,rowcount,35))
+      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
       
     }else{
       specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,29))
+      specVar<-cbind(specVar,matrix(1,rowcount,35))
       
     }
     
@@ -891,13 +891,13 @@ for(m in moors){
     
     if(is.null(nrow(specdata))){
       rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,29))
-      specVar<-rbind(specVar,matrix(1,rowcount,29+5)) #make 
+      specVar<-c(specdata,matrix(1,rowcount,35))
+      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
       
     }else{
       specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,29))
+      specVar<-cbind(specVar,matrix(1,rowcount,35))
       
     }
     
@@ -929,55 +929,55 @@ for(z in 1:rowcount){
   sample_rate.og<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
-  foo.spec <- spec(foo,plot=F, PSD=T)
+  foo.spec <- spec(foo,plot=F, PSD=T,wl=128)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
-  foo.meanspec = meanspec(foo, plot=F,ovlp=90,wl=128)#not sure what ovlp parameter does but initially set to 90 #
-  #foo.meanspec.db = meanspec(foo, plot=F,ovlp=90,dB="max0",flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000))#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
-  #foo.autoc = autoc(foo, plot=F,wl=128) #
-  foo.dfreq = dfreq(foo, plot=F, ovlp=90,wl=128) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
+  foo.meanspec = meanspec(foo, plot=F,ovlp=50,wl=128)#not sure what ovlp parameter does but initially set to 90 #
+  foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
+  foo.autoc = autoc(foo, plot=F,ovlp=50,wl=64) #
+  foo.dfreq = dfreq(foo, plot=F, ovlp=50,wl=64) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
   Enddom<-foo.dfreq[,2][length(foo.dfreq[,2])]
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
   specVar[z,6] = rugo(foo@left / max(foo@left)) #rugosity
-  specVar[z,7] = crest(foo)$C #crest factor
+  specVar[z,7] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
   specVar[z,8] = th(foo.env) #temporal entropy
   specVar[z,9] = sh(foo.spec) #shannon entropy
   specVar[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  #specVar[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
- # specVar[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  #specVar[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specVar[z,11] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specVar[z,12] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specVar[z,13] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  #specVar[z,16] = foo.specprop$sd[1] #specprop sd
-  #specVar[z,17] = foo.specprop$sem[1] #specprop sem
-  specVar[z,14] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specVar[z,15] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specVar[z,16] = foo.specprop$Q25[1] # specprop q25
-  specVar[z,17] = foo.specprop$Q75[1] #specprop q75
-  specVar[z,18] = foo.specprop$IQR[1] #specprop IQR
-  specVar[z,19] = foo.specprop$cent[1] #specrop cent
-  specVar[z,20] = foo.specprop$skewness[1] #specprop skewness
-  specVar[z,21] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specVar[z,22] = foo.specprop$sfm[1] #specprop sfm
-  specVar[z,23] = foo.specprop$sh[1] #specprop sh
-  specVar[z,24] = foo.specprop$prec[1] #specprop prec
-  specVar[z,25] = M(foo) #amp env median
-  specVar[z,26] = H(foo,wl=128) #total entropy
- # specVar$reonant.qual.fact[z]<-Q(foo.meanspec.db,plot=T)$Q #0s introduced
+  specVar[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  specVar[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  specVar[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specVar[z,14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specVar[z,15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specVar[z,16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  specVar[z,17] = foo.specprop$sd[1] #specprop sd
+  specVar[z,18] = foo.specprop$sem[1] #specprop sem
+  specVar[z,19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specVar[z,20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specVar[z,21] = foo.specprop$Q25[1] # specprop q25
+  specVar[z,22] = foo.specprop$Q75[1] #specprop q75
+  specVar[z,23] = foo.specprop$IQR[1] #specprop IQR
+  specVar[z,24] = foo.specprop$cent[1] #specrop cent
+  specVar[z,25] = foo.specprop$skewness[1] #specprop skewness
+  specVar[z,26] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specVar[z,27] = foo.specprop$sfm[1] #specprop sfm
+  specVar[z,28] = foo.specprop$sh[1] #specprop sh
+  specVar[z,29] = foo.specprop$prec[1] #specprop prec
+  specVar[z,30] = M(foo,wl=128) #amp env median
+  specVar[z,31] = H(foo,wl=128) #total entropy
+  #specVar[z,32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  specVar[z,27]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specVar[z,28]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specVar[z,29]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specVar[z,30]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specVar[z,31]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specVar[z,32]<-Dfrange #dfrange
-  specVar[z,33]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specVar[z,33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specVar[z,34]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specVar[z,35]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specVar[z,36]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specVar[z,37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specVar[z,38]<-Dfrange #dfrange
+  specVar[z,39]<-((Enddom-Startdom)/(End-Start)) #dfslope
   
   wl<-128
   
@@ -992,7 +992,7 @@ for(z in 1:rowcount){
   ## smoothing parameter
   FWL <- fsmooth - 1
   
-  ## smooth #still fucked up
+  ## smooth 
   zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
   zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
   
@@ -1004,13 +1004,15 @@ for(z in 1:rowcount){
   zx <- zx/max(zx)
   
   # return low and high freq
-  specVar[z,34]  <- zf[which.max(zx)] + (step / 2)
+  specVar[z,40]  <- zf[which.max(zx)] + (step / 2)
 
 Start<-NULL
 End<-NULL
 Low<-NULL
 High<-NULL
 foo<-NULL
+foo.spec<-NULL
+
 }
 specTab<-rbind(specTab,specVar)
 }
@@ -1448,7 +1450,7 @@ runNewData<-"y" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -2058,7 +2060,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=7,na.action=na.roughfix)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz. -freqrange -meanfreq,data=train[[1]],mtry=7,na.action=na.roughfix)
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
