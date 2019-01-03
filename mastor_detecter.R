@@ -32,6 +32,36 @@ library(stringr)
 library(stringi)
 library(signal)
 
+lastFeature<-function(a,b){
+  
+  ## get frequency windows length for smoothing
+  step <- a/128/1000
+  fsmooth = 0.1
+  fsmooth <- fsmooth/step
+  
+  ## number of samples
+  n <- nrow(b)
+  
+  ## smoothing parameter
+  FWL <- fsmooth - 1
+  
+  ## smooth 
+  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(b[y:(y + FWL), 2]))
+  zf <- seq(min(b[,1]), max(b[,1]), length.out = length(zx))
+  
+  ## make minimum amplitude 0
+  zx <- zx - min(zx)
+  zx[zx < 0] <- 0
+  
+  ## normalize amplitude from 0 to 1
+  zx <- zx/max(zx)
+  
+  # return low and high freq
+  return(zf[which.max(zx)] + (step / 2))
+}
+
+
+
 #decimate dataset. 
 decimateData<-function(dpath,whichRun){
   print(paste("decimate file",dpath))
@@ -912,7 +942,7 @@ for(m in moors){
   
 #print("extracting spectral parameters")
 for(z in 1:rowcount){
-  #print(z)
+  print(z)
   #store reused calculations to avoid indexing 
   Start<-specVar[z,2]
   End<-  specVar[z,3]
@@ -934,7 +964,7 @@ for(z in 1:rowcount){
   foo.specprop <- specprop(foo.spec) #
   #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=50,wl=128)#not sure what ovlp parameter does but initially set to 90 #
-  foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
+  #foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F,ovlp=50,wl=64) #
   foo.dfreq = dfreq(foo, plot=F, ovlp=50,wl=64) #tried bandpass argument, limited dfreq to only 2 different values for some reason. Seemed wrong. 
   Startdom<-foo.dfreq[,2][1]
@@ -978,33 +1008,7 @@ for(z in 1:rowcount){
   specVar[z,37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
   specVar[z,38]<-Dfrange #dfrange
   specVar[z,39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  
-  wl<-128
-  
-  ## get frequency windows length for smoothing
-  step <- sample_rate.og/wl/1000
-  fsmooth = 0.1
-  fsmooth <- fsmooth/step
-  
-  ## number of samples
-  n <- nrow(foo.meanspec)
-  
-  ## smoothing parameter
-  FWL <- fsmooth - 1
-  
-  ## smooth 
-  zx <- apply(as.matrix(1:(n - FWL)), 1, function(y) sum(foo.meanspec[y:(y + FWL), 2]))
-  zf <- seq(min(foo.meanspec[,1]), max(foo.meanspec[,1]), length.out = length(zx))
-  
-  ## make minimum amplitude 0
-  zx <- zx - min(zx)
-  zx[zx < 0] <- 0
-  
-  ## normalize amplitude from 0 to 1
-  zx <- zx/max(zx)
-  
-  # return low and high freq
-  specVar[z,40]  <- zf[which.max(zx)] + (step / 2)
+  specVar[z,40]  <- lastFeature(sample_rate.og,foo.meanspec)
 
 Start<-NULL
 End<-NULL
@@ -1012,6 +1016,18 @@ Low<-NULL
 High<-NULL
 foo<-NULL
 foo.spec<-NULL
+foo.autoc<-NULL
+foo.dfreq<-NULL
+foo.specprop<-NULL
+foo.meanspec<-NULL
+Startdom<-NULL
+Enddom<-NULL
+Mindom<-NULL
+Maxdom<-NULL
+Dfrange<-NULL
+samples<-NULL
+
+
 
 }
 specTab<-rbind(specTab,specVar)
@@ -1419,7 +1435,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 if(user=="ACS-3"){
   spec <- "RW"
 }else{
-  spec <- "GS"
+  spec <- "RW"
 }
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
@@ -1449,14 +1465,14 @@ runTestModel<-"n" #run model on GT data
 runNewData<-"y" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
 #enter the run name:
-runname<- "GS algo"
+runname<- "RW test new RF"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
