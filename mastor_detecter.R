@@ -1417,7 +1417,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 #Enter the name of the species you'd like to evaluate (RW,GS):
 if(user=="ACS-3"){
-  spec <- "RW"
+  spec <- "GS"
 }else{
   spec <- "GS"
 }
@@ -1443,10 +1443,10 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 if(user=="ACS-3"){
 ##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"n" #run model on GT data
-runNewData<-"y" #run on data that has not been ground truthed. 
+runRavenGT<-"y"
+runProcessGT<-"y"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
 runRavenGT<-"n"
