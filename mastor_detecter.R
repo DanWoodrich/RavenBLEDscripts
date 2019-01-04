@@ -289,12 +289,12 @@ GS_algo<-function(resltsTSPVmat,f){
     RT<-groupdat[g,3]
     RM<-groupdat[g,1]
     skipvec<-0
-    if(any(groupdat[g,5:ncol(groupdat)]==3|groupdat[g,5:ncol(groupdat)]==4)&g>1){
+    if(any(groupdat[g,5:ncol(groupdat)]==3)&g>1){
       #do not compute run
-    }else if(g==1|g>1){
+    }else if(g>=1){
     for(h in g:(nrow(groupdat)-1)){
       if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&RT-groupdat[h+1,3]+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0)|(RT-groupdat[h+1,4]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,4]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        if(RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,3]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0){
+        if((RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,3]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0)){
           boxPos<-3
         }else{
           boxPos<-4
@@ -875,7 +875,12 @@ durList<-list(durTab,durTab2)
 
 spectral_features<- function(specdata,libb,whichRun){
   
-  specTab<-NULL
+  specdata<<-specdata
+  libb<<-libb
+  whichRun<<-whichRun
+  
+  specpath<<-NULL
+  specTab<<-NULL
   
   if(is.null(nrow(specdata))){
   moors<-libb[which(libb[,1] %in% unique(specdata[1])),3]
@@ -885,49 +890,49 @@ spectral_features<- function(specdata,libb,whichRun){
   
 for(m in moors){
   
-  specVar<-NULL
+  specVar<<-NULL
     
   if(whichRun==1){
     if(whiten=="y"){
-      specpath<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
     }
     
     if(is.null(nrow(specdata))){
-      rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,35))
-      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      rowcount<<-1
+      specVar<<-c(specdata,matrix(1,rowcount,35))
+      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
       
     }else{
-      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
-      rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,35))
+      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<<-nrow(specVar)
+      specVar<<-cbind(specVar,matrix(1,rowcount,35))
       
     }
     
   }else{
     
     if(whiten=="y" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      specpath<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="n" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
     }else{
-      specpath<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
     }
     
     
     if(is.null(nrow(specdata))){
-      rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,35))
-      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      rowcount<<-1
+      specVar<<-c(specdata,matrix(1,rowcount,35))
+      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
       
     }else{
-      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
-      rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,35))
+      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<<-nrow(specVar)
+      specVar<<-cbind(specVar,matrix(1,rowcount,35))
       
     }
     
@@ -935,26 +940,40 @@ for(m in moors){
   
   
   if(decimate=="y"){
-    specpath<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
+    specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
 
+  if(user=="ACS-3"){
+    num_cores <- detectCores()
+  }else{
+    num_cores <- detectCores()-1
+  }
+  cluz <- makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error"))
+  
+  #wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+  #  RW_algo(resltsTSPVmat=dataaa[,1:3],f=grouppp)
+  #}
+  #wantedSelections<-as.integer(do.call('c', wantedSelections))
   
 #print("extracting spectral parameters")
-for(z in 1:rowcount){
-  print(z)
+specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
+  specList<-specVar[z,]
   #store reused calculations to avoid indexing 
-  Start<-specVar[z,2]
-  End<-  specVar[z,3]
+  Start<-specList[2]
+  End<-  specList[3]
   if(End-Start<0.1){
     Start<-Start-(((0.1-(End-Start))/2))
     End<-End+(((0.1-(End-Start))/2))
     
   }
-  Low<-specVar[z,4]
-  High<-specVar[z,5]
+  Low<-specList[4]
+  High<-specList[5]
   
-  foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specVar[z,1]),2],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpath,moorlib[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
 
   sample_rate.og<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -972,65 +991,51 @@ for(z in 1:rowcount){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  specVar[z,6] = rugo(foo@left / max(foo@left)) #rugosity
-  specVar[z,7] = crest(foo,wl=128)$C #crest factor
+  specList[6] = rugo(foo@left / max(foo@left)) #rugosity
+  specList[7] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  specVar[z,8] = th(foo.env) #temporal entropy
-  specVar[z,9] = sh(foo.spec) #shannon entropy
-  specVar[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  specVar[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  specVar[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  specVar[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specVar[z,14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specVar[z,15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specVar[z,16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  specVar[z,17] = foo.specprop$sd[1] #specprop sd
-  specVar[z,18] = foo.specprop$sem[1] #specprop sem
-  specVar[z,19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specVar[z,20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specVar[z,21] = foo.specprop$Q25[1] # specprop q25
-  specVar[z,22] = foo.specprop$Q75[1] #specprop q75
-  specVar[z,23] = foo.specprop$IQR[1] #specprop IQR
-  specVar[z,24] = foo.specprop$cent[1] #specrop cent
-  specVar[z,25] = foo.specprop$skewness[1] #specprop skewness
-  specVar[z,26] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specVar[z,27] = foo.specprop$sfm[1] #specprop sfm
-  specVar[z,28] = foo.specprop$sh[1] #specprop sh
-  specVar[z,29] = foo.specprop$prec[1] #specprop prec
-  specVar[z,30] = M(foo,wl=128) #amp env median
-  specVar[z,31] = H(foo,wl=128) #total entropy
-  #specVar[z,32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
+  specList[8] = th(foo.env) #temporal entropy
+  specList[9] = sh(foo.spec) #shannon entropy
+  specList[10] = roughness(foo.meanspec[,2]) #spectrum roughness
+  specList[11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  specList[12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  specList[13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specList[14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specList[15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specList[16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  specList[17] = foo.specprop$sd[1] #specprop sd
+  specList[18] = foo.specprop$sem[1] #specprop sem
+  specList[19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specList[20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specList[21] = foo.specprop$Q25[1] # specprop q25
+  specList[22] = foo.specprop$Q75[1] #specprop q75
+  specList[23] = foo.specprop$IQR[1] #specprop IQR
+  specList[24] = foo.specprop$cent[1] #specrop cent
+  specList[25] = foo.specprop$skewness[1] #specprop skewness
+  specList[26] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specList[27] = foo.specprop$sfm[1] #specprop sfm
+  specList[28] = foo.specprop$sh[1] #specprop sh
+  specList[29] = foo.specprop$prec[1] #specprop prec
+  specList[30] = M(foo,wl=128) #amp env median
+  specList[31] = H(foo,wl=128) #total entropy
+  #specList[32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  specVar[z,33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specVar[z,34]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specVar[z,35]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specVar[z,36]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specVar[z,37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specVar[z,38]<-Dfrange #dfrange
-  specVar[z,39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specVar[z,40]  <- lastFeature(sample_rate.og,foo.meanspec)
+  specList[33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specList[34]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specList[35]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specList[36]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specList[38]<-Dfrange #dfrange
+  specList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specList[40]  <- lastFeature(sample_rate.og,foo.meanspec)
 
-Start<-NULL
-End<-NULL
-Low<-NULL
-High<-NULL
-foo<-NULL
-foo.spec<-NULL
-foo.autoc<-NULL
-foo.dfreq<-NULL
-foo.specprop<-NULL
-foo.meanspec<-NULL
-Startdom<-NULL
-Enddom<-NULL
-Mindom<-NULL
-Maxdom<-NULL
-Dfrange<-NULL
-samples<-NULL
-
-
+  specList
 
 }
-specTab<-rbind(specTab,specVar)
+stopCluster(cluz)
+
+specVar<<-do.call('rbind', specVar2)
+specTab<<-rbind(specTab,specVar)
 }
   if(rowcount>1){
   return(specTab)
@@ -1435,7 +1440,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 if(user=="ACS-3"){
   spec <- "GS"
 }else{
-  spec <- "RW"
+  spec <- "GS"
 }
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
