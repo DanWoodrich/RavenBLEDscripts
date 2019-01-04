@@ -293,8 +293,8 @@ GS_algo<-function(resltsTSPVmat,f){
       #do not compute run
     }else if(g>=1){
     for(h in g:(nrow(groupdat)-1)){
-      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0&RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1))>0)|(RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,4]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        if((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1))>0)){
+      if(RM>groupdat[h+1,1]&(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)|((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+        if(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)){
           boxPos<-3
         }else{
           boxPos<-4
@@ -305,7 +305,7 @@ GS_algo<-function(resltsTSPVmat,f){
         RM<-groupdat[h+1,1]
       }else if(RM==groupdat[h+1,1]){
         groupdat[h+1,4+g]<-98
-      }else if(!(RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0&RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1))>0)&(RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,4]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1))>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+      }else if(!((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
         groupdat[h+1,4+g]<-98        
       }else{
         groupdat[h+1,4+g]<-0
@@ -1108,12 +1108,11 @@ if(dettype=="spread"|dettype=="combined"){
         nexstart<-gTimeS[1]
         print("assigning group values")
         for(z in 1:(nrow(resltsTSPV)-1)){
-          if(nexstart+groupInt[d]>=gTimeS[z+1]){
+          if(gTimeS[z]+groupInt[d]>=gTimeS[z+1]){
             gGroup[z+1]<-f
           }else{
             f<-f+1
             gGroup[z+1]<-f
-            nexstart<-gTimeS[z+1]
           }
         }
       }
