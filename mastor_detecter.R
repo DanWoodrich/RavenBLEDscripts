@@ -1105,13 +1105,15 @@ if(dettype=="spread"|dettype=="combined"){
         #index columns to process faster:
         gTimeS<-resltsTSPV$start        
         gGroup<-resltsTSPV[,14]
+        nexstart<-gTimeS[1]
         print("assigning group values")
         for(z in 1:(nrow(resltsTSPV)-1)){
-          if(gTimeS[z]+groupInt[d]>=gTimeS[z+1]){
+          if(nexstart+groupInt[d]>=gTimeS[z+1]){
             gGroup[z+1]<-f
           }else{
             f<-f+1
             gGroup[z+1]<-f
+            nexstart<-gTimeS[z+1]
           }
         }
       }
@@ -1470,7 +1472,7 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
