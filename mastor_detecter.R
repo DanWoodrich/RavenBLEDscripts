@@ -121,8 +121,8 @@ parAlgo<-function(dataaa){
     wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(spec=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      GS_algo(resltsTSPVmat=dataaa[,c(1:2,4:5)],f=grouppp)
-    }
+    GS_algo(resltsTSPVmat=dataaa[,c(1,2,4,5)],f=grouppp)
+      }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
   stopCluster(cluz)
@@ -305,13 +305,11 @@ GS_algo<-function(resltsTSPVmat,f){
         RM<-groupdat[h+1,1]
       }else if(RM==groupdat[h+1,1]){
         groupdat[h+1,4+g]<-98
-      }else if(!((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        groupdat[h+1,4+g]<-98        
       }else{
-        groupdat[h+1,4+g]<-0
+        groupdat[h+1,4+g]<-98
       }
       if(g>1){
-      if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98|groupdat[h+1,4+g]!=99|groupdat[h+1,4+g]!=0)){
+      if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98&groupdat[h+1,4+g]!=99&groupdat[h+1,4+g]!=0)){
         groupdat[h+1,4+g]<-0
         break
       }
@@ -330,7 +328,6 @@ GS_algo<-function(resltsTSPVmat,f){
     }
   }
   if(!is.null(rowID)){
-  print(as.matrix(rbind(rownombres,rowID)))
  return(as.matrix(rbind(rownombres,rowID)))
   }
 # }
