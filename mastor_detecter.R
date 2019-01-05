@@ -1147,7 +1147,7 @@ if(dettype=="spread"|dettype=="combined"){
       
       #create new groups values
       for(u in 1:nrow(resltsTSPV)){
-        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2]
+        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2] 
       }
       
       }
