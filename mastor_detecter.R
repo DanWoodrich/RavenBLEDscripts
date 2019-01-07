@@ -294,7 +294,7 @@ GS_algo<-function(resltsTSPVmat,f){
     }else if(g>=1){
     for(h in g:(nrow(groupdat)-1)){
       if(RM>groupdat[h+1,1]&(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)|((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        if(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)){
+        if(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&((timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0.2|groupdat[h+1,3]>groupdat[h,3])){
           boxPos<-3
         }else{
           boxPos<-4
@@ -963,8 +963,7 @@ specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
   Start<-specList[2]
   End<-  specList[3]
   if(End-Start<0.1){
-    Start<-Start-(((0.1-(End-Start))/2))
-    End<-End+(((0.1-(End-Start))/2))
+    End<-End+(0.1-(End-Start))
     
   }
   Low<-specList[4]
