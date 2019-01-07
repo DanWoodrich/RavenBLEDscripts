@@ -780,14 +780,14 @@ adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
-    CompVar<-CompVar[order(CompVar[,10]),]
+    CompVar<-CompVar[order(CompVar[,3]),]
     print(paste("For mooring",o))
     r=0
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar[q+1,10]<=(CompVar[q,10]+timediffself)){
+      if(CompVar[q+1,3]<=(CompVar[q,3]+timediffself)){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
@@ -823,7 +823,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
       if(newrow[1,1]!=0){
         CompVar<-subset(CompVar,!(CompVar[,2] %in% IDvec))
         CompVar<-rbind(CompVar,newrow)
-        CompVar<-CompVar[order(CompVar[,10]),]
+        CompVar<-CompVar[order(CompVar[,3]),]
         n=n+1
       }
     if(n>0){
@@ -900,12 +900,14 @@ for(m in moors){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,35))
       specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,35))
-      
+      noPar<-FALSE
+    
     }
     
   }else{
@@ -924,12 +926,15 @@ for(m in moors){
     if(is.null(nrow(specdata))){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,35))
-      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make
+      noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,35))
+      noPar<-FALSE
+      
       
     }
     
@@ -940,7 +945,7 @@ for(m in moors){
     specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
-
+  if(noPar!=FALSE){
   if(user=="ACS-3"){
     num_cores <- detectCores()
   }else{
@@ -958,7 +963,29 @@ for(m in moors){
   
 #print("extracting spectral parameters")
 specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
-  specList<-specVar[z,]
+
+  specDo(z,moorlib,specdata,specpath)
+
+}
+stopCluster(cluz)
+
+specVar<<-do.call('rbind', specVar2)
+  }else if(noPar==TRUE){
+    z<-1
+    specVar<<-specDo(z,moorlib,specdata,specpath)
+    
+}
+specTab<<-rbind(specTab,specVar)
+}
+  return(specTab)
+}
+
+specDo<-function(z,libb,specStuff,specpathh){
+  if(is.null(nrow(specdata))){
+    specList<-specStuff
+  }else{
+    specList<-specStuff[z,]
+  }
   #store reused calculations to avoid indexing 
   Start<-specList[2]
   End<-  specList[3]
@@ -969,8 +996,8 @@ specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
   Low<-specList[4]
   High<-specList[5]
   
-  foo <-readWave(paste(specpath,moorlib[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
-
+  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
+  
   sample_rate.og<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
@@ -1024,20 +1051,8 @@ specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
   specList[38]<-Dfrange #dfrange
   specList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
   specList[40]  <- lastFeature(sample_rate.og,foo.meanspec)
-
-  specList
-
-}
-stopCluster(cluz)
-
-specVar<<-do.call('rbind', specVar2)
-specTab<<-rbind(specTab,specVar)
-}
-  if(rowcount>1){
-  return(specTab)
-  }else{
-  return(specTab[1,])
-  }
+  
+  return(specList)
 }
 
 process_data<-function(whichRun){
@@ -1215,11 +1230,11 @@ if(dettype=="spread"|dettype=="combined"){
           }
           
           #change end time of call to start of next call if they overlap. 
-          resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
-          for(b in 1:(nrow(resltsTSPVFinal)-1)){
-            if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
-              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
-          }
+          #resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
+          #for(b in 1:(nrow(resltsTSPVFinal)-1)){
+          #  if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
+          #    resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
+          #}
           
           
           resltsTSPVFinal$View<-"Spectrogram 1"
@@ -2138,10 +2153,10 @@ data3<-data3[-which(is.na(data3$probmean)),]
 ######################
 #adaptively combine detections based on probability
 data3Mat<- data.matrix(data3)
-if(spec=="RW"){
+#if(spec=="RW"){
 data3Mat<-adaptive_compare(data3Mat,1) 
-}else if(spec=="GS"){
-}
+#}else if(spec=="GS"){
+#}
 
 data3<-data3Mat
 
