@@ -777,12 +777,11 @@ after_model_write <-function(mdata,libb,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
-  for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
+  for(a in 1:1){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
     print(paste("For mooring",o))
-    r=0
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
@@ -791,12 +790,11 @@ adaptive_compare<-function(Compdata,specfeatrun){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
-          IDvec<-c(IDvec,q,q+1)
+          IDvec<-c(IDvec,rownames(newdat))
           newrow<-rbind(newrow,newdat[2,])
         }else{
-          #print(q)
           newdat<-CompVar[c(q,q+1),]
-          IDvec<-c(IDvec,q,q+1)
+          IDvec<-c(IDvec,rownames(newdat))
           s<-as.numeric(min(newdat[,3]))
           e<-as.numeric(max(newdat[,4]))
           l<-as.numeric(min(newdat[,5]))
@@ -945,7 +943,7 @@ for(m in moors){
     specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
-  if(noPar!=FALSE){
+  if(noPar==FALSE){
   if(user=="ACS-3"){
     num_cores <- detectCores()
   }else{
@@ -954,38 +952,30 @@ for(m in moors){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error"))
-  
-  #wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-  #  RW_algo(resltsTSPVmat=dataaa[,1:3],f=grouppp)
-  #}
-  #wantedSelections<-as.integer(do.call('c', wantedSelections))
+  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo"))
   
 #print("extracting spectral parameters")
-specVar2<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
-
-  specDo(z,moorlib,specdata,specpath)
-
+specVar2<<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
+  specRow<-specVar[z,]
+  specDo(moorlib,specRow,specpath)
 }
 stopCluster(cluz)
 
 specVar<<-do.call('rbind', specVar2)
+
   }else if(noPar==TRUE){
-    z<-1
-    specVar<<-specDo(z,moorlib,specdata,specpath)
-    
+    specVar<<-specVar[1,]
+    specVar<<-specDo(moorlib,specVar,specpath)
 }
 specTab<<-rbind(specTab,specVar)
 }
   return(specTab)
 }
 
-specDo<-function(z,libb,specStuff,specpathh){
-  if(is.null(nrow(specdata))){
-    specList<-specStuff
-  }else{
-    specList<-specStuff[z,]
-  }
+specDo<-function(libb,specStuff,specpathh){
+  
+  specList<-specStuff
+
   #store reused calculations to avoid indexing 
   Start<-specList[2]
   End<-  specList[3]
@@ -1483,7 +1473,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
