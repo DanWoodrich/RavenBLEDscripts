@@ -777,7 +777,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
-  for(a in 1:1){#go through twice in case there are mulitple boxes close to one another. 
+  for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
@@ -790,11 +790,11 @@ adaptive_compare<-function(Compdata,specfeatrun){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
-          IDvec<-c(IDvec,rownames(newdat))
+          IDvec<-c(IDvec,as.numeric(newdat[,2]))
           newrow<-rbind(newrow,newdat[2,])
         }else{
           newdat<-CompVar[c(q,q+1),]
-          IDvec<-c(IDvec,rownames(newdat))
+          IDvec<-c(IDvec,as.numeric(newdat[,2]))
           s<-as.numeric(min(newdat[,3]))
           e<-as.numeric(max(newdat[,4]))
           l<-as.numeric(min(newdat[,5]))
