@@ -32,6 +32,11 @@ library(stringr)
 library(stringi)
 library(signal)
 
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
+
 lastFeature<-function(a,b){
   
   ## get frequency windows length for smoothing
@@ -1201,7 +1206,11 @@ if(dettype=="spread"|dettype=="combined"){
             grp<-resltsTSPV[resltsTSPV$group==j,]
             grpminfreq <- min(grp[,6])
             grpmaxfreq <- max(grp[,7])
-            grpstarttime <- min(grp[which.max(grp[,13]),4])
+            if(any(duplicated(grp[,4]))){             #min(grp[which.max(grp[,13]),4]) #for start of 1st detector in run
+            grpstarttime <- getmode(grp[,4])
+            }else{
+            grpstarttime <- median(grp[,4])
+            }
             grpendtime <- max(grp[,5])
             
             resltsTSPVFinal[p,1]<-p
@@ -1218,13 +1227,22 @@ if(dettype=="spread"|dettype=="combined"){
             
             p<-p+1
           }
+
+          #remove fragments (100hz or under) that are resonably high up 
+          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,6]>=225))),] #&resltsTSPVFinal[,6]>=225)
+          
+          #remove fragments (100hz or under) also on the low end
+          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,7]<150)&(resltsTSPVFinal[,5]-resltsTSPVFinal[,4]<=0.25))),] #&resltsTSPVFinal[,6]>=225)
           
           #change end time of call to start of next call if they overlap. 
-          #resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
-          #for(b in 1:(nrow(resltsTSPVFinal)-1)){
-          #  if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
-          #    resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
-          #}
+          resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
+          for(b in 1:(nrow(resltsTSPVFinal)-1)){
+            if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
+              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
+          }
+          
+          #remove ones with no data 
+          resltsTSPVFinal<-resltsTSPVFinal[which((resltsTSPVFinal[,5]-resltsTSPVFinal[,4])!=0),]
           
           
           resltsTSPVFinal$View<-"Spectrogram 1"
@@ -1473,7 +1491,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
