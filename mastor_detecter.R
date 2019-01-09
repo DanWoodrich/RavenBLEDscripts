@@ -1232,7 +1232,7 @@ if(dettype=="spread"|dettype=="combined"){
           resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,6]>=225))),] #&resltsTSPVFinal[,6]>=225)
           
           #remove fragments (100hz or under) also on the low end
-          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,7]<150)&(resltsTSPVFinal[,5]-resltsTSPVFinal[,4]<=0.25))),] #&resltsTSPVFinal[,6]>=225)
+          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,7]<150)&(resltsTSPVFinal[,5]-resltsTSPVFinal[,4]<=0.5))),] #&resltsTSPVFinal[,6]>=225)
           
           #change end time of call to start of next call if they overlap. 
           resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
@@ -1800,7 +1800,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
-    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+2)&GT[[v]]$meantime>(MoorVar$meantime[h]-2))
+    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+3)&GT[[v]]$meantime>(MoorVar$meantime[h]-3))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
       if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])){
@@ -1820,10 +1820,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Add rows where GT meantime was in between 
   p=1
   for(h in 1:nrow(GT[[v]])){
-    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+2)&MoorVar$meantime>(GT[[v]]$meantime[h]-2))
+    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+3)&MoorVar$meantime>(GT[[v]]$meantime[h]-3))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if(GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5]){
+      if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar[g,14]>GT[[v]][h,4]) & (MoorVar[g,14]<GT[[v]][h,5]))){
         OutputCompare2[p,]<-GT[[v]][h,]
         OutputCompare2[p,9]<-"TP truth"
         p=p+1
