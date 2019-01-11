@@ -2087,12 +2087,6 @@ data2$detectionType<-as.factor(data2$detectionType)
 if(runTestModel=="y"){
 
 pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
-  
-#names(data2)[1]<-"Mooring"
-
-my.xval = list()
-my.xval$predictions = list()
-my.xval$labels = list()
 
 AUC_avg<-c()
 f=1
@@ -2107,9 +2101,6 @@ for(p in 1:CV){
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
   auc.perf = performance(ROCRpred, measure = "auc",plot=F)
   AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
-  
-  my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
-  my.xval$labels[[p]] = ROCRpred@labels[[1]]
   
   prob.perf = performance(ROCRpred, "tpr","fpr")
   
@@ -2230,35 +2221,6 @@ cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerb
 after_model_write(data3,moorlib,1) #need to change to vector 
 
 beep(10)
-
-
-
-#comparison dataset to data3#####################################
-#data4$probmean<-probmean
-#data4$probstderr<-probstderr
-#data4$n<-n
-
-#number of TPs in data4
-#sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
-
-#cor.test(as.numeric(probmean),probstderr)
-#pp = my.xval$predictions
-#ll = my.xval$labels
-#predd = prediction(pp, ll)
-#perff = performance(predd, "tpr", "fpr")
-
-#no avg
-#plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
-#abline(a=0, b= 1)
-
-#avg. Don't really know what the points on the line mean. Without manipulations on probs
-#plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
-     #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-#     lwd = 2, main = paste("Vertical avg w/ std devn"))
-#plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-#     lwd = 2, main = paste("Threshold avg"),colorize=T)
-#abline(a=0, b= 1)
-#print(mean(AUC_avg))
 
 #save last model
 save(data.rf, file = paste(drivepath,"DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
