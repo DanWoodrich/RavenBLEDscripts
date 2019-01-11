@@ -566,6 +566,16 @@ raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detec
   
 }
 
+plot_jpeg = function(path, add=FALSE)
+{
+  require('jpeg')
+  jpg = readJPEG(path, native=T) # read the file
+  res = dim(jpg)[2:1] # get the resolution, [x, y]
+  if (!add) # initialize an empty plot area if add==FALSE
+    plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',xlab='',ylab='',bty='n')
+  rasterImage(jpg,1,1,res[1],res[2])
+}
+
 sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
 {
   
@@ -1110,8 +1120,22 @@ for(n in 20:1){
   t = spec$t
   
   # plot spectrogram
-  imagep(x = t,y = spec$f,z = t(P),col = gray(255:0/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
-
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""),quality=100)
+  imagep(x = t,y = spec$f,z = t(P),col = gray(225:0/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
+  dev.off()
+  
+  test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""))
+  test<-grayscale(test, method = "Luma", drop = TRUE)
+  f <- ecdf(test)
+  #f(test) %>% as.cimg(dim=dim(test)) %>% plot()
+  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""),quality=100)
+  threshold(test,"68%") %>% plot(main="Determinant: 60% highest values")
+  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
+  
+  dev.off()
+ # test2<-imgradient(test,"x")
+ # plot(test2)
   #print(spec)
   #spectro(foo,grid=FALSE,flim=c(Low/1000,High/1000,overlap=16,wl=32, normalize = F,nfft=128)) 
 }
