@@ -999,7 +999,7 @@ specDo<-function(libb,specStuff,specpathh){
   foo.spec <- spec(foo,plot=F, PSD=T,wl=128)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
-  #spectro(foo) #could do image analysis on this guy 
+  spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=50,wl=128)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F,ovlp=50,wl=64) #
@@ -1048,6 +1048,72 @@ specDo<-function(libb,specStuff,specpathh){
   specList[40]  <- lastFeature(sample_rate.og,foo.meanspec)
   
   return(specList)
+}
+
+#test
+for(n in 20:1){
+  #dev.off()
+  
+  specList<-specVar[n,]
+  
+  #store reused calculations to avoid indexing 
+  Start<-specList[2]
+  End<-  specList[3]
+  if(End-Start<0.1){
+    End<-End+(0.1-(End-Start))
+    
+  }
+  Low<-specList[4]
+  High<-specList[5]
+  
+  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
+  # extract signal
+  snd = foo@left
+  
+  # determine duration
+  dur = length(snd)/foo@samp.rate
+  #dur # seconds
+  ## [1] 3.588
+  
+  # determine sample rate
+  fs = foo@samp.rate
+  #fs # Hz
+  ## [1] 2000
+  
+  # demean to remove DC offset
+  snd = snd - mean(snd)
+  
+  # number of points to use for the fft
+  nfft=2024
+  
+  window<-132
+
+  overlap=128
+  
+  # create spectrogram
+  spec = specgram(x = snd,
+                  Fs = fs,
+                  window=window,
+                  overlap=overlap
+  )
+  
+  # discard phase information
+  P = abs(spec$S)
+  
+  # normalize
+  P = P/max(P)
+  
+  # convert to dB
+  P = 15*log10(P)
+  
+  # config time axis
+  t = spec$t
+  
+  # plot spectrogram
+  imagep(x = t,y = spec$f,z = t(P),col = gray(255:0/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
+
+  #print(spec)
+  #spectro(foo,grid=FALSE,flim=c(Low/1000,High/1000,overlap=16,wl=32, normalize = F,nfft=128)) 
 }
 
 process_data<-function(whichRun){
@@ -1460,7 +1526,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 if(user=="ACS-3"){
   spec <- "GS"
 }else{
-  spec <- "GS"
+  spec <- "RW"
 }
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
@@ -1490,9 +1556,9 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
@@ -2066,6 +2132,19 @@ write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
 
+#omit NA: 
+data3 <- na.omit(data2)
+data3 <-cbind(data3[,1:10],scale(data3[,11:ncol(data3)]))
+data3<-data3[,-37]
+data3<-data3[,-c(1,2,3,4,5,6,8,9,10)]
+#data3<-data3[which(data3$detectionType==1),]
+
+dataNum<-data3[,-1]
+
+fit <- kmeans(dataNum, 2)
+plotcluster(dataNum, fit$cluster)
+clusplot(dataNum, fit$cluster, color=TRUE, shade=TRUE, 
+         labels=2, lines=0)
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
@@ -2138,8 +2217,7 @@ CUTmean<-mean(CUTvec)
 CUTstd.err<-std.error(CUTvec)
 
 data3<- data2
-data4<- data2
-
+data2<-NULL
 ##assuming $detection type is already in this data NOTE not 
 data3$probmean<-probmean
 data3$probstderr<-probstderr
