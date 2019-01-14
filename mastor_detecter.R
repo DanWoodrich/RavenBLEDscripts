@@ -1129,7 +1129,7 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   
   # plot spectrogram
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
+  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
   dev.off()
   
   test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
@@ -1143,36 +1143,34 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   test2<-threshold(test,"68%") 
   #plot(test2)
   test2<-clean(test2,5) %>% imager::fill(1) 
-  plot(test2,axes=FALSE)
+  par(mar=c(0,0,0,0))
+  plot(test2,axes=FALSE,asp="varying")
   #plot(test)
-  test3<-contours(test2)
-  minx<-min(unlist(lapply(test3,find_xmin)))+1
-  maxx<-max(unlist(lapply(test3,find_xmax)))-1
-  miny<-min(unlist(lapply(test3,find_ymin)))+1
-  maxy<-max(unlist(lapply(test3,find_ymax)))-1
+  #test3<-contours(test2)
+  #minx<-1
+  #maxx<-max(unlist(lapply(test3,find_xmax)))
+  #miny<-1
+  #maxy<-max(unlist(lapply(test3,find_ymax)))
   
-  rect(minx,miny,maxx,maxy)
+  #rect(minx,miny,maxx,maxy)
   
-  dev.off()
-  test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
-  test2<-clean(test2,5)
-  plot(clean(test2,5))
-  test3<-highlight(test2)
+  #dev.off()
+  #test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
   
   ## Split into connected components (individual coins)
-  pxs <- split_connected(test2)
+  #pxs <- split_connected(test2)
   ## Compute their respective area
-  area <- sapply(pxs,sum)
+  #area <- sapply(pxs,sum)
   ## Highlight largest coin in green
-  #highlight(pxs[[35]],col="green",lwd=2)
+  #highlight(pxs[[6]],col="orange",lwd=2)
   
 
   test9<-hough_line(test2,data.frame = TRUE)
   
-  test9<-test9[which(test9$score==500),]
+  test9<-test9[which(test9$score>=350),]
   
-  for(q in 1:200){
-  nfline(test9[q,1],test9[q,2],col="red")
+  for(q in 1:nrow(test9)){
+  nfline(test9[q,1],test9[q,2],col=rgb(1, 0, 0,0.05))
   }
   
   #test4<-threshold(test,.5) %>% plot(axes=TRUE)
