@@ -9,7 +9,7 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager")
 
 library(e1071)  
 library(foreach)
@@ -31,6 +31,8 @@ library(beepr)
 library(stringr)
 library(stringi)
 library(signal)
+library(oce)
+library(imager)
 
 getmode <- function(v) {
   uniqv <- unique(v)
@@ -1061,10 +1063,16 @@ specDo<-function(libb,specStuff,specpathh){
 }
 
 #test
-for(n in 20:1){
+
+  num_cores <- detectCores()-1
+cluz <- makeCluster(num_cores)
+registerDoParallel(cluz)
+
+clusterExport(cluz, c("specVar","specpath","find_xmin","find_xmax","find_ymin","find_ymax","specgram","imagep"))
+
+foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   #dev.off()
-  
-  specList<-specVar[n,]
+  specList<-specVar[y,]
   
   #store reused calculations to avoid indexing 
   Start<-specList[2]
@@ -1120,17 +1128,56 @@ for(n in 20:1){
   t = spec$t
   
   # plot spectrogram
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec$f,z = t(P),col = gray(225:0/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE)
   dev.off()
   
-  test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""))
+  test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  
   test<-grayscale(test, method = "Luma", drop = TRUE)
   f <- ecdf(test)
   #f(test) %>% as.cimg(dim=dim(test)) %>% plot()
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",n,".jpg",sep=""),quality=100)
-  threshold(test,"68%") %>% plot(main="Determinant: 60% highest values")
+  #highlight() looks lit
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  test2<-threshold(test,"68%") 
+  #plot(test2)
+  test2<-clean(test2,5) %>% imager::fill(1) 
+  plot(test2,axes=FALSE)
+  #plot(test)
+  test3<-contours(test2)
+  minx<-min(unlist(lapply(test3,find_xmin)))+1
+  maxx<-max(unlist(lapply(test3,find_xmax)))-1
+  miny<-min(unlist(lapply(test3,find_ymin)))+1
+  maxy<-max(unlist(lapply(test3,find_ymax)))-1
+  
+  rect(minx,miny,maxx,maxy)
+  
+  dev.off()
+  test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  test2<-clean(test2,5)
+  plot(clean(test2,5))
+  test3<-highlight(test2)
+  
+  ## Split into connected components (individual coins)
+  pxs <- split_connected(test2)
+  ## Compute their respective area
+  area <- sapply(pxs,sum)
+  ## Highlight largest coin in green
+  #highlight(pxs[[35]],col="green",lwd=2)
+  
+
+  test9<-hough_line(test2,data.frame = TRUE)
+  
+  test9<-test9[which(test9$score==500),]
+  
+  for(q in 1:200){
+  nfline(test9[q,1],test9[q,2],col="red")
+  }
+  
+  #test4<-threshold(test,.5) %>% plot(axes=TRUE)
+  #test5<-threshold(test2-test4,)
+  #test5 %>% plot(axes=TRUE)
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
   
   dev.off()
@@ -1138,6 +1185,29 @@ for(n in 20:1){
  # plot(test2)
   #print(spec)
   #spectro(foo,grid=FALSE,flim=c(Low/1000,High/1000,overlap=16,wl=32, normalize = F,nfft=128)) 
+}
+
+stopCluster(cluz)
+
+
+find_xmin<- function(data){
+  xmin<-min(data$x)
+  return(xmin)
+}
+
+find_xmax<- function(data){
+  xmax<-max(data$x)
+  return(xmax)
+}
+
+find_ymin<- function(data){
+  ymin<-min(data$y)
+  return(ymin)
+}
+
+find_ymax<- function(data){
+  ymax<-max(data$y)
+  return(ymax)
 }
 
 process_data<-function(whichRun){
