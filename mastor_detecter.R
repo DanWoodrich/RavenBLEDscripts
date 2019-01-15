@@ -1140,7 +1140,7 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
   #highlight() looks lit
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  test2<-threshold(test,"68%") 
+  test2<-threshold(test,"80%") 
   #plot(test2)
   test2<-clean(test2,5) %>% imager::fill(1) 
   par(mar=c(0,0,0,0))
@@ -1157,8 +1157,12 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   #dev.off()
   #test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
   
+  #par(mar=c(0,0,0,0))
+  #plot(test2,axes=FALSE,asp="varying")
+  
   ## Split into connected components (individual coins)
-  #pxs <- split_connected(test2)
+  pxs <- split_connected(test2)
+  
   ## Compute their respective area
   #area <- sapply(pxs,sum)
   ## Highlight largest coin in green
@@ -1167,11 +1171,20 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
 
   test9<-hough_line(test2,data.frame = TRUE)
   
-  test9<-test9[which(test9$score>=350),]
+  test10<-test9[which.max(test9$score),]
   
-  for(q in 1:nrow(test9)){
-  nfline(test9[q,1],test9[q,2],col=rgb(1, 0, 0,0.05))
-  }
+  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1))
+  
+  test11<-test9[which(test9$score>=350),]
+  
+  test11<-c(mean(test11[,1]),mean(test11[,2]),mean(test11[,3]))
+
+  nfline(test11[1],test11[2],col=rgb(0, 0, 1,1))
+  
+  
+  #for(q in 1:nrow(test9)){
+  #nfline(test9[q,1],test9[q,2],col=rgb(0, 0, 1,1))
+  #}
   
   #test4<-threshold(test,.5) %>% plot(axes=TRUE)
   #test5<-threshold(test2-test4,)
