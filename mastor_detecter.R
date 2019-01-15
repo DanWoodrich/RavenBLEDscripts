@@ -1070,7 +1070,7 @@ registerDoParallel(cluz)
 
 clusterExport(cluz, c("specVar","specpath","find_xmin","find_xmax","find_ymin","find_ymax","specgram","imagep"))
 
-foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
+foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   #dev.off()
   specList<-specVar[y,]
   
@@ -1140,7 +1140,7 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
   #highlight() looks lit
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  test2<-threshold(test,"80%") 
+  test2<-threshold(test,"65%") 
   #plot(test2)
   test2<-clean(test2,5) %>% imager::fill(1) 
   par(mar=c(0,0,0,0))
@@ -1173,25 +1173,69 @@ foreach(y=100:1,.packages=c("seewave","tuneR","imager")) %dopar% {
   
   test10<-test9[which.max(test9$score),]
   
-  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1))
+  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1),lwd=3)
   
   test11<-test9[which(test9$score>=350),]
   
   test11<-c(mean(test11[,1]),mean(test11[,2]),mean(test11[,3]))
 
-  nfline(test11[1],test11[2],col=rgb(0, 0, 1,1))
+  nfline(test11[1],test11[2],col=rgb(0, 0, 1,1),lwd=3)
   
+  test9<-test9[which(test9$score>=350),]
+  slopes<- cbind(test9[,c(1,2)],(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  remove<-which(is.infinite(slopes[,3]))
+  if(length(remove)!=0){
+  slopes<-slopes[-remove,]
+  test9<-test9[-remove,]
+  }
   
-  #for(q in 1:nrow(test9)){
-  #nfline(test9[q,1],test9[q,2],col=rgb(0, 0, 1,1))
-  #}
+  slopes<-slopes[,c(3,4)]
+  slopes<-scale(slopes)
+  
+  #remove outliers
+  slopes<-slopes[which(abs(slopes[,1])-1.5*IQR(slopes[,1])<=0),]
+  slopes<-slopes[which(abs(slopes[,2])-1.5*IQR(slopes[,2])<=0),]
+  
+
+  #test9$b<- test9$rho/sin(test9$theta)
+  
+  km <- kmeans(slopes,2)
+  if(dudahart2(slopes,km$cluster,alpha=1)$cluster1==FALSE){
+    
+    pamk.best <- pamk(slopes)
+    slopes<-cbind(slopes,pamk.best$pamobject$clustering)
+  }else{
+    slopes<-cbind(slopes,1)
+  }
+  
+  for(q in 1:nrow(slopes)){
+  nfline(test9[q,1],test9[q,2],col=c("blue","red","orange","yellow","brown","gray","purple")[slopes[q,3]])
+  }
+
+  dev.off()  
+  
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,"kmeans.jpg",sep=""),quality=100)
+  
+  #fit<-kmeans(test9[,c(1:2)],3)
+  #plotcluster(test9[,c(1,2)],fit$cluster)
+  
+
+
+  
+  #dev.off()
+  
+  #ideas for stastics: 
+  #1. is there a "strong group" of lines present? 
+  #1. is the best group of lines approx. parallel with the next best group of lines? 
+  #2. do the red and blue lines converge? 
+  #3. does the strongest group coincide with 
   
   #test4<-threshold(test,.5) %>% plot(axes=TRUE)
   #test5<-threshold(test2-test4,)
   #test5 %>% plot(axes=TRUE)
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
   
-  dev.off()
+  #dev.off()
  # test2<-imgradient(test,"x")
  # plot(test2)
   #print(spec)
