@@ -1175,6 +1175,12 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
   yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
   
+  #add coords for centroid of largest shape
+  #add slope of highest point (furthest left in tie) - lowest point (furthest right in tie) of largest shape
+  #add b of highest point - lowest point of largest shape
+  #add slope and b of ^ but averaged over top 3 
+  #curvature: diff in middle point of largest shape and predicted position from shape slope. + or - depending on if concave or convex 
+  
   AreaSpread<-std.error(area)
   AreaTopDom<-max(area)/(sum(area))
   AreaTop3Dom<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}
