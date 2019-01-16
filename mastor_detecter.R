@@ -34,6 +34,8 @@ library(signal)
 library(oce)
 library(imager)
 
+rotate <- function(x) t(apply(x, 2, rev))
+
 getmode <- function(v) {
   uniqv <- unique(v)
   uniqv[which.max(tabulate(match(v, uniqv)))]
@@ -1145,6 +1147,54 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   test2<-clean(test2,5) %>% imager::fill(1) 
   par(mar=c(0,0,0,0))
   plot(test2,axes=FALSE,asp="varying")
+  
+  pxs <- split_connected(test2)
+  test8<-label(test2)
+  df <- as.data.frame(test8) %>% subset(value>0)
+  area<-table(df$value)
+  
+  test9<-hough_line(test2,data.frame = TRUE)
+  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  test9<-test9[which(!is.infinite(test9[,4])),]
+  test10<-test9[which.max(test9$score),]
+  test11<-test9[which(test9$score>=350),]
+  
+  positionsX <- apply(test3, 1, function(x) which(x==TRUE))
+  positionsY <- apply(test3, 2, function(x) which(x==TRUE))
+  
+  #plot best line
+  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1),lwd=3)
+  
+  #calculate some stats:
+  bestSlope<-test10[4]
+  bestB<-test10[5]
+  numGoodlines<-if(!is.null(nrow(test11))){nrow(test11)}else{0}
+  medSlope<-median(test11[4])
+  medB<-median(test11[5])
+  
+  xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
+  yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
+  
+  AreaSpread<-std.error(area)
+  AreaTopDom<-max(area)/(sum(area))
+  AreaTop3Dom<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}
+  NumShapes<-length(area)
+  
+  hp95even<-sum(diff(test2[1:480,24]) == 1) + sum(diff(test2[1:480,24]) == -1)
+  hp80even<-sum(diff(test2[1:480,96]) == 1) + sum(diff(test2[1:480,96]) == -1)
+  hp60even<-sum(diff(test2[1:480,192]) == 1) + sum(diff(test2[1:480,192]) == -1)
+  hp40even<-sum(diff(test2[1:480,288]) == 1) + sum(diff(test2[1:480,288]) == -1)
+  hp20even<-sum(diff(test2[1:480,384]) == 1) + sum(diff(test2[1:480,384]) == -1)
+  hp05even<-sum(diff(test2[1:480,456]) == 1) + sum(diff(test2[1:480,456]) == -1)
+  
+  vp95even<-sum(diff(test2[24,1:480]) == 1) + sum(diff(test2[24,1:480]) == -1)
+  vp80even<-sum(diff(test2[96,1:480]) == 1) + sum(diff(test2[96,1:480]) == -1)
+  vp60even<-sum(diff(test2[192,1:480]) == 1) + sum(diff(test2[192,1:480]) == -1)
+  vp40even<-sum(diff(test2[288,1:480]) == 1) + sum(diff(test2[288,1:480]) == -1)
+  vp20even<-sum(diff(test2[384,1:480]) == 1) + sum(diff(test2[384,1:480]) == -1)
+  vp05even<-sum(diff(test2[456,1:480]) == 1) + sum(diff(test2[456,1:480]) == -1)
+  
+  
   #plot(test)
   #test3<-contours(test2)
   #minx<-1
@@ -1161,7 +1211,6 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   #plot(test2,axes=FALSE,asp="varying")
   
   ## Split into connected components (individual coins)
-  pxs <- split_connected(test2)
   
   ## Compute their respective area
   #area <- sapply(pxs,sum)
@@ -1169,11 +1218,8 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   #highlight(pxs[[6]],col="orange",lwd=2)
   
 
-  test9<-hough_line(test2,data.frame = TRUE)
+
   
-  test10<-test9[which.max(test9$score),]
-  
-  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1),lwd=3)
   
   test11<-test9[which(test9$score>=350),]
   
