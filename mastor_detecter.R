@@ -1148,10 +1148,18 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   par(mar=c(0,0,0,0))
   plot(test2,axes=FALSE,asp="varying")
   
-  pxs <- split_connected(test2)
   test8<-label(test2)
-  df <- as.data.frame(test8) %>% subset(value>0)
-  area<-table(df$value)
+  test15<-as.matrix(test8[1:480,1:480])
+  test14<-as.matrix(test2[1:480,1:480])
+  for(i in 1:length(test15)){
+    if(test14[i]){
+      test15[i]<-test15[i]+1000000
+    }
+  }
+  test15[which(test15<1000000)]<-0
+  area<-table(test15)
+  #plot(as.cimg(test15))
+  area<-area[2:length(area)]
   
   test9<-hough_line(test2,data.frame = TRUE)
   test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
@@ -1162,18 +1170,22 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   positionsX <- apply(test3, 1, function(x) which(x==TRUE))
   positionsY <- apply(test3, 2, function(x) which(x==TRUE))
   
+  positionsX <- apply(test3, 1, function(x) which(x==TRUE))
+  positionsY <- apply(test3, 2, function(x) which(x==TRUE))
+  
   #plot best line
   nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1),lwd=3)
   
   #calculate some stats:
-  bestSlope<-test10[4]
-  bestB<-test10[5]
+  bestSlopeHough<-test10[4]
+  bestBHough<-test10[5]
   numGoodlines<-if(!is.null(nrow(test11))){nrow(test11)}else{0}
   medSlope<-median(test11[4])
   medB<-median(test11[5])
   
   xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
   yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
+  
   
   #add coords for centroid of largest shape
   #add slope of highest point (furthest left in tie) - lowest point (furthest right in tie) of largest shape
