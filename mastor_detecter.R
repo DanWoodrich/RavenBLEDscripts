@@ -33,6 +33,7 @@ library(stringi)
 library(signal)
 library(oce)
 library(imager)
+library(Cairo)
 
 rotate <- function(x) t(apply(x, 2, rev))
 
@@ -971,10 +972,10 @@ for(m in moors){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo"))
+  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
   
 #print("extracting spectral parameters")
-specVar2<<-foreach(z=1:rowcount, .packages=c("seewave")) %dopar% {
+specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-specVar[z,]
   specDo(moorlib,specRow,specpath)
 }
@@ -1007,13 +1008,22 @@ specDo<-function(libb,specStuff,specpathh){
   
   foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
   
-  sample_rate.og<-foo@samp.rate
+  fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
+  # demean to remove DC offset
+  snd = foo@left - mean(foo@left)
+  
+  # number of points to use for the fft
+  nfft=2024
+  
+  window<-132
+  
+  overlap=128
+  
   foo.spec <- spec(foo,plot=F, PSD=T,wl=128)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
-  spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=50,wl=128)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F,ovlp=50,wl=64) #
@@ -1059,21 +1069,153 @@ specDo<-function(libb,specStuff,specpathh){
   specList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
   specList[38]<-Dfrange #dfrange
   specList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specList[40]  <- lastFeature(sample_rate.og,foo.meanspec)
+  specList[40]  <- lastFeature(fs,foo.meanspec)
+  
+  
+  #FEATURES FROM IMAGE 
+  
+  # create spectrogram
+  spec = specgram(x = snd,
+                  Fs = fs,
+                  window=window,
+                  overlap=overlap
+  )
+  
+  # discard phase information
+  P = abs(spec$S)
+  
+  # normalize
+  P = P/max(P)
+  
+  # convert to dB
+  P = 15*log10(P)
+  
+  # config time axis
+  t = spec$t
+  
+  # plot spectrogram
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+  dev.off()
+  
+  image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  file.remove(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  image1<-grayscale(image1, method = "Luma", drop = TRUE)
+  f <- ecdf(image1)
+  
+  image1<-threshold(image1,"65%") 
+  image1<-clean(image1,5) %>% imager::fill(1) 
+  par(mar=c(0,0,0,0))
+  plot(image1,axes=FALSE,asp="varying")
+  
+  #calculate area chunks x and y 
+  chunks<-5
+  areaX<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkX<-sum(image1[start:end,1:480])
+    areaX<-c(areaX,areaChunkX)
+  }
+  
+  areaY<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkY<-sum(image1[1:480,start:end])
+    areaY<-c(areaY,areaChunkY)
+  }
+  
+  #distinguish islands and calculate area
+  labels<-label(image1)
+  labels<-as.matrix(labels[1:480,1:480])
+  threshBool<-as.matrix(image1[1:480,1:480])
+  for(i in 1:length(labels)){
+    if(threshBool[i]){
+      labels[i]<-labels[i]+1000000
+    }
+  }
+  labels[which(labels<1000000)]<-0
+  area<-table(labels)
+  area<-area[2:length(area)]
+  
+  #hough lines
+  test9<-hough_line(image1,data.frame = TRUE)
+  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  test9<-test9[which(!is.infinite(test9[,4])),]
+  Bestline<-test9[which.max(test9$score),]
+  Bestlines<-test9[which(test9$score>=350),]
+  
+  #calculate centroid of area (could also add centroid of largest area)
+  positionsX <- apply(image1[1:480,1:480], 1, function(x) which(x==TRUE))
+  positionsY <- apply(image1[1:480,1:480], 2, function(x) which(x==TRUE))
+  
+  #calculate stats on horizontal and vertical switches
+  hpEven<-c()
+  hpEven<-c(hpEven,sum(diff(image1[1:480,24]) == 1) + sum(diff(image1[1:480,24]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,96]) == 1) + sum(diff(image1[1:480,96]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,192]) == 1) + sum(diff(image1[1:480,192]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,288]) == 1) + sum(diff(image1[1:480,288]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,384]) == 1) + sum(diff(image1[1:480,384]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,456]) == 1) + sum(diff(image1[1:480,456]) == -1))
+  vpEven<-c()
+  vpEven<-c(vpEven,sum(diff(image1[24,1:480]) == 1) + sum(diff(image1[24,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[96,1:480]) == 1) + sum(diff(image1[96,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[192,1:480]) == 1) + sum(diff(image1[192,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[288,1:480]) == 1) + sum(diff(image1[288,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[384,1:480]) == 1) + sum(diff(image1[384,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[456,1:480]) == 1) + sum(diff(image1[456,1:480]) == -1))
+  
+  #add new variables
+  specList[41]<-which.max(areaX) #areaXmaxP
+  specList[42]<-max(areaX) #areaXmax
+  specList[43]<-max(areaX)/sum(areaX) #areaXdom
+  specList[44]<-std.error(areaX) #areaXstd
+  
+  specList[45]<-which.max(areaY) #areaYmaxP
+  specList[46]<-max(areaY) #areaYmax
+  specList[47]<-max(areaY)/sum(areaY)#areaYdom
+  specList[48]<-std.error(areaY)#areaYstd
+  
+  specList[49]<-std.error(area) #Areaspread
+  specList[50]<-max(area)#AreaTop
+  specList[51]<-max(area)/(sum(area))#AreaTopDom
+  specList[52]<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}#AreaTop3Dom
+  specList[53]<-length(area)#NumShapes
+  
+  specList[54]<-Bestline[4]#bestSlopeHough
+  specList[55]<-Bestline[5]#bestBHough
+  specList[56]<-if(!is.null(nrow(test11))){nrow(Bestlines)}else{0}#numGoodlines
+  specList[57]<-median(Bestlines[4])#medSlope
+  specList[58]<-median(Bestlines[5])#medB
+
+  specList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+  specList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+  
+  specList[61]<-mean(hpEven)#switchesX
+  specList[62]<-std.error(hpEven)#switchesXreg
+  specList[63]<-max(hpEven)#switchesXmax
+  specList[64]<-min(hpEven)#switchesXmin
+  
+  specList[65]<-mean(vpEven)#switchesY
+  specList[66]<-std.error(vpEven)#switchesYreg
+  specList[67]<-max(vpEven)#switchesYmax
+  specList[68]<-min(vpEven)#switchesYmin
   
   return(specList)
 }
 
+runthisthing<-"n"
 #test
-
+if(runthisthing=="y"){
   num_cores <- detectCores()-1
 cluz <- makeCluster(num_cores)
 registerDoParallel(cluz)
 
-clusterExport(cluz, c("specVar","specpath","find_xmin","find_xmax","find_ymin","find_ymax","specgram","imagep"))
+clusterExport(cluz, c("specVar","specpath","specgram","imagep"))
 
 foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
-  #dev.off()
+  dev.off()
   specList<-specVar[y,]
   
   #store reused calculations to avoid indexing 
@@ -1141,77 +1283,107 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   #f(test) %>% as.cimg(dim=dim(test)) %>% plot()
   #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
   #highlight() looks lit
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
   test2<-threshold(test,"65%") 
   #plot(test2)
   test2<-clean(test2,5) %>% imager::fill(1) 
   par(mar=c(0,0,0,0))
   plot(test2,axes=FALSE,asp="varying")
   
-  test8<-label(test2)
-  test15<-as.matrix(test8[1:480,1:480])
-  test14<-as.matrix(test2[1:480,1:480])
-  for(i in 1:length(test15)){
-    if(test14[i]){
-      test15[i]<-test15[i]+1000000
+  labels<-label(test2)
+  labels<-as.matrix(labels[1:480,1:480])
+  threshBool<-as.matrix(test2[1:480,1:480])
+  for(i in 1:length(labels)){
+    if(threshBool[i]){
+      labels[i]<-labels[i]+1000000
     }
   }
-  test15[which(test15<1000000)]<-0
-  area<-table(test15)
+  labels[which(labels<1000000)]<-0
+  area<-table(labels)
   #plot(as.cimg(test15))
   area<-area[2:length(area)]
   
-  test9<-hough_line(test2,data.frame = TRUE)
-  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
-  test9<-test9[which(!is.infinite(test9[,4])),]
-  test10<-test9[which.max(test9$score),]
-  test11<-test9[which(test9$score>=350),]
-  
-  positionsX <- apply(test3, 1, function(x) which(x==TRUE))
-  positionsY <- apply(test3, 2, function(x) which(x==TRUE))
-  
-  positionsX <- apply(test3, 1, function(x) which(x==TRUE))
-  positionsY <- apply(test3, 2, function(x) which(x==TRUE))
-  
-  #plot best line
-  nfline(test10[1,1],test10[1,2],col=rgb(1, 0, 0,1),lwd=3)
-  
-  #calculate some stats:
-  bestSlopeHough<-test10[4]
-  bestBHough<-test10[5]
-  numGoodlines<-if(!is.null(nrow(test11))){nrow(test11)}else{0}
-  medSlope<-median(test11[4])
-  medB<-median(test11[5])
-  
-  xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
-  yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
-  
-  
-  #add coords for centroid of largest shape
-  #add slope of highest point (furthest left in tie) - lowest point (furthest right in tie) of largest shape
-  #add b of highest point - lowest point of largest shape
-  #add slope and b of ^ but averaged over top 3 
-  #curvature: diff in middle point of largest shape and predicted position from shape slope. + or - depending on if concave or convex 
-  
   AreaSpread<-std.error(area)
+  AreaTop<-max(area)
   AreaTopDom<-max(area)/(sum(area))
   AreaTop3Dom<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}
   NumShapes<-length(area)
   
-  hp95even<-sum(diff(test2[1:480,24]) == 1) + sum(diff(test2[1:480,24]) == -1)
-  hp80even<-sum(diff(test2[1:480,96]) == 1) + sum(diff(test2[1:480,96]) == -1)
-  hp60even<-sum(diff(test2[1:480,192]) == 1) + sum(diff(test2[1:480,192]) == -1)
-  hp40even<-sum(diff(test2[1:480,288]) == 1) + sum(diff(test2[1:480,288]) == -1)
-  hp20even<-sum(diff(test2[1:480,384]) == 1) + sum(diff(test2[1:480,384]) == -1)
-  hp05even<-sum(diff(test2[1:480,456]) == 1) + sum(diff(test2[1:480,456]) == -1)
+  test9<-hough_line(test2,data.frame = TRUE)
+  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  test9<-test9[which(!is.infinite(test9[,4])),]
+  Bestline<-test9[which.max(test9$score),]
+  Bestlines<-test9[which(test9$score>=350),]
   
-  vp95even<-sum(diff(test2[24,1:480]) == 1) + sum(diff(test2[24,1:480]) == -1)
-  vp80even<-sum(diff(test2[96,1:480]) == 1) + sum(diff(test2[96,1:480]) == -1)
-  vp60even<-sum(diff(test2[192,1:480]) == 1) + sum(diff(test2[192,1:480]) == -1)
-  vp40even<-sum(diff(test2[288,1:480]) == 1) + sum(diff(test2[288,1:480]) == -1)
-  vp20even<-sum(diff(test2[384,1:480]) == 1) + sum(diff(test2[384,1:480]) == -1)
-  vp05even<-sum(diff(test2[456,1:480]) == 1) + sum(diff(test2[456,1:480]) == -1)
+  positionsX <- apply(test2[1:480,1:480], 1, function(x) which(x==TRUE))
+  positionsY <- apply(test2[1:480,1:480], 2, function(x) which(x==TRUE))
+  xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
+  yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
+
   
+  #plot best line
+  #nfline(Bestline[1,1],Bestline[1,2],col=rgb(1, 0, 0,1),lwd=3)
+  
+  #calculate some stats:
+  bestSlopeHough<-Bestline[4]
+  bestBHough<-Bestline[5]
+  numGoodlines<-if(!is.null(nrow(test11))){nrow(Bestlines)}else{0}
+  medSlope<-median(Bestlines[4])
+  medB<-median(Bestlines[5])
+  
+  chunks<-5
+  areaX<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkX<-sum(test2[start:end,1:480])
+    areaX<-c(areaX,areaChunkX)
+  }
+
+  areaXmaxP<-which.max(areaX)
+  areaXmax<-max(areaX)
+  areaXdom<-max(areaX)/sum(areaX)
+  areaXstd<-std.error(areaX)
+  
+  areaY<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkY<-sum(test2[1:480,start:end])
+    areaY<-c(areaY,areaChunkY)
+  }
+  
+  areaYmaxP<-which.max(areaY)
+  areaYmax<-max(areaY)
+  areaYdom<-max(areaY)/sum(areaY)
+  areaYstd<-std.error(areaY)
+
+  hpEven<-c()
+  hpEven<-c(hpEven,sum(diff(test2[1:480,24]) == 1) + sum(diff(test2[1:480,24]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,96]) == 1) + sum(diff(test2[1:480,96]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,192]) == 1) + sum(diff(test2[1:480,192]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,288]) == 1) + sum(diff(test2[1:480,288]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,384]) == 1) + sum(diff(test2[1:480,384]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,456]) == 1) + sum(diff(test2[1:480,456]) == -1))
+  
+  switchesX<-mean(hpEven)
+  switchesXreg<-std.error(hpEven)
+  switchesXmax<-max(hpEven)
+  switchesXmin<-min(hpEven)
+  
+  
+  vpEven<-c()
+  vpEven<-c(vpEven,sum(diff(test2[24,1:480]) == 1) + sum(diff(test2[24,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[96,1:480]) == 1) + sum(diff(test2[96,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[192,1:480]) == 1) + sum(diff(test2[192,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[288,1:480]) == 1) + sum(diff(test2[288,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[384,1:480]) == 1) + sum(diff(test2[384,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[456,1:480]) == 1) + sum(diff(test2[456,1:480]) == -1))
+  
+  switchesY<-mean(vpEven)
+  switchesYreg<-std.error(vpEven)
+  switchesYmax<-max(vpEven)
+  switchesYmin<-min(vpEven)
   
   #plot(test)
   #test3<-contours(test2)
@@ -1307,26 +1479,6 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
 }
 
 stopCluster(cluz)
-
-
-find_xmin<- function(data){
-  xmin<-min(data$x)
-  return(xmin)
-}
-
-find_xmax<- function(data){
-  xmax<-max(data$x)
-  return(xmax)
-}
-
-find_ymin<- function(data){
-  ymin<-min(data$y)
-  return(ymin)
-}
-
-find_ymax<- function(data){
-  ymax<-max(data$y)
-  return(ymax)
 }
 
 process_data<-function(whichRun){
@@ -1739,7 +1891,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 if(user=="ACS-3"){
   spec <- "GS"
 }else{
-  spec <- "RW"
+  spec <- "GS"
 }
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
@@ -1769,14 +1921,14 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
-runTestModel<-"n" #run model on GT data
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
 #enter the run name:
-runname<- "RW test new RF"
+runname<- "new variables test"
 
 #Run type: all (all) or specific (spf) moorings to run
 runtype<-"all"
@@ -2024,10 +2176,10 @@ if(dettype=="single"|dettype=="combined"){
   }
 }
 #Save progress
-write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   resltsTab<-read.csv(recentPath) #produces most recently modifed file 
 
@@ -2387,7 +2539,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz. -freqrange -meanfreq,data=train[[1]],mtry=7,na.action=na.roughfix)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz. -freqrange -meanfreq,data=train[[1]],mtry=11,na.action=na.roughfix)
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
