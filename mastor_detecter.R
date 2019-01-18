@@ -964,6 +964,7 @@ for(m in moors){
   }
   
   if(noPar==FALSE){
+    print(paste("      for mooring",libb[specVar[1,1],2]))
   if(user=="ACS-3"){
     num_cores <- detectCores()
   }else{
@@ -2490,8 +2491,10 @@ dataMat<-spectral_features(dataMat,moorlib,1)
 dataMat<-data.frame(dataMat)
 data<-cbind(data,dataMat[,c(6:length(dataMat))])
 
-write.csv(data,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
-write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
+data<-apply(data,2,function(x) unlist(x))
+
+write.csv(data,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
+write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
 data2<-data[,c(1,2,5,6,7,8,9:length(data))]
 data2$detectionType<-as.factor(data2$detectionType)
@@ -2505,18 +2508,18 @@ data3<-data3[,-c(1,2,3,4,5,6,8,9,10)]
 
 dataNum<-data3[,-1]
 
-fit <- kmeans(dataNum, 2)
-plotcluster(dataNum, fit$cluster)
-clusplot(dataNum, fit$cluster, color=TRUE, shade=TRUE, 
-         labels=2, lines=0)
+#fit <- kmeans(dataNum, 2)
+#plotcluster(dataNum, fit$cluster)
+#clusplot(dataNum, fit$cluster, color=TRUE, shade=TRUE, 
+#         labels=2, lines=0)
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   data<-read.csv(recentPath) #produces most recently modifed file 
   colnames(data)[1]<-"soundfiles[n]"
   
-  recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
