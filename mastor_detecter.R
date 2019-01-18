@@ -916,14 +916,14 @@ for(m in moors){
     
     if(is.null(nrow(specdata))){
       rowcount<<-1
-      specVar<<-c(specdata,matrix(1,rowcount,35))
-      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      specVar<<-c(specdata,matrix(1,rowcount,63))
+      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make 
       noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<<-nrow(specVar)
-      specVar<<-cbind(specVar,matrix(1,rowcount,35))
+      specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
     
     }
@@ -943,14 +943,14 @@ for(m in moors){
     
     if(is.null(nrow(specdata))){
       rowcount<<-1
-      specVar<<-c(specdata,matrix(1,rowcount,35))
-      specVar<<-rbind(specVar,matrix(1,rowcount,35+5)) #make
+      specVar<<-c(specdata,matrix(1,rowcount,63))
+      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make
       noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
       rowcount<<-nrow(specVar)
-      specVar<<-cbind(specVar,matrix(1,rowcount,35))
+      specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
       
       
@@ -977,7 +977,7 @@ for(m in moors){
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-specVar[z,]
-  specDo(moorlib,specRow,specpath)
+  specDo(z,moorlib,specRow,specpath)
 }
 stopCluster(cluz)
 
@@ -992,7 +992,7 @@ specTab<<-rbind(specTab,specVar)
   return(specTab)
 }
 
-specDo<-function(libb,specStuff,specpathh){
+specDo<-function(z,libb,specStuff,specpathh){
   
   specList<-specStuff
 
@@ -1094,35 +1094,33 @@ specDo<-function(libb,specStuff,specpathh){
   t = spec$t
   
   # plot spectrogram
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
   imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
   dev.off()
   
-  image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
-  file.remove(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
+  file.remove(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
   image1<-threshold(image1,"65%") 
   image1<-clean(image1,5) %>% imager::fill(1) 
-  par(mar=c(0,0,0,0))
-  plot(image1,axes=FALSE,asp="varying")
-  
-  #calculate area chunks x and y 
+ 
+   #calculate area chunks x and y 
   chunks<-5
   areaX<-NULL
   for(u in 1:chunks){
-    start<-(u*480/chunks)-95
-    end<-(u*480/chunks)
-    areaChunkX<-sum(image1[start:end,1:480])
+    beginn<<-(u*480/chunks)-95
+    ceasee<<-(u*480/chunks)
+    areaChunkX<-sum(image1[beginn:ceasee,1:480])
     areaX<-c(areaX,areaChunkX)
   }
   
   areaY<-NULL
   for(u in 1:chunks){
-    start<-(u*480/chunks)-95
-    end<-(u*480/chunks)
-    areaChunkY<-sum(image1[1:480,start:end])
+    beginn<<-(u*480/chunks)-95
+    ceasee<<-(u*480/chunks)
+    areaChunkY<-sum(image1[1:480,beginn:ceasee])
     areaY<-c(areaY,areaChunkY)
   }
   
@@ -1138,13 +1136,14 @@ specDo<-function(libb,specStuff,specpathh){
   labels[which(labels<1000000)]<-0
   area<-table(labels)
   area<-area[2:length(area)]
+  area<-as.vector(area)
   
   #hough lines
   test9<-hough_line(image1,data.frame = TRUE)
   test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
   test9<-test9[which(!is.infinite(test9[,4])),]
   Bestline<-test9[which.max(test9$score),]
-  Bestlines<-test9[which(test9$score>=350),]
+  Bestlines<-test9[which(test9$score>=max(test9$score)*.7),]
   
   #calculate centroid of area (could also add centroid of largest area)
   positionsX <- apply(image1[1:480,1:480], 1, function(x) which(x==TRUE))
@@ -1185,9 +1184,9 @@ specDo<-function(libb,specStuff,specpathh){
   
   specList[54]<-Bestline[4]#bestSlopeHough
   specList[55]<-Bestline[5]#bestBHough
-  specList[56]<-if(!is.null(nrow(test11))){nrow(Bestlines)}else{0}#numGoodlines
-  specList[57]<-median(Bestlines[4])#medSlope
-  specList[58]<-median(Bestlines[5])#medB
+  specList[56]<-nrow(Bestlines)#numGoodlines
+  specList[57]<-median(Bestlines[,4])#medSlope
+  specList[58]<-median(Bestlines[,5])#medB
 
   specList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
   specList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
