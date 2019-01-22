@@ -768,7 +768,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
       }
   }
   numTPtruth<-sum(TPtottab$GTtot)
-  mdata<-mdata[which(mdata[,pos-2]>CUTmean),]
+  mdata<-mdata[which(mdata[,pos+5]>CUTmean),]
   
   if(finaldatrun==1){
   numTP<-sum(as.numeric(mdata[,7])-1)
@@ -1921,9 +1921,9 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"y"
-runTestModel<-"n" #run model on GT data
+runRavenGT<-"n"
+runProcessGT<-"n"
+runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
