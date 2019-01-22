@@ -801,7 +801,6 @@ adaptive_compare<-function(Compdata,specfeatrun){
   for(o in unique(Compdata[,1])){
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
-    print(paste("For mooring",o))
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
@@ -825,7 +824,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           fr<-(h-l)
           row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
 
-          row2<-spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun)
+          row2<-unlist(spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun,q))
           
           row<-c(row,row2[c(6:length(row2))],c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
           
@@ -888,7 +887,7 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,libb,whichRun){
+spectral_features<- function(specdata,libb,whichRun,count){
   
   specdata<<-specdata
   libb<<-libb
@@ -978,15 +977,16 @@ for(m in moors){
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-specVar[z,]
-  specDo(z,moorlib,specRow,specpath)
+  unlist(specDo(z,moorlib,specRow,specpath))
 }
 stopCluster(cluz)
 
 specVar<<-do.call('rbind', specVar2)
 
   }else if(noPar==TRUE){
-    specVar<<-specVar[1,]
-    specVar<<-specDo(moorlib,specVar,specpath)
+    z=count
+    specRow<-specVar[1,]
+    specVar<<-unlist(specDo(z,moorlib,specRow,specpath))
 }
 specTab<<-rbind(specTab,specVar)
 }
@@ -1921,17 +1921,14 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"n"
+runRavenGT<-"y"
 runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
+runTestModel<-"n" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
 #enter the run name:
 runname<- "new variables test"
-
-#Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -1994,25 +1991,13 @@ Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3]
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
-if(runtype=="all"){
-moorings<- colnames(MooringsDat)
-#SF<-allmooringsSF
+MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
+colnames(MooringsDat)<-c(allmooringsGT)
+if(ncol(MooringsDat)>1){
+MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
 }else{
-  allmooringsGT<- c("BS13_AU_04") #add as complete GTs 
-  allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,304)
- # allmooringsSF[[2]]<-c(1,96)
-  
-  MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
-  colnames(MooringsDat)<-c(allmooringsGT)
-  if(ncol(MooringsDat)>1){
-  MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
-  }else{
-  }
-  moorings<-colnames(MooringsDat)
-  
 }
-
+moorings<-colnames(MooringsDat)
 
 detlist<-NULL
 detlist2<-NULL
@@ -2486,7 +2471,7 @@ dataMat<- data.matrix(data[,c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,moorlib,1)
+dataMat<-spectral_features(dataMat,moorlib,1,1)
 
 dataMat<-data.frame(dataMat)
 data<-cbind(data,dataMat[,c(6:length(dataMat))])
@@ -2496,17 +2481,17 @@ data<-apply(data,2,function(x) unlist(x))
 write.csv(data,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
-data2<-data[,c(1,2,5,6,7,8,9:length(data))]
-data2$detectionType<-as.factor(data2$detectionType)
+data2<-data[,c(1,2,5,6,7,8,9:ncol(data))]
+data2<-data.frame(data2)
 
 #omit NA: 
-data3 <- na.omit(data2)
-data3 <-cbind(data3[,1:10],scale(data3[,11:ncol(data3)]))
-data3<-data3[,-37]
-data3<-data3[,-c(1,2,3,4,5,6,8,9,10)]
+#data3 <- na.omit(data2)
+#data3 <-cbind(data3[,1:10],scale(data3[,11:ncol(data3)]))
+#data3<-data3[,-37]
+#data3<-data3[,-c(1,2,3,4,5,6,8,9,10)]
 #data3<-data3[which(data3$detectionType==1),]
 
-dataNum<-data3[,-1]
+#dataNum<-data3[,-1]
 
 #fit <- kmeans(dataNum, 2)
 #plotcluster(dataNum, fit$cluster)
@@ -2534,6 +2519,10 @@ if(runTestModel=="y"){
 
 pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
 
+data2[,2:length(data2)]<-apply(data2[,2:length(data2)],2,function(x) as.numeric(as.character(x)))
+data2$detectionType<-as.factor(data2$detectionType)
+colnames(data2)[1]<-"soundfiles[n]"
+
 AUC_avg<-c()
 f=1
 CUTvec=NULL
@@ -2541,7 +2530,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz. -freqrange -meanfreq,data=train[[1]],mtry=11,na.action=na.roughfix)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action=na.roughfix) #-meanfreq,-freqrange
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
@@ -2975,7 +2964,7 @@ moorlib<-cbind(seq(1,length(unique(findata$sound.files)),1),as.character(sort(un
 
 findata$sound.files<-as.factor(findata$sound.files)
 findataMat<- data.matrix(findata[c(13,4,5,6,7)])
-findataMat<-spectral_features(findataMat,moorlib,2)
+findataMat<-spectral_features(findataMat,moorlib,2,1)
 
 colnames(findataMat)<-c(colnames(findataMat)[1:5],c(letters,strrep(letters,2))[1:(ncol(findataMat)-5)])
 
