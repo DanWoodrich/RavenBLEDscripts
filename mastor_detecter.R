@@ -972,11 +972,11 @@ for(m in moors){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
+  clusterExport(cluz, c("ImgThresh","moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
   
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
-  specRow<-specVar[z,]
+  specRow<-unlist(specVar[z,])
   unlist(specDo(z,moorlib,specRow,specpath))
 }
 stopCluster(cluz)
@@ -985,7 +985,7 @@ specVar<<-do.call('rbind', specVar2)
 
   }else if(noPar==TRUE){
     z=count
-    specRow<-specVar[1,]
+    specRow<-unlist(specVar[1,])
     specVar<<-unlist(specDo(z,moorlib,specRow,specpath))
 }
 specTab<<-rbind(specTab,specVar)
@@ -1076,14 +1076,14 @@ specDo<-function(z,libb,specStuff,specpathh){
   #FEATURES FROM IMAGE 
   
   # create spectrogram
-  spec = specgram(x = snd,
+  spec.gram = specgram(x = snd,
                   Fs = fs,
                   window=window,
                   overlap=overlap
   )
   
   # discard phase information
-  P = abs(spec$S)
+  P = abs(spec.gram$S)
   
   # normalize
   P = P/max(P)
@@ -1092,11 +1092,11 @@ specDo<-function(z,libb,specStuff,specpathh){
   P = 15*log10(P)
   
   # config time axis
-  t = spec$t
+  t = spec.gram$t
   
   # plot spectrogram
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
   dev.off()
   
   image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
@@ -1104,23 +1104,33 @@ specDo<-function(z,libb,specStuff,specpathh){
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
-  image1<-threshold(image1,"65%") 
+  image1<-threshold(image1,ImgThresh) 
   image1<-clean(image1,5) %>% imager::fill(1) 
+  
+  #TEST SECTION
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
+  
+  #par(mar=c(0,0,0,0))
+  #plot(image1,axes=FALSE,asp="varying")
+  #dev.off()
+  
  
    #calculate area chunks x and y 
   chunks<-5
   areaX<-NULL
+  beginn<-NULL
+  ceasee<-NULL
   for(u in 1:chunks){
-    beginn<<-(u*480/chunks)-95
-    ceasee<<-(u*480/chunks)
+    beginn<-(u*480/chunks)-95
+    ceasee<-(u*480/chunks)
     areaChunkX<-sum(image1[beginn:ceasee,1:480])
     areaX<-c(areaX,areaChunkX)
   }
   
   areaY<-NULL
   for(u in 1:chunks){
-    beginn<<-(u*480/chunks)-95
-    ceasee<<-(u*480/chunks)
+    beginn<-(u*480/chunks)-95
+    ceasee<-(u*480/chunks)
     areaChunkY<-sum(image1[1:480,beginn:ceasee])
     areaY<-c(areaY,areaChunkY)
   }
@@ -1128,16 +1138,24 @@ specDo<-function(z,libb,specStuff,specpathh){
   #distinguish islands and calculate area
   labels<-label(image1)
   labels<-as.matrix(labels[1:480,1:480])
+  labelsW<-labels #make seperate object for just white regions
   threshBool<-as.matrix(image1[1:480,1:480])
-  for(i in 1:length(labels)){
+  for(i in 1:length(labelsW)){
     if(threshBool[i]){
-      labels[i]<-labels[i]+1000000
+      labelsW[i]<-labelsW[i]+1000000
     }
   }
-  labels[which(labels<1000000)]<-0
-  area<-table(labels)
-  area<-area[2:length(area)]
-  area<-as.vector(area)
+  labelsW[which(labelsW<1000000)]<-0
+  areaW<-data.frame(table(labelsW))
+  areaW<-areaW[which(areaW$labelsW!=0),]
+  areaW<-as.vector(areaW[,2])
+  
+  #TEST SECTION
+  #labelsW[which(labelsW!=1000001)]<-0
+  #plot(raster(t(labelsTest)))
+  #plot(raster(t(labelsW)))
+  #plot(smooth(rasterToPolygons(raster(t(labelsW)))))
+  
   
   #hough lines
   test9<-hough_line(image1,data.frame = TRUE)
@@ -1177,11 +1195,11 @@ specDo<-function(z,libb,specStuff,specpathh){
   specList[47]<-max(areaY)/sum(areaY)#areaYdom
   specList[48]<-std.error(areaY)#areaYstd
   
-  specList[49]<-std.error(area) #Areaspread
-  specList[50]<-max(area)#AreaTop
-  specList[51]<-max(area)/(sum(area))#AreaTopDom
-  specList[52]<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}#AreaTop3Dom
-  specList[53]<-length(area)#NumShapes
+  specList[49]<-std.error(areaW) #Areaspread
+  specList[50]<-max(areaW)#AreaTop
+  specList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
+  specList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
+  specList[53]<-length(areaW)#NumShapes
   
   specList[54]<-Bestline[4]#bestSlopeHough
   specList[55]<-Bestline[5]#bestBHough
@@ -1253,14 +1271,14 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   overlap=128
   
   # create spectrogram
-  spec = specgram(x = snd,
+  spec.gram = specgram(x = snd,
                   Fs = fs,
                   window=window,
                   overlap=overlap
   )
   
   # discard phase information
-  P = abs(spec$S)
+  P = abs(spec.gram$S)
   
   # normalize
   P = P/max(P)
@@ -1269,11 +1287,11 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
   P = 15*log10(P)
   
   # config time axis
-  t = spec$t
+  t = spec.gram$t
   
   # plot spectrogram
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
   dev.off()
   
   test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
@@ -1922,7 +1940,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -1986,6 +2004,8 @@ decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3]
 decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
 Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
+ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
+
 
 ########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
