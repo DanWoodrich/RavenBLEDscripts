@@ -1117,22 +1117,12 @@ specDo<-function(z,libb,specStuff,specpathh){
  
    #calculate area chunks x and y 
   chunks<-5
-  areaX<-NULL
-  beginn<-NULL
-  ceasee<-NULL
-  for(u in 1:chunks){
-    beginn<-(u*480/chunks)-95
-    ceasee<-(u*480/chunks)
-    areaChunkX<-sum(image1[beginn:ceasee,1:480])
-    areaX<-c(areaX,areaChunkX)
+  areaX<- foreach(u=1:chunks,combine="c") %do% {
+    sum(image1[(((u*480/chunks)-95):(u*480/chunks)),1:480])
   }
   
-  areaY<-NULL
-  for(u in 1:chunks){
-    beginn<-(u*480/chunks)-95
-    ceasee<-(u*480/chunks)
-    areaChunkY<-sum(image1[1:480,beginn:ceasee])
-    areaY<-c(areaY,areaChunkY)
+  areaY<- foreach(u=1:chunks,combine="c") %do% {
+    sum(image1[1:480,(((u*480/chunks)-95):(u*480/chunks))])
   }
   
   #distinguish islands and calculate area
