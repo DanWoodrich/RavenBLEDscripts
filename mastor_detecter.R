@@ -1130,19 +1130,12 @@ specDo<-function(z,libb,specStuff,specpathh){
   chunks<-5
   areaX<- vector("list", length = chunks)
   num<-seq(1,5,1)
-  for(u in num){
-    areaX[u]<-sum(image1[(((num[u]*480/chunks)-95):(num[u]*480/chunks)),1:480])
-  }
-  
+  areaX<-lapply(num,function(x) sum(as.matrix(image1)[(((x*480/chunks)-95):(x*480/chunks)),1:480]))
   areaX<-unlist(areaX)
-  
+    
   areaY<- vector("list", length = chunks)
-  for(u in num){
-    areaY[u]<-sum(image1[1:480,(((num[u]*480/chunks)-95):(num[u]*480/chunks))])
-  }
-  
+  areaY<-lapply(num,function(x) sum(as.matrix(image1)[1:480,(((x*480/chunks)-95):(x*480/chunks))]))
   areaY<-unlist(areaY)
-  
   #distinguish islands and calculate area
   labels<-label(image1)
   labels<-as.matrix(labels[1:480,1:480])
@@ -1203,7 +1196,7 @@ specDo<-function(z,libb,specStuff,specpathh){
   specList[47]<-max(areaY)/sum(areaY)#areaYdom
   specList[48]<-std.error(areaY)#areaYstd
   
-  specList[49]<-std.error(areaW) #Areaspread
+  #specList[49]<-std.error(areaW) #Areaspread
   specList[50]<-max(areaW)#AreaTop
   specList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
   specList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
@@ -1948,7 +1941,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -2550,6 +2543,14 @@ pos<-length(data2)+3#define this variable as length of data so don't have to red
 data2[,2:length(data2)]<-apply(data2[,2:length(data2)],2,function(x) as.numeric(as.character(x)))
 data2$detectionType<-as.factor(data2$detectionType)
 colnames(data2)[1]<-"soundfiles[n]"
+data2$`soundfiles[n]`<-as.factor(data2$`soundfiles[n]`)
+
+#remove rows with a known infinite value 
+data2<-data2[which(is.finite(data2$V51)),]
+
+#numericCols<-c(1:ncol(data2))[-c(1,7)]
+#fix rest of NAs
+#data2<-apply(data2[,numericCols],2,na.roughfix)
 
 AUC_avg<-c()
 f=1
@@ -2558,7 +2559,7 @@ CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
   train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action=na.roughfix) #-meanfreq,-freqrange
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action = na.roughfix) #-meanfreq,-freqrange
   pred<-predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
