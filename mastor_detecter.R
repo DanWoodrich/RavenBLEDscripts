@@ -981,15 +981,27 @@ specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","c
 }
 stopCluster(cluz)
 
+prevdir<-getwd()
+setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
+unlink('*.jpg')
+setwd(prevdir)
+
 specVar<<-do.call('rbind', specVar2)
 
   }else if(noPar==TRUE){
     z=count
     specRow<-unlist(specVar[1,])
     specVar<<-unlist(specDo(z,moorlib,specRow,specpath))
+    
+    prevdir<-getwd()
+    setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
+    unlink('*.jpg')
+    setwd(prevdir)
 }
 specTab<<-rbind(specTab,specVar)
 }
+
+  
   return(specTab)
 }
 
@@ -1100,7 +1112,6 @@ specDo<-function(z,libb,specStuff,specpathh){
   dev.off()
   
   image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
-  file.remove(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
@@ -1117,13 +1128,20 @@ specDo<-function(z,libb,specStuff,specpathh){
  
    #calculate area chunks x and y 
   chunks<-5
-  areaX<- foreach(u=1:chunks,combine="c") %do% {
-    sum(image1[(((u*480/chunks)-95):(u*480/chunks)),1:480])
+  areaX<- vector("list", length = chunks)
+  num<-seq(1,5,1)
+  for(u in num){
+    areaX[u]<-sum(image1[(((num[u]*480/chunks)-95):(num[u]*480/chunks)),1:480])
   }
   
-  areaY<- foreach(u=1:chunks,combine="c") %do% {
-    sum(image1[1:480,(((u*480/chunks)-95):(u*480/chunks))])
+  areaX<-unlist(areaX)
+  
+  areaY<- vector("list", length = chunks)
+  for(u in num){
+    areaY[u]<-sum(image1[1:480,(((num[u]*480/chunks)-95):(num[u]*480/chunks))])
   }
+  
+  areaY<-unlist(areaY)
   
   #distinguish islands and calculate area
   labels<-label(image1)
