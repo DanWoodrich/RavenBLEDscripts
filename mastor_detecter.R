@@ -2257,7 +2257,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+3)&GT[[v]]$meantime>(MoorVar$meantime[h]-3))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])){
+      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])|(GT[[v]][g,8]>MoorVar[h,4] & GT[[v]][g,8]<MoorVar[h,5])){
         OutputCompare[p,]<-MoorVar[h,c(1:7,14,16)]
         OutputCompare[p,9]<-"TP"
         p=p+1
@@ -2265,6 +2265,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     }
   }
   }
+  #remove duplicates:
+  OutputCompare<-OutputCompare[which(!duplicated(OutputCompare$Selection)),]
+  
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   if(nrow(OutputCompare)>0){
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,14,16)])
@@ -2276,15 +2279,18 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   for(h in 1:nrow(GT[[v]])){
     gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+3)&MoorVar$meantime>(GT[[v]]$meantime[h]-3))
     if(length(gvec)>0){
-    for(g in min(gvec):max(gvec)){
-      if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar[g,14]>GT[[v]][h,4]) & (MoorVar[g,14]<GT[[v]][h,5]))){
-        OutputCompare2[p,]<-GT[[v]][h,]
-        OutputCompare2[p,9]<-"TP truth"
-        p=p+1
+      for(g in min(gvec):max(gvec)){
+        if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar[g,14]>GT[[v]][h,4]) & (MoorVar[g,14]<GT[[v]][h,5]))){
+          OutputCompare2[p,]<-GT[[v]][h,]
+          OutputCompare2[p,9]<-"TP truth"
+          p=p+1
+        }
       }
     }
   }
-  }
+  
+  OutputCompare2<-OutputCompare2[which(!duplicated(OutputCompare2$Selection)),]
+  
   
   #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
   if(nrow(OutputCompare2)>0){
