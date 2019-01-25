@@ -35,6 +35,22 @@ library(oce)
 library(imager)
 library(Cairo)
 
+varImpPlot_AVG <- function(x, sort=TRUE,
+                       n.var=min(30, nrow(x)),
+                       type=NULL, class=NULL, scale=TRUE, 
+                       main=deparse(substitute(x)), ...) {
+  imp <- x
+  ## If there are more than two columns, just use the last two columns.
+    ord <- if (sort) rev(order(imp[,1],
+                               decreasing=TRUE)[1:n.var]) else 1:n.var
+    xmin <- if (colnames(imp)[1] %in%
+                c("IncNodePurity", "MeanDecreaseGini")) 0 else min(imp[ord, 1])
+    dotchart(imp[ord,1], xlab=colnames(imp)[1], labels=rownames(giniAv)[ord],
+             main=main,xlim=c(xmin, max(imp[,1])), ...)
+
+    invisible(imp)
+}
+
 rotate <- function(x) t(apply(x, 2, rev))
 
 getmode <- function(v) {
@@ -1013,7 +1029,8 @@ specDo<-function(z,libb,specStuff,specpathh){
   Start<-specList[2]
   End<-  specList[3]
   if(End-Start<0.1){
-    End<-End+(0.1-(End-Start))
+    End<-End+(0.9-(End-Start))
+    Start<-Start-0.1
     
   }
   Low<-specList[4]
@@ -1941,7 +1958,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"n"
+runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -2575,11 +2592,13 @@ for(p in 1:CV){
   
   if(f==1){
     probstab<-data.frame(data2$Selection)
+    giniTab<-data.frame(as.numeric(data.rf$importance))
     probstab[,f+1]<-NA
     for(n in 1:nrow(pred)){
       probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
     }
   }else{
+    giniTab<-cbind(giniTab,data.frame(as.numeric(data.rf$importance)))
     probstab[,f+1]<-NA
     for(n in 1:nrow(pred)){
       probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
@@ -2597,6 +2616,11 @@ for(x in 1:nrow(probstab)){
   probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
   n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
 }
+
+giniAv<-data.frame(apply(giniTab,1,mean))
+giniRows<-rownames(data.rf$importance)
+rownames(giniAv)<-giniRows
+colnames(giniAv)<-"MeanDecreaseGini"
 
 CUTmean<-mean(CUTvec)
 CUTstd.err<-std.error(CUTvec)
@@ -2636,9 +2660,11 @@ ll2<-as.numeric(as.character(data3[,7]))-1
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
 
-varImpPlot(data.rf,  
+varImpPlot_AVG(giniAv,  
            sort = TRUE,
            main="Variable Importance")
+
+dotchart(giniAv,giniRows)
 
 #with permutations on probs
 plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
@@ -2649,7 +2675,22 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
+plot(data3[which(data3[,7]==1),pos-2],data3[which(data3[,7]==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3[which(data3[,7]==2),pos-2],data3[which(data3[,7]==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmean)
+
 plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
+abline(v=CUTmean)
+
+plot(data3[which(data3[,7]==1),pos+5],data3[which(data3[,7]==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3[which(data3[,7]==2),pos+5],data3[which(data3[,7]==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3[,pos+5],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
 #plot of probabilities after context sim:
