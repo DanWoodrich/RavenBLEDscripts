@@ -2718,15 +2718,15 @@ abline(v=CUTmean)
 #plot of probabilities after context sim:
 for(m in unique(data3Mat[,1])){
 data3Matmoors<-data3Mat[which(data3Mat[,1]==m),]
-plot(data3Matmoors[,pos-2], col=data3Matmoors[,7],main=moorlib[which(moorlib[,1]==m),2])
+plot(data3Matmoors[,10],data3Matmoors[,pos-2], col=data3Matmoors[,7],main=moorlib[which(moorlib[,1]==m),2])
 abline(h=CUTmean,col="red")
 abline(h=0.5,lty=3)
 #lines(lowess(data3Matmoors[,pos+5]))
 #lines(lowess(data3Matmoors[,pos+4]))
 #lines(lowess(data3Matmoors[,pos+2]))
-lines((data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
-lines((data3Matmoors[,pos+1]*6),col="orange") #forwards through data
-lines(((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
+lines(data3Matmoors[,10],(data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
+lines(data3Matmoors[,10],(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
+lines(data3Matmoors[,10],((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
 
 #data3$detectionType<-as.factor(data3$detectionType)
