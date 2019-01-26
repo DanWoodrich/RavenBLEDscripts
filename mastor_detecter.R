@@ -636,6 +636,104 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
+runRandomForest<-function(Moddata,whichRun){
+  
+  Moddata<<-Moddata
+  
+if(whichRun=="1"){
+
+  print(paste("creating random forest models with CV",CV))
+
+if(user=="ACS-3"){
+  num_cores <- detectCores()
+}else{
+  num_cores <- detectCores()-1
+}
+cluz <- makeCluster(num_cores)
+registerDoParallel(cluz)
+
+clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+
+stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
+  train<-splitdf(Moddata,weight = 2/3)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action = na.roughfix) #-meanfreq,-freqrange
+  pred<-stats::predict(data.rf,train[[2]],type="prob")
+  pred<-cbind(pred,train[[2]]$Selection)
+  
+  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+  prob.perf = performance(ROCRpred, "tpr","fpr")
+  
+  TPR<-NULL
+  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  
+  probstab<-data.frame(Moddata$Selection)
+  probstab[,2]<-NA
+  giniTab<-as.numeric(data.rf$importance)
+  for(n in 1:nrow(pred)){
+    probstab[which(probstab$Moddata.Selection==pred[n,3]),2]<-pred[n,2]
+  }
+  return(list(probstab[,2],giniTab,CUT))
+}
+
+stopCluster(cluz)
+
+giniTab<-data.frame(stuff[[1]][2])
+for(i in 2:CV){
+  giniTab<-cbind(giniTab,stuff[[i]][2])
+}
+
+}else{
+  
+  #do other one (need up update full mooring on this)
+}
+  
+CUTvec<-stuff[[1]][3]
+for(i in 2:CV){
+  CUTvec<-c(CUTvec,stuff[[i]][3])
+}
+
+CUTmean<-mean(unlist(CUTvec))
+
+#build probability data frame 
+probstab<-data.frame(Moddata$Selection)
+for(i in 1:CV){
+  probstab<-cbind(probstab,stuff[[i]][1])
+}
+##Graph std error and probability rates, with true detection included 
+probmean<-NULL
+probstderr<-NULL
+n<-NULL
+for(x in 1:nrow(probstab)){
+  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
+}
+
+if(whichRun==1){
+giniAv<-data.frame(apply(giniTab,1,mean))
+giniRows<-c("meanfreq","freqrange",colnames(Moddata[,11:ncol(Moddata)]))
+rownames(giniAv)<-giniRows
+colnames(giniAv)<-"MeanDecreaseGini"
+
+varImpPlot_AVG(giniAv,  
+               sort = TRUE,
+               main="Variable Importance random forest")
+}
+
+##assuming $detection type is already in this data NOTE not 
+Moddata$probmean<-probmean
+Moddata$probstderr<-probstderr
+Moddata$n<-n
+
+if(any(is.na(probmean))){
+  Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
+}
+
+return(list(Moddata,CUTmean))
+Moddata<<-NULL
+}
+
 context_sim <-function(sdata){
   datTab<-matrix(,ncol=pos+5,nrow=0)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
@@ -1958,7 +2056,7 @@ runNewData<-"n" #run on data that has not been ground truthed.
 }else{
 ##########sections to run
 runRavenGT<-"n"
-runProcessGT<-"y"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
@@ -2023,6 +2121,7 @@ decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
 Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
+modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
 
 
 ########################
@@ -2528,20 +2627,6 @@ write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.
 data2<-data[,c(1,2,5,6,7,8,9:ncol(data))]
 data2<-data.frame(data2)
 
-#omit NA: 
-#data3 <- na.omit(data2)
-#data3 <-cbind(data3[,1:10],scale(data3[,11:ncol(data3)]))
-#data3<-data3[,-37]
-#data3<-data3[,-c(1,2,3,4,5,6,8,9,10)]
-#data3<-data3[which(data3$detectionType==1),]
-
-#dataNum<-data3[,-1]
-
-#fit <- kmeans(dataNum, 2)
-#plotcluster(dataNum, fit$cluster)
-#clusplot(dataNum, fit$cluster, color=TRUE, shade=TRUE, 
-#         labels=2, lines=0)
-
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -2560,9 +2645,9 @@ data2<-data.frame(data2)
 }
 
 if(runTestModel=="y"){
-
+  
 pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
-
+  
 data2[,2:length(data2)]<-apply(data2[,2:length(data2)],2,function(x) as.numeric(as.character(x)))
 data2$detectionType<-as.factor(data2$detectionType)
 colnames(data2)[1]<-"soundfiles[n]"
@@ -2571,78 +2656,19 @@ data2$`soundfiles[n]`<-as.factor(data2$`soundfiles[n]`)
 #remove rows with a known infinite value 
 data2<-data2[which(is.finite(data2$V51)),]
 
-#numericCols<-c(1:ncol(data2))[-c(1,7)]
-#fix rest of NAs
-#data2<-apply(data2[,numericCols],2,na.roughfix)
-
-AUC_avg<-c()
-f=1
-CUTvec=NULL
-#how many cross validation runs you want
-for(p in 1:CV){
-  print(paste("model",p))
-  train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action = na.roughfix) #-meanfreq,-freqrange
-  pred<-predict(data.rf,train[[2]],type="prob")
-  pred<-cbind(pred,train[[2]]$Selection)
-  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
-  auc.perf = performance(ROCRpred, measure = "auc",plot=F)
-  AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
-  
-  prob.perf = performance(ROCRpred, "tpr","fpr")
-  
-  TPR<-NULL
-  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
-  CUTvec<-c(CUTvec,CUT)
-  
-  if(f==1){
-    probstab<-data.frame(data2$Selection)
-    giniTab<-data.frame(as.numeric(data.rf$importance))
-    probstab[,f+1]<-NA
-    for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
-    }
-  }else{
-    giniTab<-cbind(giniTab,data.frame(as.numeric(data.rf$importance)))
-    probstab[,f+1]<-NA
-    for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
-    }
-  }  
-  f=f+1
+if(modelType=="randomForest"){
+  modelOutput<-runRandomForest(data2,1)
+}else if(modelType=='obliqueRandomForest'){
+  modelOutput<-"function here"
 }
 
-##Graph std error and probability rates, with true detection included 
-probmean<-NULL
-probstderr<-NULL
-n<-NULL
-for(x in 1:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
-}
+#end model function. export dataset, cutmean
 
-giniAv<-data.frame(apply(giniTab,1,mean))
-giniRows<-rownames(data.rf$importance)
-rownames(giniAv)<-giniRows
-colnames(giniAv)<-"MeanDecreaseGini"
-
-CUTmean<-mean(CUTvec)
-CUTstd.err<-std.error(CUTvec)
-
-data3<- data2
-data2<-NULL
-##assuming $detection type is already in this data NOTE not 
-data3$probmean<-probmean
-data3$probstderr<-probstderr
-data3$n<-n
-
-if(any(is.na(probmean))){
-data3<-data3[-which(is.na(data3$probmean)),]
-}
+#return dataset from random forest 
 
 ######################
+data3<-modelOutput[[1]]
+CUTmean<-modelOutput[[2]]
 #adaptively combine detections based on probability
 data3Mat<- data.matrix(data3)
 #if(spec=="RW"){
@@ -2650,27 +2676,13 @@ data3Mat<-adaptive_compare(data3Mat,1)
 #}else if(spec=="GS"){
 #}
 
-data3<-data3Mat
-
 #simulate context over time using probability scores 
-data3<-context_sim(data3)
+data3<-context_sim(data3Mat)
 
-#number of TPs in data3
-finTPs<-sum(as.numeric(as.character(data3[which(data3[,pos-2]>CUTmean),7])))
-
-finFPs<-(nrow(data3[which(data3[,pos-2]>CUTmean),])-finTPs)
-finRat<-finTPs/finFPs
-
-pp2<-as.vector(data3[,pos-2])
-ll2<-as.numeric(as.character(data3[,7]))-1
+pp2<-as.vector(data3Mat[,pos-2])
+ll2<-as.numeric(as.character(data3Mat[,7]))-1
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
-
-varImpPlot_AVG(giniAv,  
-           sort = TRUE,
-           main="Variable Importance")
-
-dotchart(giniAv,giniRows)
 
 #with permutations on probs
 plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
@@ -2681,59 +2693,46 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(data3[which(data3[,7]==1),pos-2],data3[which(data3[,7]==1),pos-1], col = "red",cex=0.25)
+plot(data3Mat[which(data3Mat[,7]==1),pos-2],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
 abline(v=CUTmean)
 
-plot(data3[which(data3[,7]==2),pos-2],data3[which(data3[,7]==2),pos-1], col = "blue",cex=0.25)
+plot(data3Mat[which(data3Mat[,7]==2),pos-2],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
 abline(v=CUTmean)
 
-plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
+plot(data3Mat[,pos-2],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
-plot(data3[which(data3[,7]==1),pos+5],data3[which(data3[,7]==1),pos-1], col = "red",cex=0.25)
+plot(data3Mat[which(data3Mat[,7]==1),pos+5],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
 abline(v=CUTmean)
 
-plot(data3[which(data3[,7]==2),pos+5],data3[which(data3[,7]==2),pos-1], col = "blue",cex=0.25)
+plot(data3Mat[which(data3Mat[,7]==2),pos+5],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
 abline(v=CUTmean)
 
-plot(data3[,pos+5],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
+plot(data3Mat[,pos+5],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
 #plot of probabilities after context sim:
-for(m in unique(data3[,1])){
-data3moors<-data3[which(data3[,1]==m),]
-plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==m),2])
+for(m in unique(data3Mat[,1])){
+data3Matmoors<-data3Mat[which(data3Mat[,1]==m),]
+plot(data3Matmoors[,pos-2], col=data3Matmoors[,7],main=moorlib[which(moorlib[,1]==m),2])
 abline(h=CUTmean,col="red")
 abline(h=0.5,lty=3)
-#lines(lowess(data3moors[,pos+5]))
-#lines(lowess(data3moors[,pos+4]))
-#lines(lowess(data3moors[,pos+2]))
-lines((data3moors[,pos+3]*6),col="blue") #backwards through data 
-lines((data3moors[,pos+1]*6),col="orange") #forwards through data
-lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*6)),col="green")
+#lines(lowess(data3Matmoors[,pos+5]))
+#lines(lowess(data3Matmoors[,pos+4]))
+#lines(lowess(data3Matmoors[,pos+2]))
+lines((data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
+lines((data3Matmoors[,pos+1]*6),col="orange") #forwards through data
+lines(((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
 
-data3datFrame<-as.data.frame(data3)
-data3datFrame$detectionType<-as.factor(data3datFrame$detectionType)
+#data3$detectionType<-as.factor(data3$detectionType)
 #see freq breakdown of calls 
-cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
-cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #freqrange
-#cdplot(data3datFrame$detectionType ~ data3datFrame$specprop.mode, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-#cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-cdplot(data3datFrame[,7] ~ data3datFrame[,12], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-cdplot(data3datFrame[,7] ~ data3datFrame[,26], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-
+#cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
 
 #write data to drive
-after_model_write(data3,moorlib,1) #need to change to vector 
+after_model_write(data3Mat,moorlib,1) #need to change to vector 
 
 beep(10)
-
-#save last model
-save(data.rf, file = paste(drivepath,"DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 }
 
