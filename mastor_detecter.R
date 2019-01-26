@@ -711,14 +711,17 @@ for(x in 1:nrow(probstab)){
 }
 
 if(whichRun==1){
-giniAv<-data.frame(apply(giniTab,1,mean))
+
+  #for some reason have to save giniAv as global variable to reassign rownames...
+giniAv<<-data.frame(apply(giniTab,1,mean))
 giniRows<-c("meanfreq","freqrange",colnames(Moddata[,11:ncol(Moddata)]))
-rownames(giniAv)<-giniRows
-colnames(giniAv)<-"MeanDecreaseGini"
+rownames(giniAv)<<-giniRows
+colnames(giniAv)<<-"MeanDecreaseGini"
 
 varImpPlot_AVG(giniAv,  
                sort = TRUE,
                main="Variable Importance random forest")
+giniAv<-NULL
 }
 
 ##assuming $detection type is already in this data NOTE not 
@@ -913,6 +916,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
 adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
+    print("for mooring",moorlib[o,1])
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
     n=0
@@ -2677,7 +2681,7 @@ data3Mat<-adaptive_compare(data3Mat,1)
 #}
 
 #simulate context over time using probability scores 
-data3<-context_sim(data3Mat)
+data3Mat<-context_sim(data3Mat)
 
 pp2<-as.vector(data3Mat[,pos-2])
 ll2<-as.numeric(as.character(data3Mat[,7]))-1
