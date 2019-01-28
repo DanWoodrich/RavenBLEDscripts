@@ -9,7 +9,7 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF")
 
 library(e1071)  
 library(foreach)
@@ -34,6 +34,7 @@ library(signal)
 library(oce)
 library(imager)
 library(Cairo)
+library(obliqueRF)
 
 varImpPlot_AVG <- function(x, sort=TRUE,
                        n.var=min(30, nrow(x)),
@@ -990,7 +991,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
 adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
-    print("for mooring",moorlib[o,1])
+    print(paste("for mooring",moorlib[o,2]))
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
     n=0
@@ -2159,7 +2160,7 @@ if(dettype=="spread"|dettype=="combined"){
 detectorsspr<-list()
 spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
 spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
-detectorsspr[[1]] <- dir(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- list.files(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
 
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
