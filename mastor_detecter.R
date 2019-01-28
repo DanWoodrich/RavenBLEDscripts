@@ -636,7 +636,7 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-process_model<-function(stuff2,whichRun){
+process_model<-function(stuff2,Moddata2,whichRun){
 
   if(whichRun==1){
   
@@ -648,7 +648,7 @@ process_model<-function(stuff2,whichRun){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<-c("meanfreq","freqrange",colnames(Moddata[,11:ncol(Moddata)]))
+  giniRows<-c("meanfreq","freqrange",colnames(Moddata2[,11:ncol(Moddata2)]))
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -667,7 +667,7 @@ process_model<-function(stuff2,whichRun){
   CUTmean<-mean(unlist(CUTvec))
   
   #build probability data frame 
-  probstab<-data.frame(Moddata$Selection)
+  probstab<-data.frame(Moddata2$Selection)
   for(i in 1:CV){
     probstab<-cbind(probstab,stuff2[[i]][1])
   }
@@ -682,15 +682,15 @@ process_model<-function(stuff2,whichRun){
   }
   
   ##assuming $detection type is already in this data NOTE not 
-  Moddata$probmean<-probmean
-  Moddata$probstderr<-probstderr
-  Moddata$n<-n
+  Moddata2$probmean<-probmean
+  Moddata2$probstderr<-probstderr
+  Moddata2$n<-n
   
   if(any(is.na(probmean))){
-    Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
+    Moddata2<-Moddata2[-which(is.na(Moddata2$probmean)),]
   }
   
-  return(list(Moddata,CUTmean))
+  return(list(Moddata2,CUTmean))
 }
 
 runObliqueRandomForest<-function(Moddata,whichRun,method){
@@ -750,7 +750,7 @@ stopCluster(cluz)
    #do other one (need up update full mooring on this)
 }
   
-  stuff<-process_model(stuff,1)
+  stuff<-process_model(stuff,Moddata,1)
   return(stuff)
   Moddata<<-NULL
 }
@@ -802,7 +802,7 @@ stopCluster(cluz)
   
   #do other one (need up update full mooring on this)
 }
-  stuff<-process_model(stuff,1)
+  stuff<-process_model(stuff,Moddata,1)
   return(stuff)
   Moddata<<-NULL
 }
