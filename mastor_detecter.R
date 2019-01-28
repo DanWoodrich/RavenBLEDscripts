@@ -9,7 +9,7 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF")
 
 library(e1071)  
 library(foreach)
@@ -31,6 +31,33 @@ library(beepr)
 library(stringr)
 library(stringi)
 library(signal)
+library(oce)
+library(imager)
+library(Cairo)
+library(obliqueRF)
+
+varImpPlot_AVG <- function(x, sort=TRUE,
+                       n.var=min(30, nrow(x)),
+                       type=NULL, class=NULL, scale=TRUE, 
+                       main=deparse(substitute(x)), ...) {
+  imp <- x
+  ## If there are more than two columns, just use the last two columns.
+    ord <- if (sort) rev(order(imp[,1],
+                               decreasing=TRUE)[1:n.var]) else 1:n.var
+    xmin <- if (colnames(imp)[1] %in%
+                c("IncNodePurity", "MeanDecreaseGini")) 0 else min(imp[ord, 1])
+    dotchart(imp[ord,1], xlab=colnames(imp)[1], labels=rownames(giniAv)[ord],
+             main=main,xlim=c(xmin, max(imp[,1])), ...)
+
+    invisible(imp)
+}
+
+rotate <- function(x) t(apply(x, 2, rev))
+
+getmode <- function(v) {
+  uniqv <- unique(v)
+  uniqv[which.max(tabulate(match(v, uniqv)))]
+}
 
 lastFeature<-function(a,b){
   
@@ -121,8 +148,8 @@ parAlgo<-function(dataaa){
     wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(spec=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      GS_algo(resltsTSPVmat=dataaa[,c(1:2,4:5)],f=grouppp)
-    }
+    GS_algo(resltsTSPVmat=dataaa[,c(1,2,4,5)],f=grouppp)
+      }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
   stopCluster(cluz)
@@ -289,12 +316,12 @@ GS_algo<-function(resltsTSPVmat,f){
     RT<-groupdat[g,3]
     RM<-groupdat[g,1]
     skipvec<-0
-    if(any(groupdat[g,5:ncol(groupdat)]==3|groupdat[g,5:ncol(groupdat)]==4)&g>1){
+    if(any(groupdat[g,5:ncol(groupdat)]==3)&g>1){
       #do not compute run
-    }else if(g==1|g>1){
+    }else if(g>=1){
     for(h in g:(nrow(groupdat)-1)){
-      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&RT-groupdat[h+1,3]+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0)|(RT-groupdat[h+1,4]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,4]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        if(RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,3]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0){
+      if(RM>groupdat[h+1,1]&(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)|((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+        if(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&((timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0.2|groupdat[h+1,3]>groupdat[h,3])){
           boxPos<-3
         }else{
           boxPos<-4
@@ -303,15 +330,13 @@ GS_algo<-function(resltsTSPVmat,f){
         RT<-groupdat[h+1,boxPos]
         skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
         RM<-groupdat[h+1,1]
-      }else if(RT==groupdat[h+1,1]){
+      }else if(RM==groupdat[h+1,1]){
         groupdat[h+1,4+g]<-98
-      }else if(!(RT-groupdat[h+1,3]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&RT-groupdat[h+1,3]+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0)&(RT-groupdat[h+1,4]-(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))<0&groupdat[h+1,4]-RT+(timesepGS+2/((groupdat[h+1,1]+1.25)^1.1))>0)&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
-        groupdat[h+1,4+g]<-98        
       }else{
-        groupdat[h+1,4+g]<-0
+        groupdat[h+1,4+g]<-98
       }
       if(g>1){
-      if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98|groupdat[h+1,4+g]!=99|groupdat[h+1,4+g]!=0)){
+      if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98&groupdat[h+1,4+g]!=99&groupdat[h+1,4+g]!=0)){
         groupdat[h+1,4+g]<-0
         break
       }
@@ -330,7 +355,6 @@ GS_algo<-function(resltsTSPVmat,f){
     }
   }
   if(!is.null(rowID)){
-  print(as.matrix(rbind(rownombres,rowID)))
  return(as.matrix(rbind(rownombres,rowID)))
   }
 # }
@@ -564,6 +588,16 @@ raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detec
   
 }
 
+plot_jpeg = function(path, add=FALSE)
+{
+  require('jpeg')
+  jpg = readJPEG(path, native=T) # read the file
+  res = dim(jpg)[2:1] # get the resolution, [x, y]
+  if (!add) # initialize an empty plot area if add==FALSE
+    plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',xlab='',ylab='',bty='n')
+  rasterImage(jpg,1,1,res[1],res[2])
+}
+
 sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
 {
   
@@ -601,6 +635,177 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   exe <- shQuote(exe, type = shQuote_type)
   system(paste(exe, command, argus, sep = " "), ignore.stderr = TRUE)
   
+}
+
+process_model<-function(stuff2,Moddata2,whichRun){
+
+  if(whichRun==1){
+  
+  if(modelType=="rf"){
+  giniTab<-data.frame(stuff2[[1]][2])
+  for(i in 2:CV){
+    giniTab<-cbind(giniTab,stuff2[[i]][2])
+  }
+    
+  #for some reason have to save giniAv as global variable to reassign rownames...
+  giniAv<<-data.frame(apply(giniTab,1,mean))
+  giniRows<-c("meanfreq","freqrange",colnames(Moddata2[,11:ncol(Moddata2)]))
+  rownames(giniAv)<<-giniRows
+  colnames(giniAv)<<-"MeanDecreaseGini"
+    
+  varImpPlot_AVG(giniAv,  
+                 sort = TRUE,
+                 main="Variable Importance random forest")
+  giniAv<-NULL
+  }
+  }
+
+  CUTvec<-stuff2[[1]][3]
+  for(i in 2:CV){
+    CUTvec<-c(CUTvec,stuff2[[i]][3])
+  }
+  
+  CUTmean<-mean(unlist(CUTvec))
+  
+  #build probability data frame 
+  probstab<-data.frame(Moddata2$Selection)
+  for(i in 1:CV){
+    probstab<-cbind(probstab,stuff2[[i]][1])
+  }
+
+  probmean<-NULL
+  probstderr<-NULL
+  n<-NULL
+  for(x in 1:nrow(probstab)){
+    probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+    probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+    n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
+  }
+  
+  ##assuming $detection type is already in this data NOTE not 
+  Moddata2$probmean<-probmean
+  Moddata2$probstderr<-probstderr
+  Moddata2$n<-n
+  
+  if(any(is.na(probmean))){
+    Moddata2<-Moddata2[-which(is.na(Moddata2$probmean)),]
+  }
+  
+  return(list(Moddata2,CUTmean))
+}
+
+runObliqueRandomForest<-function(Moddata,whichRun,method){
+  
+  Moddata<<-Moddata
+  
+  if(whichRun=="1"){
+    
+    #appears oblique RF only supports binary classification and doesn't allow formula style input. Need to take row I don't want to be predictors out before fitting model. 
+    
+    print(paste("creating oblique random forest models with CV",CV))
+    
+    if(user=="ACS-3"){
+      num_cores <- detectCores()
+    }else{
+      num_cores <- detectCores()-1
+    }
+    cluz <- makeCluster(num_cores)
+    registerDoParallel(cluz)
+    
+    clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
+    train<-splitdf(Moddata,weight = 2/3)
+    trainModdataPred<-as.matrix(train[[1]][,c(8,9,11:ncol(train[[1]]))])
+    testModdataPred<-as.matrix(train[[2]][,c(8,9,11:ncol(train[[1]]))])
+    trainModdataResponse<-as.numeric(train[[1]][,7])
+    
+    
+    data.orf<-obliqueRF(x=trainModdataPred,y=trainModdataResponse,mtry=11,training_method=method) 
+    
+    #stats::predict?
+    pred<-predict(data.orf,testModdataPred,type="prob")
+    pred<-cbind(pred,train[[2]]$Selection)
+
+    ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+    prob.perf = performance(ROCRpred, "tpr","fpr")
+    
+    TPR<-NULL
+    TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+    CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+    
+    probstab<-data.frame(Moddata$Selection)
+    probstab[,2]<-NA
+    #giniTab<-as.numeric(data.orf$importance)  spit out nonsense for ridge. Assuming this will not work for most methods so ignoring for now. 
+    for(n in 1:nrow(pred)){
+      probstab[which(probstab$Moddata.Selection==pred[n,3]),2]<-pred[n,2]
+    }
+    placeHolder<-TRUE
+    return(list(probstab[,2],placeHolder,CUT))
+    
+  }
+
+stopCluster(cluz)
+
+}else{
+    
+   #do other one (need up update full mooring on this)
+}
+  
+  stuff<-process_model(stuff,Moddata,1)
+  return(stuff)
+  Moddata<<-NULL
+}
+
+
+runRandomForest<-function(Moddata,whichRun){
+  
+  Moddata<<-Moddata
+    
+if(whichRun=="1"){
+
+  print(paste("creating random forest models with CV",CV))
+
+if(user=="ACS-3"){
+  num_cores <- detectCores()
+}else{
+  num_cores <- detectCores()-1
+}
+cluz <- makeCluster(num_cores)
+registerDoParallel(cluz)
+
+clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+
+stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
+  train<-splitdf(Moddata,weight = 2/3)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  pred<-stats::predict(data.rf,train[[2]],type="prob")
+  pred<-cbind(pred,train[[2]]$Selection)
+  
+  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+  prob.perf = performance(ROCRpred, "tpr","fpr")
+  
+  TPR<-NULL
+  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  
+  probstab<-data.frame(Moddata$Selection)
+  probstab[,2]<-NA
+  giniTab<-as.numeric(data.rf$importance)
+  for(n in 1:nrow(pred)){
+    probstab[which(probstab$Moddata.Selection==pred[n,3]),2]<-pred[n,2]
+  }
+  return(list(probstab[,2],giniTab,CUT))
+}
+
+stopCluster(cluz)
+
+}else{
+  
+  #do other one (need up update full mooring on this)
+}
+  stuff<-process_model(stuff,Moddata,1)
+  return(stuff)
+  Moddata<<-NULL
 }
 
 context_sim <-function(sdata){
@@ -676,7 +881,11 @@ after_model_write <-function(mdata,libb,finaldatrun){
   MoorVar1<-NULL
   for(v in 1:length(unique(libb[,3]))){
     if(finaldatrun==1){
-      name<-"RFA"
+      if(modelType=="orf"){
+      name<-paste(modelType,modelMethod,sep=":")
+      }else if(modelType=="rf"){
+      name<-modelType
+      }
     }else{
       name<-"full"
     }
@@ -751,7 +960,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
       }
   }
   numTPtruth<-sum(TPtottab$GTtot)
-  mdata<-mdata[which(mdata[,pos-2]>CUTmean),]
+  mdata<-mdata[which(mdata[,pos+5]>CUTmean),]
   
   if(finaldatrun==1){
   numTP<-sum(as.numeric(mdata[,7])-1)
@@ -780,26 +989,24 @@ after_model_write <-function(mdata,libb,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata,specfeatrun){
-  for(a in 1:2){#go through twice in case there are mulitple boxes close to one another. 
+  for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
+    print(paste("for mooring",moorlib[o,2]))
     CompVar<-Compdata[which(Compdata[,1]==o),]
-    CompVar<-CompVar[order(CompVar[,10]),]
-    print(paste("For mooring",o))
-    r=0
+    CompVar<-CompVar[order(CompVar[,3]),]
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar[q+1,10]<=(CompVar[q,10]+timediffself)){
+      if(CompVar[q+1,3]<=(CompVar[q,3]+timediffself)){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
-          IDvec<-c(IDvec,q,q+1)
+          IDvec<-c(IDvec,as.numeric(newdat[,2]))
           newrow<-rbind(newrow,newdat[2,])
         }else{
-          #print(q)
           newdat<-CompVar[c(q,q+1),]
-          IDvec<-c(IDvec,q,q+1)
+          IDvec<-c(IDvec,as.numeric(newdat[,2]))
           s<-as.numeric(min(newdat[,3]))
           e<-as.numeric(max(newdat[,4]))
           l<-as.numeric(min(newdat[,5]))
@@ -810,7 +1017,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           fr<-(h-l)
           row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
 
-          row2<-spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun)
+          row2<-unlist(spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun,q))
           
           row<-c(row,row2[c(6:length(row2))],c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
           
@@ -826,7 +1033,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
       if(newrow[1,1]!=0){
         CompVar<-subset(CompVar,!(CompVar[,2] %in% IDvec))
         CompVar<-rbind(CompVar,newrow)
-        CompVar<-CompVar[order(CompVar[,10]),]
+        CompVar<-CompVar[order(CompVar[,3]),]
         n=n+1
       }
     if(n>0){
@@ -873,9 +1080,14 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,libb,whichRun){
+spectral_features<- function(specdata,libb,whichRun,count){
   
-  specTab<-NULL
+  specdata<<-specdata
+  libb<<-libb
+  whichRun<<-whichRun
+  
+  specpath<<-NULL
+  specTab<<-NULL
   
   if(is.null(nrow(specdata))){
   moors<-libb[which(libb[,1] %in% unique(specdata[1])),3]
@@ -885,49 +1097,54 @@ spectral_features<- function(specdata,libb,whichRun){
   
 for(m in moors){
   
-  specVar<-NULL
+  specVar<<-NULL
     
   if(whichRun==1){
     if(whiten=="y"){
-      specpath<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
     }
     
     if(is.null(nrow(specdata))){
-      rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,35))
-      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      rowcount<<-1
+      specVar<<-c(specdata,matrix(1,rowcount,63))
+      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make 
+      noPar<-TRUE
       
     }else{
-      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
-      rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,35))
-      
+      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<<-nrow(specVar)
+      specVar<<-cbind(specVar,matrix(1,rowcount,63))
+      noPar<-FALSE
+    
     }
     
   }else{
     
     if(whiten=="y" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      specpath<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="n" & moorType=="HG"){
-      specpath<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
     }else{
-      specpath<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
     }
     
     
     if(is.null(nrow(specdata))){
-      rowcount<-1
-      specVar<-c(specdata,matrix(1,rowcount,35))
-      specVar<-rbind(specVar,matrix(1,rowcount,35+5)) #make 
+      rowcount<<-1
+      specVar<<-c(specdata,matrix(1,rowcount,63))
+      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make
+      noPar<-TRUE
       
     }else{
-      specVar<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
-      rowcount<-nrow(specVar)
-      specVar<-cbind(specVar,matrix(1,rowcount,35))
+      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      rowcount<<-nrow(specVar)
+      specVar<<-cbind(specVar,matrix(1,rowcount,63))
+      noPar<-FALSE
+      
       
     }
     
@@ -935,34 +1152,85 @@ for(m in moors){
   
   
   if(decimate=="y"){
-    specpath<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
+    specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
-
+  if(noPar==FALSE){
+    print(paste("      for mooring",libb[specVar[1,1],2]))
+  if(user=="ACS-3"){
+    num_cores <- detectCores()
+  }else{
+    num_cores <- detectCores()-1
+  }
+  cluz <- makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c("ImgThresh","moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
   
 #print("extracting spectral parameters")
-for(z in 1:rowcount){
-  print(z)
+specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
+  specRow<-unlist(specVar[z,])
+  unlist(specDo(z,moorlib,specRow,specpath))
+}
+stopCluster(cluz)
+
+prevdir<-getwd()
+setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
+unlink('*.jpg')
+setwd(prevdir)
+
+specVar<<-do.call('rbind', specVar2)
+
+  }else if(noPar==TRUE){
+    z=count
+    specRow<-unlist(specVar[1,])
+    specVar<<-unlist(specDo(z,moorlib,specRow,specpath))
+    
+    prevdir<-getwd()
+    setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
+    unlink('*.jpg')
+    setwd(prevdir)
+}
+specTab<<-rbind(specTab,specVar)
+}
+
+  
+  return(specTab)
+}
+
+specDo<-function(z,libb,specStuff,specpathh){
+  
+  specList<-specStuff
+
   #store reused calculations to avoid indexing 
-  Start<-specVar[z,2]
-  End<-  specVar[z,3]
+  Start<-specList[2]
+  End<-  specList[3]
   if(End-Start<0.1){
-    Start<-Start-(((0.1-(End-Start))/2))
-    End<-End+(((0.1-(End-Start))/2))
+    End<-End+(0.9-(End-Start))
+    Start<-Start-0.1
     
   }
-  Low<-specVar[z,4]
-  High<-specVar[z,5]
+  Low<-specList[4]
+  High<-specList[5]
   
-  foo <-readWave(paste(specpath,libb[which(as.numeric(libb[,1])==specVar[z,1]),2],sep=""),Start,End,units="seconds")
-
-  sample_rate.og<-foo@samp.rate
+  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
+  
+  fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
+  # demean to remove DC offset
+  snd = foo@left - mean(foo@left)
+  
+  # number of points to use for the fft
+  nfft=2024
+  
+  window<-132
+  
+  overlap=128
+  
   foo.spec <- spec(foo,plot=F, PSD=T,wl=128)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
   foo.specprop <- specprop(foo.spec) #
-  #spectro(foo) #could do image analysis on this guy 
   foo.meanspec = meanspec(foo, plot=F,ovlp=50,wl=128)#not sure what ovlp parameter does but initially set to 90 #
   #foo.meanspec.db = meanspec(foo, plot=F,ovlp=50,dB="max0",wl=128)#not sure what ovlp parameter does but initially set to 90 #,flim=c(specVar$Low.Freq..Hz.[z]/1000,specVar$High.Freq..Hz.[z]/1000)
   foo.autoc = autoc(foo, plot=F,ovlp=50,wl=64) #
@@ -972,71 +1240,458 @@ for(z in 1:rowcount){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  specVar[z,6] = rugo(foo@left / max(foo@left)) #rugosity
-  specVar[z,7] = crest(foo,wl=128)$C #crest factor
+  specList[6] = rugo(foo@left / max(foo@left)) #rugosity
+  specList[7] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  specVar[z,8] = th(foo.env) #temporal entropy
-  specVar[z,9] = sh(foo.spec) #shannon entropy
-  specVar[z,10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  specVar[z,11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  specVar[z,12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  specVar[z,13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specVar[z,14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specVar[z,15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specVar[z,16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  specVar[z,17] = foo.specprop$sd[1] #specprop sd
-  specVar[z,18] = foo.specprop$sem[1] #specprop sem
-  specVar[z,19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specVar[z,20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specVar[z,21] = foo.specprop$Q25[1] # specprop q25
-  specVar[z,22] = foo.specprop$Q75[1] #specprop q75
-  specVar[z,23] = foo.specprop$IQR[1] #specprop IQR
-  specVar[z,24] = foo.specprop$cent[1] #specrop cent
-  specVar[z,25] = foo.specprop$skewness[1] #specprop skewness
-  specVar[z,26] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specVar[z,27] = foo.specprop$sfm[1] #specprop sfm
-  specVar[z,28] = foo.specprop$sh[1] #specprop sh
-  specVar[z,29] = foo.specprop$prec[1] #specprop prec
-  specVar[z,30] = M(foo,wl=128) #amp env median
-  specVar[z,31] = H(foo,wl=128) #total entropy
-  #specVar[z,32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
+  specList[8] = th(foo.env) #temporal entropy
+  specList[9] = sh(foo.spec) #shannon entropy
+  specList[10] = roughness(foo.meanspec[,2]) #spectrum roughness
+  specList[11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  specList[12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  specList[13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  specList[14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  specList[15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  specList[16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  specList[17] = foo.specprop$sd[1] #specprop sd
+  specList[18] = foo.specprop$sem[1] #specprop sem
+  specList[19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  specList[20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  specList[21] = foo.specprop$Q25[1] # specprop q25
+  specList[22] = foo.specprop$Q75[1] #specprop q75
+  specList[23] = foo.specprop$IQR[1] #specprop IQR
+  specList[24] = foo.specprop$cent[1] #specrop cent
+  specList[25] = foo.specprop$skewness[1] #specprop skewness
+  specList[26] = foo.specprop$kurtosis[1] #specprop kurtosis
+  specList[27] = foo.specprop$sfm[1] #specprop sfm
+  specList[28] = foo.specprop$sh[1] #specprop sh
+  specList[29] = foo.specprop$prec[1] #specprop prec
+  specList[30] = M(foo,wl=128) #amp env median
+  specList[31] = H(foo,wl=128) #total entropy
+  #specList[32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  specVar[z,33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specVar[z,34]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specVar[z,35]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specVar[z,36]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specVar[z,37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specVar[z,38]<-Dfrange #dfrange
-  specVar[z,39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specVar[z,40]  <- lastFeature(sample_rate.og,foo.meanspec)
-
-Start<-NULL
-End<-NULL
-Low<-NULL
-High<-NULL
-foo<-NULL
-foo.spec<-NULL
-foo.autoc<-NULL
-foo.dfreq<-NULL
-foo.specprop<-NULL
-foo.meanspec<-NULL
-Startdom<-NULL
-Enddom<-NULL
-Mindom<-NULL
-Maxdom<-NULL
-Dfrange<-NULL
-samples<-NULL
-
-
-
-}
-specTab<-rbind(specTab,specVar)
-}
-  if(rowcount>1){
-  return(specTab)
-  }else{
-  return(specTab[1,])
+  specList[33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  specList[34]<-freqstat.normalize(Startdom,Low,High) #startdom
+  specList[35]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  specList[36]<-freqstat.normalize(Mindom,Low,High) #mindom
+  specList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  specList[38]<-Dfrange #dfrange
+  specList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  specList[40]  <- lastFeature(fs,foo.meanspec)
+  
+  
+  #FEATURES FROM IMAGE 
+  
+  # create spectrogram
+  spec.gram = specgram(x = snd,
+                  Fs = fs,
+                  window=window,
+                  overlap=overlap
+  )
+  
+  # discard phase information
+  P = abs(spec.gram$S)
+  
+  # normalize
+  P = P/max(P)
+  
+  # convert to dB
+  P = 15*log10(P)
+  
+  # config time axis
+  t = spec.gram$t
+  
+  # plot spectrogram
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
+  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+  dev.off()
+  
+  image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
+  image1<-grayscale(image1, method = "Luma", drop = TRUE)
+  f <- ecdf(image1)
+  
+  image1<-threshold(image1,ImgThresh) 
+  image1<-clean(image1,5) %>% imager::fill(1) 
+  
+  #TEST SECTION
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
+  
+  #par(mar=c(0,0,0,0))
+  #plot(image1,axes=FALSE,asp="varying")
+  #dev.off()
+  
+ 
+   #calculate area chunks x and y 
+  chunks<-5
+  areaX<- vector("list", length = chunks)
+  num<-seq(1,5,1)
+  areaX<-lapply(num,function(x) sum(as.matrix(image1)[(((x*480/chunks)-95):(x*480/chunks)),1:480]))
+  areaX<-unlist(areaX)
+    
+  areaY<- vector("list", length = chunks)
+  areaY<-lapply(num,function(x) sum(as.matrix(image1)[1:480,(((x*480/chunks)-95):(x*480/chunks))]))
+  areaY<-unlist(areaY)
+  #distinguish islands and calculate area
+  labels<-label(image1)
+  labels<-as.matrix(labels[1:480,1:480])
+  labelsW<-labels #make seperate object for just white regions
+  threshBool<-as.matrix(image1[1:480,1:480])
+  for(i in 1:length(labelsW)){
+    if(threshBool[i]){
+      labelsW[i]<-labelsW[i]+1000000
+    }
   }
+  labelsW[which(labelsW<1000000)]<-0
+  areaW<-data.frame(table(labelsW))
+  areaW<-areaW[which(areaW$labelsW!=0),]
+  areaW<-as.vector(areaW[,2])
+  
+  #TEST SECTION
+  #labelsW[which(labelsW!=1000001)]<-0
+  #plot(raster(t(labelsTest)))
+  #plot(raster(t(labelsW)))
+  #plot(smooth(rasterToPolygons(raster(t(labelsW)))))
+  
+  
+  #hough lines
+  test9<-hough_line(image1,data.frame = TRUE)
+  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  test9<-test9[which(!is.infinite(test9[,4])),]
+  Bestline<-test9[which.max(test9$score),]
+  Bestlines<-test9[which(test9$score>=max(test9$score)*.7),]
+  
+  #calculate centroid of area (could also add centroid of largest area)
+  positionsX <- apply(image1[1:480,1:480], 1, function(x) which(x==TRUE))
+  positionsY <- apply(image1[1:480,1:480], 2, function(x) which(x==TRUE))
+  
+  #calculate stats on horizontal and vertical switches
+  hpEven<-c()
+  hpEven<-c(hpEven,sum(diff(image1[1:480,24]) == 1) + sum(diff(image1[1:480,24]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,96]) == 1) + sum(diff(image1[1:480,96]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,192]) == 1) + sum(diff(image1[1:480,192]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,288]) == 1) + sum(diff(image1[1:480,288]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,384]) == 1) + sum(diff(image1[1:480,384]) == -1))
+  hpEven<-c(hpEven,sum(diff(image1[1:480,456]) == 1) + sum(diff(image1[1:480,456]) == -1))
+  vpEven<-c()
+  vpEven<-c(vpEven,sum(diff(image1[24,1:480]) == 1) + sum(diff(image1[24,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[96,1:480]) == 1) + sum(diff(image1[96,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[192,1:480]) == 1) + sum(diff(image1[192,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[288,1:480]) == 1) + sum(diff(image1[288,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[384,1:480]) == 1) + sum(diff(image1[384,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(image1[456,1:480]) == 1) + sum(diff(image1[456,1:480]) == -1))
+  
+  #add new variables
+  specList[41]<-which.max(areaX) #areaXmaxP
+  specList[42]<-max(areaX) #areaXmax
+  specList[43]<-max(areaX)/sum(areaX) #areaXdom
+  specList[44]<-std.error(areaX) #areaXstd
+  
+  specList[45]<-which.max(areaY) #areaYmaxP
+  specList[46]<-max(areaY) #areaYmax
+  specList[47]<-max(areaY)/sum(areaY)#areaYdom
+  specList[48]<-std.error(areaY)#areaYstd
+  
+  #specList[49]<-std.error(areaW) #Areaspread
+  specList[50]<-max(areaW)#AreaTop
+  specList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
+  specList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
+  specList[53]<-length(areaW)#NumShapes
+  
+  specList[54]<-Bestline[4]#bestSlopeHough
+  specList[55]<-Bestline[5]#bestBHough
+  specList[56]<-nrow(Bestlines)#numGoodlines
+  specList[57]<-median(Bestlines[,4])#medSlope
+  specList[58]<-median(Bestlines[,5])#medB
+
+  specList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+  specList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+  
+  specList[61]<-mean(hpEven)#switchesX
+  specList[62]<-std.error(hpEven)#switchesXreg
+  specList[63]<-max(hpEven)#switchesXmax
+  specList[64]<-min(hpEven)#switchesXmin
+  
+  specList[65]<-mean(vpEven)#switchesY
+  specList[66]<-std.error(vpEven)#switchesYreg
+  specList[67]<-max(vpEven)#switchesYmax
+  specList[68]<-min(vpEven)#switchesYmin
+  
+  return(specList)
+}
+
+runthisthing<-"n"
+#test
+if(runthisthing=="y"){
+  num_cores <- detectCores()-1
+cluz <- makeCluster(num_cores)
+registerDoParallel(cluz)
+
+clusterExport(cluz, c("specVar","specpath","specgram","imagep"))
+
+foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
+  dev.off()
+  specList<-specVar[y,]
+  
+  #store reused calculations to avoid indexing 
+  Start<-specList[2]
+  End<-  specList[3]
+  if(End-Start<0.1){
+    End<-End+(0.1-(End-Start))
+    
+  }
+  Low<-specList[4]
+  High<-specList[5]
+  
+  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
+  # extract signal
+  snd = foo@left
+  
+  # determine duration
+  dur = length(snd)/foo@samp.rate
+  #dur # seconds
+  ## [1] 3.588
+  
+  # determine sample rate
+  fs = foo@samp.rate
+  #fs # Hz
+  ## [1] 2000
+  
+  # demean to remove DC offset
+  snd = snd - mean(snd)
+  
+  # number of points to use for the fft
+  nfft=2024
+  
+  window<-132
+
+  overlap=128
+  
+  # create spectrogram
+  spec.gram = specgram(x = snd,
+                  Fs = fs,
+                  window=window,
+                  overlap=overlap
+  )
+  
+  # discard phase information
+  P = abs(spec.gram$S)
+  
+  # normalize
+  P = P/max(P)
+  
+  # convert to dB
+  P = 15*log10(P)
+  
+  # config time axis
+  t = spec.gram$t
+  
+  # plot spectrogram
+  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+  dev.off()
+  
+  test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  
+  test<-grayscale(test, method = "Luma", drop = TRUE)
+  f <- ecdf(test)
+  #f(test) %>% as.cimg(dim=dim(test)) %>% plot()
+  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
+  #highlight() looks lit
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
+  test2<-threshold(test,"65%") 
+  #plot(test2)
+  test2<-clean(test2,5) %>% imager::fill(1) 
+  par(mar=c(0,0,0,0))
+  plot(test2,axes=FALSE,asp="varying")
+  
+  labels<-label(test2)
+  labels<-as.matrix(labels[1:480,1:480])
+  threshBool<-as.matrix(test2[1:480,1:480])
+  for(i in 1:length(labels)){
+    if(threshBool[i]){
+      labels[i]<-labels[i]+1000000
+    }
+  }
+  labels[which(labels<1000000)]<-0
+  area<-table(labels)
+  #plot(as.cimg(test15))
+  area<-area[2:length(area)]
+  
+  AreaSpread<-std.error(area)
+  AreaTop<-max(area)
+  AreaTopDom<-max(area)/(sum(area))
+  AreaTop3Dom<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}
+  NumShapes<-length(area)
+  
+  test9<-hough_line(test2,data.frame = TRUE)
+  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  test9<-test9[which(!is.infinite(test9[,4])),]
+  Bestline<-test9[which.max(test9$score),]
+  Bestlines<-test9[which(test9$score>=350),]
+  
+  positionsX <- apply(test2[1:480,1:480], 1, function(x) which(x==TRUE))
+  positionsY <- apply(test2[1:480,1:480], 2, function(x) which(x==TRUE))
+  xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
+  yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
+
+  
+  #plot best line
+  #nfline(Bestline[1,1],Bestline[1,2],col=rgb(1, 0, 0,1),lwd=3)
+  
+  #calculate some stats:
+  bestSlopeHough<-Bestline[4]
+  bestBHough<-Bestline[5]
+  numGoodlines<-if(!is.null(nrow(test11))){nrow(Bestlines)}else{0}
+  medSlope<-median(Bestlines[4])
+  medB<-median(Bestlines[5])
+  
+  chunks<-5
+  areaX<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkX<-sum(test2[start:end,1:480])
+    areaX<-c(areaX,areaChunkX)
+  }
+
+  areaXmaxP<-which.max(areaX)
+  areaXmax<-max(areaX)
+  areaXdom<-max(areaX)/sum(areaX)
+  areaXstd<-std.error(areaX)
+  
+  areaY<-NULL
+  for(u in 1:chunks){
+    start<-(u*480/chunks)-95
+    end<-(u*480/chunks)
+    areaChunkY<-sum(test2[1:480,start:end])
+    areaY<-c(areaY,areaChunkY)
+  }
+  
+  areaYmaxP<-which.max(areaY)
+  areaYmax<-max(areaY)
+  areaYdom<-max(areaY)/sum(areaY)
+  areaYstd<-std.error(areaY)
+
+  hpEven<-c()
+  hpEven<-c(hpEven,sum(diff(test2[1:480,24]) == 1) + sum(diff(test2[1:480,24]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,96]) == 1) + sum(diff(test2[1:480,96]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,192]) == 1) + sum(diff(test2[1:480,192]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,288]) == 1) + sum(diff(test2[1:480,288]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,384]) == 1) + sum(diff(test2[1:480,384]) == -1))
+  hpEven<-c(hpEven,sum(diff(test2[1:480,456]) == 1) + sum(diff(test2[1:480,456]) == -1))
+  
+  switchesX<-mean(hpEven)
+  switchesXreg<-std.error(hpEven)
+  switchesXmax<-max(hpEven)
+  switchesXmin<-min(hpEven)
+  
+  
+  vpEven<-c()
+  vpEven<-c(vpEven,sum(diff(test2[24,1:480]) == 1) + sum(diff(test2[24,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[96,1:480]) == 1) + sum(diff(test2[96,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[192,1:480]) == 1) + sum(diff(test2[192,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[288,1:480]) == 1) + sum(diff(test2[288,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[384,1:480]) == 1) + sum(diff(test2[384,1:480]) == -1))
+  vpEven<-c(vpEven,sum(diff(test2[456,1:480]) == 1) + sum(diff(test2[456,1:480]) == -1))
+  
+  switchesY<-mean(vpEven)
+  switchesYreg<-std.error(vpEven)
+  switchesYmax<-max(vpEven)
+  switchesYmin<-min(vpEven)
+  
+  #plot(test)
+  #test3<-contours(test2)
+  #minx<-1
+  #maxx<-max(unlist(lapply(test3,find_xmax)))
+  #miny<-1
+  #maxy<-max(unlist(lapply(test3,find_ymax)))
+  
+  #rect(minx,miny,maxx,maxy)
+  
+  #dev.off()
+  #test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
+  
+  #par(mar=c(0,0,0,0))
+  #plot(test2,axes=FALSE,asp="varying")
+  
+  ## Split into connected components (individual coins)
+  
+  ## Compute their respective area
+  #area <- sapply(pxs,sum)
+  ## Highlight largest coin in green
+  #highlight(pxs[[6]],col="orange",lwd=2)
+  
+
+
+  
+  
+  test11<-test9[which(test9$score>=350),]
+  
+  test11<-c(mean(test11[,1]),mean(test11[,2]),mean(test11[,3]))
+
+  nfline(test11[1],test11[2],col=rgb(0, 0, 1,1),lwd=3)
+  
+  test9<-test9[which(test9$score>=350),]
+  slopes<- cbind(test9[,c(1,2)],(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
+  remove<-which(is.infinite(slopes[,3]))
+  if(length(remove)!=0){
+  slopes<-slopes[-remove,]
+  test9<-test9[-remove,]
+  }
+  
+  slopes<-slopes[,c(3,4)]
+  slopes<-scale(slopes)
+  
+  #remove outliers
+  slopes<-slopes[which(abs(slopes[,1])-1.5*IQR(slopes[,1])<=0),]
+  slopes<-slopes[which(abs(slopes[,2])-1.5*IQR(slopes[,2])<=0),]
+  
+
+  #test9$b<- test9$rho/sin(test9$theta)
+  
+  km <- kmeans(slopes,2)
+  if(dudahart2(slopes,km$cluster,alpha=1)$cluster1==FALSE){
+    
+    pamk.best <- pamk(slopes)
+    slopes<-cbind(slopes,pamk.best$pamobject$clustering)
+  }else{
+    slopes<-cbind(slopes,1)
+  }
+  
+  for(q in 1:nrow(slopes)){
+  nfline(test9[q,1],test9[q,2],col=c("blue","red","orange","yellow","brown","gray","purple")[slopes[q,3]])
+  }
+
+  dev.off()  
+  
+  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,"kmeans.jpg",sep=""),quality=100)
+  
+  #fit<-kmeans(test9[,c(1:2)],3)
+  #plotcluster(test9[,c(1,2)],fit$cluster)
+  
+
+
+  
+  #dev.off()
+  
+  #ideas for stastics: 
+  #1. is there a "strong group" of lines present? 
+  #1. is the best group of lines approx. parallel with the next best group of lines? 
+  #2. do the red and blue lines converge? 
+  #3. does the strongest group coincide with 
+  
+  #test4<-threshold(test,.5) %>% plot(axes=TRUE)
+  #test5<-threshold(test2-test4,)
+  #test5 %>% plot(axes=TRUE)
+  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
+  
+  #dev.off()
+ # test2<-imgradient(test,"x")
+ # plot(test2)
+  #print(spec)
+  #spectro(foo,grid=FALSE,flim=c(Low/1000,High/1000,overlap=16,wl=32, normalize = F,nfft=128)) 
+}
+
+stopCluster(cluz)
 }
 
 process_data<-function(whichRun){
@@ -1100,6 +1755,7 @@ if(dettype=="spread"|dettype=="combined"){
         #index columns to process faster:
         gTimeS<-resltsTSPV$start        
         gGroup<-resltsTSPV[,14]
+        nexstart<-gTimeS[1]
         print("assigning group values")
         for(z in 1:(nrow(resltsTSPV)-1)){
           if(gTimeS[z]+groupInt[d]>=gTimeS[z+1]){
@@ -1144,7 +1800,7 @@ if(dettype=="spread"|dettype=="combined"){
       
       #create new groups values
       for(u in 1:nrow(resltsTSPV)){
-        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2]
+        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2] 
       }
       
       }
@@ -1194,7 +1850,11 @@ if(dettype=="spread"|dettype=="combined"){
             grp<-resltsTSPV[resltsTSPV$group==j,]
             grpminfreq <- min(grp[,6])
             grpmaxfreq <- max(grp[,7])
-            grpstarttime <- min(grp[which.max(grp[,13]),4])
+            if(any(duplicated(grp[,4]))){             #min(grp[which.max(grp[,13]),4]) #for start of 1st detector in run
+            grpstarttime <- getmode(grp[,4])
+            }else{
+            grpstarttime <- median(grp[,4])
+            }
             grpendtime <- max(grp[,5])
             
             resltsTSPVFinal[p,1]<-p
@@ -1211,6 +1871,12 @@ if(dettype=="spread"|dettype=="combined"){
             
             p<-p+1
           }
+
+          #remove fragments (100hz or under) that are resonably high up 
+          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,6]>=225))),] #&resltsTSPVFinal[,6]>=225)
+          
+          #remove fragments (100hz or under) also on the low end
+          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,7]<150)&(resltsTSPVFinal[,5]-resltsTSPVFinal[,4]<=0.5))),] #&resltsTSPVFinal[,6]>=225)
           
           #change end time of call to start of next call if they overlap. 
           resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
@@ -1218,6 +1884,9 @@ if(dettype=="spread"|dettype=="combined"){
             if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
               resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
           }
+          
+          #remove ones with no data 
+          resltsTSPVFinal<-resltsTSPVFinal[which((resltsTSPVFinal[,5]-resltsTSPVFinal[,4])!=0),]
           
           
           resltsTSPVFinal$View<-"Spectrogram 1"
@@ -1435,7 +2104,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 if(user=="ACS-3"){
   spec <- "GS"
 }else{
-  spec <- "RW"
+  spec <- "GS"
 }
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
@@ -1465,17 +2134,14 @@ runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }else{
 ##########sections to run
-runRavenGT<-"y"
-runProcessGT<-"y"
+runRavenGT<-"n"
+runProcessGT<-"n"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
 }
 
 #enter the run name:
-runname<- "RW test new RF"
-
-#Run type: all (all) or specific (spf) moorings to run
-runtype<-"all"
+runname<- "new variables test"
 
 #enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
 dettype<- "spread" 
@@ -1494,7 +2160,7 @@ if(dettype=="spread"|dettype=="combined"){
 detectorsspr<-list()
 spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
 spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
-detectorsspr[[1]] <- dir(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
+detectorsspr[[1]] <- list.files(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
 
 #detectorsspr[[2]] <- dir(BLEDpath)[3:14]
 detectorssprshort<- detectorsspr
@@ -1533,30 +2199,23 @@ decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3]
 decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
 Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
+ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
+modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
+modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+
+
 
 ########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
-if(runtype=="all"){
-moorings<- colnames(MooringsDat)
-#SF<-allmooringsSF
+MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
+colnames(MooringsDat)<-c(allmooringsGT)
+if(ncol(MooringsDat)>1){
+MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
 }else{
-  allmooringsGT<- c("BS13_AU_04") #add as complete GTs 
-  allmooringsSF<-list()#list sound file range for comleted GT of each mooring 
-  allmooringsSF[[1]]<-c(1,304)
- # allmooringsSF[[2]]<-c(1,96)
-  
-  MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
-  colnames(MooringsDat)<-c(allmooringsGT)
-  if(ncol(MooringsDat)>1){
-  MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
-  }else{
-  }
-  moorings<-colnames(MooringsDat)
-  
 }
-
+moorings<-colnames(MooringsDat)
 
 detlist<-NULL
 detlist2<-NULL
@@ -1720,10 +2379,10 @@ if(dettype=="single"|dettype=="combined"){
   }
 }
 #Save progress
-write.csv(resltsTab,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   resltsTab<-read.csv(recentPath) #produces most recently modifed file 
 
@@ -1775,10 +2434,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
-    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+2)&GT[[v]]$meantime>(MoorVar$meantime[h]-2))
+    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+3)&GT[[v]]$meantime>(MoorVar$meantime[h]-3))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])){
+      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])|(GT[[v]][g,8]>MoorVar[h,4] & GT[[v]][g,8]<MoorVar[h,5])){
         OutputCompare[p,]<-MoorVar[h,c(1:7,14,16)]
         OutputCompare[p,9]<-"TP"
         p=p+1
@@ -1786,6 +2445,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
     }
   }
   }
+  #remove duplicates:
+  OutputCompare<-OutputCompare[which(!duplicated(OutputCompare$Selection)),]
+  
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   if(nrow(OutputCompare)>0){
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,14,16)])
@@ -1795,17 +2457,20 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #Add rows where GT meantime was in between 
   p=1
   for(h in 1:nrow(GT[[v]])){
-    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+2)&MoorVar$meantime>(GT[[v]]$meantime[h]-2))
+    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+3)&MoorVar$meantime>(GT[[v]]$meantime[h]-3))
     if(length(gvec)>0){
-    for(g in min(gvec):max(gvec)){
-      if(GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5]){
-        OutputCompare2[p,]<-GT[[v]][h,]
-        OutputCompare2[p,9]<-"TP truth"
-        p=p+1
+      for(g in min(gvec):max(gvec)){
+        if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar[g,14]>GT[[v]][h,4]) & (MoorVar[g,14]<GT[[v]][h,5]))){
+          OutputCompare2[p,]<-GT[[v]][h,]
+          OutputCompare2[p,9]<-"TP truth"
+          p=p+1
+        }
       }
     }
   }
-  }
+  
+  OutputCompare2<-OutputCompare2[which(!duplicated(OutputCompare2$Selection)),]
+  
   
   #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
   if(nrow(OutputCompare2)>0){
@@ -2030,25 +2695,26 @@ dataMat<- data.matrix(data[,c(1,5,6,7,8)])
 moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,moorlib,1)
+dataMat<-spectral_features(dataMat,moorlib,1,1)
 
 dataMat<-data.frame(dataMat)
 data<-cbind(data,dataMat[,c(6:length(dataMat))])
 
-write.csv(data,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
-write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
+data<-apply(data,2,function(x) unlist(x))
 
-data2<-data[,c(1,2,5,6,7,8,9:length(data))]
-data2$detectionType<-as.factor(data2$detectionType)
+write.csv(data,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
+write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
+data2<-data[,c(1,2,5,6,7,8,9:ncol(data))]
+data2<-data.frame(data2)
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   data<-read.csv(recentPath) #produces most recently modifed file 
   colnames(data)[1]<-"soundfiles[n]"
   
-  recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
@@ -2060,106 +2726,47 @@ data2$detectionType<-as.factor(data2$detectionType)
 }
 
 if(runTestModel=="y"){
-
+  
 pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
   
-#names(data2)[1]<-"Mooring"
+data2[,2:length(data2)]<-apply(data2[,2:length(data2)],2,function(x) as.numeric(as.character(x)))
+data2$detectionType<-as.factor(data2$detectionType)
+colnames(data2)[1]<-"soundfiles[n]"
+data2$`soundfiles[n]`<-as.factor(data2$`soundfiles[n]`)
 
-my.xval = list()
-my.xval$predictions = list()
-my.xval$labels = list()
+#remove rows with a known infinite value 
+data2<-data2[which(is.finite(data2$V51)),]
 
-AUC_avg<-c()
-f=1
-CUTvec=NULL
-#how many cross validation runs you want
-for(p in 1:CV){
-  print(paste("model",p))
-  train<-splitdf(data2,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]`-meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz. -freqrange -meanfreq,data=train[[1]],mtry=7,na.action=na.roughfix)
-  pred<-predict(data.rf,train[[2]],type="prob")
-  pred<-cbind(pred,train[[2]]$Selection)
-  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
-  auc.perf = performance(ROCRpred, measure = "auc",plot=F)
-  AUC_avg<-c(AUC_avg,as.numeric(auc.perf@y.values))
-  
-  my.xval$predictions[[p]] = ROCRpred@predictions[[1]]
-  my.xval$labels[[p]] = ROCRpred@labels[[1]]
-  
-  prob.perf = performance(ROCRpred, "tpr","fpr")
-  
-  TPR<-NULL
-  TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
-  CUTvec<-c(CUTvec,CUT)
-  
-  if(f==1){
-    probstab<-data.frame(data2$Selection)
-    probstab[,f+1]<-NA
-    for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
-    }
-  }else{
-    probstab[,f+1]<-NA
-    for(n in 1:nrow(pred)){
-      probstab[which(probstab$data2.Selection==pred[n,3]),f+1]<-pred[n,2]
-    }
-  }  
-  f=f+1
-}
+#fix any NAs using roughfix (inserts column medians)
+data2<-na.roughfix(data2)
 
-##Graph std error and probability rates, with true detection included 
-probmean<-NULL
-probstderr<-NULL
-n<-NULL
-for(x in 1:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
-}
+if(modelType=="rf"){
+  modelOutput<-runRandomForest(data2,1)
+}else if(modelType=='orf'){
+  modelOutput<-runObliqueRandomForest(data2,1,method=modelMethod)
+f}
 
-CUTmean<-mean(CUTvec)
-CUTstd.err<-std.error(CUTvec)
+#end model function. export dataset, cutmean
 
-data3<- data2
-data4<- data2
-
-##assuming $detection type is already in this data NOTE not 
-data3$probmean<-probmean
-data3$probstderr<-probstderr
-data3$n<-n
-
-if(any(is.na(probmean))){
-data3<-data3[-which(is.na(data3$probmean)),]
-}
+#return dataset from random forest 
 
 ######################
+data3<-modelOutput[[1]]
+CUTmean<-modelOutput[[2]]
 #adaptively combine detections based on probability
 data3Mat<- data.matrix(data3)
-if(spec=="RW"){
+#if(spec=="RW"){
 data3Mat<-adaptive_compare(data3Mat,1) 
-}else if(spec=="GS"){
-}
-
-data3<-data3Mat
+#}else if(spec=="GS"){
+#}
 
 #simulate context over time using probability scores 
-data3<-context_sim(data3)
+data3Mat<-context_sim(data3Mat)
 
-#number of TPs in data3
-finTPs<-sum(as.numeric(as.character(data3[which(data3[,pos-2]>CUTmean),7])))
-
-finFPs<-(nrow(data3[which(data3[,pos-2]>CUTmean),])-finTPs)
-finRat<-finTPs/finFPs
-
-pp2<-as.vector(data3[,pos-2])
-ll2<-as.numeric(as.character(data3[,7]))-1
+pp2<-as.vector(data3Mat[,pos-2])
+ll2<-as.numeric(as.character(data3Mat[,7]))-1
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
-
-varImpPlot(data.rf,  
-           sort = TRUE,
-           main="Variable Importance")
 
 #with permutations on probs
 plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
@@ -2170,73 +2777,46 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(data3[,pos-2],data3[,pos-1], col = ifelse(data3[,7]==2,'blue','red'),cex=0.25)
+plot(data3Mat[which(data3Mat[,7]==1),pos-2],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3Mat[which(data3Mat[,7]==2),pos-2],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3Mat[,pos-2],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
+abline(v=CUTmean)
+
+plot(data3Mat[which(data3Mat[,7]==1),pos+5],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3Mat[which(data3Mat[,7]==2),pos+5],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmean)
+
+plot(data3Mat[,pos+5],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
 abline(v=CUTmean)
 
 #plot of probabilities after context sim:
-for(m in unique(data3[,1])){
-data3moors<-data3[which(data3[,1]==m),]
-plot(data3moors[,pos-2], col=data3moors[,7],main=moorlib[which(moorlib[,1]==m),2])
+for(m in unique(data3Mat[,1])){
+data3Matmoors<-data3Mat[which(data3Mat[,1]==m),]
+plot(data3Matmoors[,10],data3Matmoors[,pos-2], col=data3Matmoors[,7],main=moorlib[which(moorlib[,1]==m),2])
 abline(h=CUTmean,col="red")
 abline(h=0.5,lty=3)
-#lines(lowess(data3moors[,pos+5]))
-#lines(lowess(data3moors[,pos+4]))
-#lines(lowess(data3moors[,pos+2]))
-lines((data3moors[,pos+3]*6),col="blue") #backwards through data 
-lines((data3moors[,pos+1]*6),col="orange") #forwards through data
-lines(((pmax(data3moors[,pos+1],data3moors[,pos+3])*6)),col="green")
+#lines(lowess(data3Matmoors[,pos+5]))
+#lines(lowess(data3Matmoors[,pos+4]))
+#lines(lowess(data3Matmoors[,pos+2]))
+lines(data3Matmoors[,10],(data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
+lines(data3Matmoors[,10],(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
+lines(data3Matmoors[,10],((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
 
-data3datFrame<-as.data.frame(data3)
-data3datFrame$detectionType<-as.factor(data3datFrame$detectionType)
+#data3$detectionType<-as.factor(data3$detectionType)
 #see freq breakdown of calls 
-cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
-cdplot(data3datFrame[,7] ~ data3datFrame[,9], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #freqrange
-#cdplot(data3datFrame$detectionType ~ data3datFrame$specprop.mode, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-#cdplot(data3datFrame$detectionType ~ data3datFrame$meanpeakf, data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,6], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,5], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-cdplot(data3datFrame[,7] ~ data3datFrame[,12], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-cdplot(data3datFrame[,7] ~ data3datFrame[,26], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot")
-cdplot(data3datFrame[,7] ~ data3datFrame[,22], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot",bw=2)
-
+#cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
 
 #write data to drive
-after_model_write(data3,moorlib,1) #need to change to vector 
+after_model_write(data3Mat,moorlib,1) #need to change to vector 
 
 beep(10)
-
-
-
-#comparison dataset to data3#####################################
-#data4$probmean<-probmean
-#data4$probstderr<-probstderr
-#data4$n<-n
-
-#number of TPs in data4
-#sum(as.numeric(as.character(data4[which(data4$probmean>CUTmean),]$detectionType)))
-
-#cor.test(as.numeric(probmean),probstderr)
-#pp = my.xval$predictions
-#ll = my.xval$labels
-#predd = prediction(pp, ll)
-#perff = performance(predd, "tpr", "fpr")
-
-#no avg
-#plot(perff, xaxs="i", yaxs="i",main=paste("All",CV," cross validation runs"))
-#abline(a=0, b= 1)
-
-#avg. Don't really know what the points on the line mean. Without manipulations on probs
-#plot(perff, avg = "vertical", spread.estimate = "stddev",spread.scale=2, xaxs="i", yaxs="i", 
-     #show.spread.at=c(.05,.075,.1,.125,.15,.2,.3),
-#     lwd = 2, main = paste("Vertical avg w/ std devn"))
-#plot(perff, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-#     lwd = 2, main = paste("Threshold avg"),colorize=T)
-#abline(a=0, b= 1)
-#print(mean(AUC_avg))
-
-#save last model
-save(data.rf, file = paste(drivepath,"DetectorRunOutput/",runname,"/an_example_model.rda",sep=""))
 
 }
 
@@ -2543,7 +3123,7 @@ moorlib<-cbind(seq(1,length(unique(findata$sound.files)),1),as.character(sort(un
 
 findata$sound.files<-as.factor(findata$sound.files)
 findataMat<- data.matrix(findata[c(13,4,5,6,7)])
-findataMat<-spectral_features(findataMat,moorlib,2)
+findataMat<-spectral_features(findataMat,moorlib,2,1)
 
 colnames(findataMat)<-c(colnames(findataMat)[1:5],c(letters,strrep(letters,2))[1:(ncol(findataMat)-5)])
 
