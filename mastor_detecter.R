@@ -636,10 +636,103 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-runRandomForest<-function(Moddata,whichRun){
+runObliqueRandomForest<-function(Moddata,whichRun){
   
   Moddata<<-Moddata
   
+  if(whichRun=="1"){
+    
+    #appears oblique RF only supports binary classification and doesn't allow formula style input. Need to take row I don't want to be predictors out before fitting model. 
+    
+    print(paste("creating oblique random forest models with CV",CV))
+    
+    if(user=="ACS-3"){
+      num_cores <- detectCores()
+    }else{
+      num_cores <- detectCores()-1
+    }
+    cluz <- makeCluster(num_cores)
+    registerDoParallel(cluz)
+    
+    clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
+    train<-splitdf(Moddata,weight = 2/3)
+    trainModdataPred<-as.matrix(train[[1]][,c(8,9,11:ncol(train[[1]]))])
+    testModdataPred<-as.matrix(train[[2]][,c(8,9,11:ncol(train[[1]]))])
+    trainModdataResponse<-as.numeric(train[[1]][,7])
+    
+    
+    data.orf<-obliqueRF(x=trainModdataPred,y=trainModdataResponse,mtry=11,training_method="ridge") 
+    
+    #stats::predict?
+    pred<-predict(data.orf,testModdataPred,type="prob")
+    pred<-cbind(pred,train[[2]]$Selection)
+
+    ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+    prob.perf = performance(ROCRpred, "tpr","fpr")
+    
+    TPR<-NULL
+    TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
+    CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+    
+    probstab<-data.frame(Moddata$Selection)
+    probstab[,2]<-NA
+    #giniTab<-as.numeric(data.orf$importance)  spit out nonsense for ridge. Assuming this will not work for most methods so ignoring for now. 
+    for(n in 1:nrow(pred)){
+      probstab[which(probstab$Moddata.Selection==pred[n,3]),2]<-pred[n,2]
+    }
+    placeHolder<-TRUE
+    return(list(probstab[,2],placeHolder,CUT))
+    
+  }
+
+stopCluster(cluz)
+
+}else{
+    
+   #do other one (need up update full mooring on this)
+}
+  
+CUTvec<-stuff[[1]][3]
+for(i in 2:CV){
+  CUTvec<-c(CUTvec,stuff[[i]][3])
+}
+
+CUTmean<-mean(unlist(CUTvec))
+
+#build probability data frame 
+probstab<-data.frame(Moddata$Selection)
+for(i in 1:CV){
+  probstab<-cbind(probstab,stuff[[i]][1])
+}
+##Graph std error and probability rates, with true detection included 
+probmean<-NULL
+probstderr<-NULL
+n<-NULL
+for(x in 1:nrow(probstab)){
+  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
+}
+
+##assuming $detection type is already in this data NOTE not 
+Moddata$probmean<-probmean
+Moddata$probstderr<-probstderr
+Moddata$n<-n
+
+if(any(is.na(probmean))){
+  Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
+}
+
+return(list(Moddata,CUTmean))
+Moddata<<-NULL
+}
+
+
+runRandomForest<-function(Moddata,whichRun){
+  
+  Moddata<<-Moddata
+    
 if(whichRun=="1"){
 
   print(paste("creating random forest models with CV",CV))
@@ -656,7 +749,7 @@ clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 
 stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11,na.action = na.roughfix) #-meanfreq,-freqrange
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   
@@ -2660,10 +2753,13 @@ data2$`soundfiles[n]`<-as.factor(data2$`soundfiles[n]`)
 #remove rows with a known infinite value 
 data2<-data2[which(is.finite(data2$V51)),]
 
+#fix any NAs using roughfix (inserts column medians)
+data2<-na.roughfix(data2)
+
 if(modelType=="randomForest"){
   modelOutput<-runRandomForest(data2,1)
 }else if(modelType=='obliqueRandomForest'){
-  modelOutput<-"function here"
+  modelOutput<-runObliqueRandomForest(data2,1)
 }
 
 #end model function. export dataset, cutmean
