@@ -1459,7 +1459,7 @@ MooringsDat<-MooringsDat[,order(colnames(MooringsDat))]
 
 if(user=="ACS-3"){
 ##########sections to run
-runRavenGT<-"y"
+runRavenGT<-"n"
 runProcessGT<-"y"
 runTestModel<-"y" #run model on GT data
 runNewData<-"n" #run on data that has not been ground truthed. 
