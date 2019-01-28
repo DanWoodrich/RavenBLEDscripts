@@ -9,7 +9,7 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF") install.packages("fpc")
 
 library(e1071)  
 library(foreach)
@@ -35,6 +35,7 @@ library(oce)
 library(imager)
 library(Cairo)
 library(obliqueRF)
+library(fpc)
 
 varImpPlot_AVG <- function(x, sort=TRUE,
                        n.var=min(30, nrow(x)),
