@@ -636,7 +636,64 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-runObliqueRandomForest<-function(Moddata,whichRun){
+process_model<-function(stuff2,whichRun){
+
+  if(whichRun==1){
+  
+  if(modelType=="rf"){
+  giniTab<-data.frame(stuff2[[1]][2])
+  for(i in 2:CV){
+    giniTab<-cbind(giniTab,stuff2[[i]][2])
+  }
+    
+  #for some reason have to save giniAv as global variable to reassign rownames...
+  giniAv<<-data.frame(apply(giniTab,1,mean))
+  giniRows<-c("meanfreq","freqrange",colnames(Moddata[,11:ncol(Moddata)]))
+  rownames(giniAv)<<-giniRows
+  colnames(giniAv)<<-"MeanDecreaseGini"
+    
+  varImpPlot_AVG(giniAv,  
+                 sort = TRUE,
+                 main="Variable Importance random forest")
+  giniAv<-NULL
+  }
+  }
+
+  CUTvec<-stuff2[[1]][3]
+  for(i in 2:CV){
+    CUTvec<-c(CUTvec,stuff2[[i]][3])
+  }
+  
+  CUTmean<-mean(unlist(CUTvec))
+  
+  #build probability data frame 
+  probstab<-data.frame(Moddata$Selection)
+  for(i in 1:CV){
+    probstab<-cbind(probstab,stuff2[[i]][1])
+  }
+
+  probmean<-NULL
+  probstderr<-NULL
+  n<-NULL
+  for(x in 1:nrow(probstab)){
+    probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+    probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
+    n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
+  }
+  
+  ##assuming $detection type is already in this data NOTE not 
+  Moddata$probmean<-probmean
+  Moddata$probstderr<-probstderr
+  Moddata$n<-n
+  
+  if(any(is.na(probmean))){
+    Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
+  }
+  
+  return(list(Moddata,CUTmean))
+}
+
+runObliqueRandomForest<-function(Moddata,whichRun,method){
   
   Moddata<<-Moddata
   
@@ -662,7 +719,7 @@ stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     trainModdataResponse<-as.numeric(train[[1]][,7])
     
     
-    data.orf<-obliqueRF(x=trainModdataPred,y=trainModdataResponse,mtry=11,training_method="ridge") 
+    data.orf<-obliqueRF(x=trainModdataPred,y=trainModdataResponse,mtry=11,training_method=method) 
     
     #stats::predict?
     pred<-predict(data.orf,testModdataPred,type="prob")
@@ -693,39 +750,9 @@ stopCluster(cluz)
    #do other one (need up update full mooring on this)
 }
   
-CUTvec<-stuff[[1]][3]
-for(i in 2:CV){
-  CUTvec<-c(CUTvec,stuff[[i]][3])
-}
-
-CUTmean<-mean(unlist(CUTvec))
-
-#build probability data frame 
-probstab<-data.frame(Moddata$Selection)
-for(i in 1:CV){
-  probstab<-cbind(probstab,stuff[[i]][1])
-}
-##Graph std error and probability rates, with true detection included 
-probmean<-NULL
-probstderr<-NULL
-n<-NULL
-for(x in 1:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
-}
-
-##assuming $detection type is already in this data NOTE not 
-Moddata$probmean<-probmean
-Moddata$probstderr<-probstderr
-Moddata$n<-n
-
-if(any(is.na(probmean))){
-  Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
-}
-
-return(list(Moddata,CUTmean))
-Moddata<<-NULL
+  stuff<-process_model(stuff,1)
+  return(stuff)
+  Moddata<<-NULL
 }
 
 
@@ -771,63 +798,13 @@ stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
 
 stopCluster(cluz)
 
-giniTab<-data.frame(stuff[[1]][2])
-for(i in 2:CV){
-  giniTab<-cbind(giniTab,stuff[[i]][2])
-}
-
 }else{
   
   #do other one (need up update full mooring on this)
 }
-  
-CUTvec<-stuff[[1]][3]
-for(i in 2:CV){
-  CUTvec<-c(CUTvec,stuff[[i]][3])
-}
-
-CUTmean<-mean(unlist(CUTvec))
-
-#build probability data frame 
-probstab<-data.frame(Moddata$Selection)
-for(i in 1:CV){
-  probstab<-cbind(probstab,stuff[[i]][1])
-}
-##Graph std error and probability rates, with true detection included 
-probmean<-NULL
-probstderr<-NULL
-n<-NULL
-for(x in 1:nrow(probstab)){
-  probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-  n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
-}
-
-if(whichRun==1){
-
-  #for some reason have to save giniAv as global variable to reassign rownames...
-giniAv<<-data.frame(apply(giniTab,1,mean))
-giniRows<-c("meanfreq","freqrange",colnames(Moddata[,11:ncol(Moddata)]))
-rownames(giniAv)<<-giniRows
-colnames(giniAv)<<-"MeanDecreaseGini"
-
-varImpPlot_AVG(giniAv,  
-               sort = TRUE,
-               main="Variable Importance random forest")
-giniAv<-NULL
-}
-
-##assuming $detection type is already in this data NOTE not 
-Moddata$probmean<-probmean
-Moddata$probstderr<-probstderr
-Moddata$n<-n
-
-if(any(is.na(probmean))){
-  Moddata<-Moddata[-which(is.na(Moddata$probmean)),]
-}
-
-return(list(Moddata,CUTmean))
-Moddata<<-NULL
+  stuff<-process_model(stuff,1)
+  return(stuff)
+  Moddata<<-NULL
 }
 
 context_sim <-function(sdata){
@@ -903,7 +880,11 @@ after_model_write <-function(mdata,libb,finaldatrun){
   MoorVar1<-NULL
   for(v in 1:length(unique(libb[,3]))){
     if(finaldatrun==1){
-      name<-"RFA"
+      if(modelType=="orf"){
+      name<-paste(modelType,modelMethod,sep=":")
+      }else if(modelType=="rf"){
+      name<-modelType
+      }
     }else{
       name<-"full"
     }
@@ -2219,6 +2200,8 @@ timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
 Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
 modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
+modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+
 
 
 ########################
@@ -2756,11 +2739,11 @@ data2<-data2[which(is.finite(data2$V51)),]
 #fix any NAs using roughfix (inserts column medians)
 data2<-na.roughfix(data2)
 
-if(modelType=="randomForest"){
+if(modelType=="rf"){
   modelOutput<-runRandomForest(data2,1)
-}else if(modelType=='obliqueRandomForest'){
-  modelOutput<-runObliqueRandomForest(data2,1)
-}
+}else if(modelType=='orf'){
+  modelOutput<-runObliqueRandomForest(data2,1,method=modelMethod)
+f}
 
 #end model function. export dataset, cutmean
 
