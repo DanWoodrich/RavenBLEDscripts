@@ -1064,7 +1064,7 @@ for(f in 1:length(sound_filesfullpath)){
   durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
   durVar[,4]<-cumsum(durVar$Duration)
-  durVar[,5]<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+  durVar[,5]<-paste(sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
   durVar[,6]<-m
 
 durTab<-rbind(durTab,durVar)
@@ -1072,7 +1072,7 @@ durTab2<-1 #workaround to R not allowing dataframes to be "null".
   }else if(numPass==2){
     durVar<-durTab[which(durTab$CombSF %in% sound_files),]
    # durVar<-durVar[-which(duplicated(durVar$SFsh)),]
-    durVar$CombSF<-paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+    durVar$CombSF<-paste(sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
     durVar$CumDur<-cumsum(durVar$Duration)
     durTab2<-rbind(durTab2,durVar)
   }
@@ -1123,13 +1123,13 @@ for(m in moors){
   }else{
     
     if(whiten=="y" & moorType=="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/HG_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="y" & moorType!="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/Entire_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",m,"/HG_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else if(whiten=="n" & moorType=="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/",spec,"/Entire_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/",spec,"/HG_No_whiten",sep="")
     }else{
-      specpath<<-paste(startcombpath,"/",m,"/Entire_full_No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",m,"/HG_full_No_whiten",sep="")
     }
     
     
@@ -2830,7 +2830,7 @@ beep(10)
 if(runNewData=="y"){
   
   if(moorType=="HG"){
-    allDataPath<-paste(drivepath,"Datasets",sep="")
+    allDataPath<-paste(drivepath,"HG_Datasets",sep="")
   }else{
     allDataPath<-paste(drivepath,"Full_datasets",sep="")
   }
@@ -2849,7 +2849,7 @@ if(runNewData=="y"){
     }
   
   if(whiten=="y"){
-    allMoorings<-dir(allDataPath,pattern=paste("Entire_full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")) 
+    allMoorings<-dir(allDataPath,pattern=paste(Filtype,"p",100*LMS,"x_","FO",FO,sep = "")) 
   }
   
   #
@@ -2880,7 +2880,7 @@ for(m in allMoorings){
   
 
 if(moorType=="HG"){
-  sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
+  sfpath<-paste(drivepath,"HG_Datasets/",m,"/",spec,"_ONLY_yesUnion",sep = "")
 }else{
   sfpath<-paste(drivepath,"Full_datasets/",m,sep = "")
 }
@@ -2913,7 +2913,7 @@ decimateData(sfpath,2)
     }
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
-      whiten2<-"Entire_No_whiten"
+      whiten2<-"HG_No_whiten"
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
@@ -2922,7 +2922,7 @@ decimateData(sfpath,2)
       }else{
       pathh<-paste(startcombpath,spec,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
         filePath<- paste(pathh,"/",m,whiten2,sep="")
@@ -2937,7 +2937,7 @@ decimateData(sfpath,2)
       }
       
     }else if(whiten=="n" & moorType!="HG"){
-      whiten2<-"Entire_full_No_whiten"
+      whiten2<-"Full_No_whiten"
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
@@ -2946,7 +2946,7 @@ decimateData(sfpath,2)
       }else{
         pathh<-paste(startcombpath,"/temp/",sep="")    
       }
-      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
       if(file.exists(paste(startcombpath,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))&a==1){
         durTab <-read.csv(paste(pathh,"/",m,"/",whiten2,"/SFiles_and_durations.csv",sep=""))   
         filePath<- paste(pathh,"/",m,"/",whiten2,sep="")
@@ -2965,7 +2965,7 @@ decimateData(sfpath,2)
   }
   if(a==1){
     if(whiten=="y" & moorType=="HG"){
-      whiten2 <- paste("Entire_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
+      whiten2 <- paste("HG_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
@@ -2973,7 +2973,7 @@ decimateData(sfpath,2)
       durTab <-read.csv(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))  
       break
     }else if(whiten=="y" & moorType!="HG"){
-      whiten2 <- paste("Entire_full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
+      whiten2 <- paste("Full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
       if(decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
@@ -3003,7 +3003,7 @@ decimateData(sfpath,2)
   #run pulse and fin/mooring detector, if selected:
   if(interfere=="y"){
     for(b in 1:length(bigFile_breaks)){
-      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
       for(i in interfereVec){
         print(paste("Running detector for",combname))
         resltVarInt <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path =filePath,detector = "Band Limited Energy Detector",dpreset=i,vpreset=ravenView)
@@ -3021,7 +3021,7 @@ decimateData(sfpath,2)
   #run detector(s)
   if(dettype=="spread"|dettype=="combined"){
     for(b in 1:length(bigFile_breaks)){ 
-      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
       for(q in 1:length(detectorssprshort)){
         for(r in detectorssprshort[[q]]){
           print(paste("Running detector for",combname))
@@ -3041,7 +3041,7 @@ decimateData(sfpath,2)
   
   if(dettype=="single"|dettype=="combined"){
     for(b in 1:length(bigFile_breaks)){
-      combname<- paste(sprintf("%02d",b),m,"_files_entire",bigFile_breaks[b],".wav",sep="")
+      combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
       for(n in detectorssinshort){
         print(paste("Running detector for",combname))
         resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files =  combname, path = filePath,detector = "Band Limited Energy Detector",dpreset=n,vpreset =ravenView)
