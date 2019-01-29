@@ -2110,54 +2110,21 @@ if(user=="ACS-3"){
 
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
 ParamsTab[,3]<-as.character(ParamsTab[,3])
+###############input parameters
+#General
+runname<- ParamsTab[which(ParamsTab[,2]=="runname"),3]
 
-#moorings completed 
-allmooringsGT<- str_split(ParamsTab[which(ParamsTab[,2]=="allmooringsGT"),3],",",simplify=TRUE)
-allmooringsSFpre<-str_split(ParamsTab[which(ParamsTab[,2]=="allmooringsSF"),3],",",simplify=TRUE)
-allmooringsSF<-list()
-for(u in 1:length(allmooringsSFpre)){
-  allmooringsSF[[u]]<-c(as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[1]),as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[2]))
-}
+#Signal manipulation
+decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
+decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
+whiten<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
+FO<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
+LMS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
 
-#############################
-
-MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
-colnames(MooringsDat)<-c(allmooringsGT)
-MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
-
-#enter the run name:
-runname<- "new variables test"
-
-#enter the detector type: "spread" or "single" or "combined". Can run and combine any combination of spread and single detectors that will be averaged after returning their detections. 
-dettype<- "spread" 
-
-#for newData: enter the type of mooring you'd like to analyze data: high graded (HG) or on full mooring (FULL)
-moorType<-"FULL"
-
-
-#compare detections with pulses and fin/mooring noise, other sources of intereference y or n
-interfere<-"n"
-
-interfereVec<-c(dir(BLEDpath)[6])
-
-if(dettype=="spread"|dettype=="combined"){
-#make a list of detectors you wish to run. Must correspond with those of same name already in BLED folder in Raven. 
-detectorsspr<-list()
+#Raven Detectors
 spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
 spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
-detectorsspr[[1]] <- list.files(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
 
-#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
-detectorssprshort<- detectorsspr
-}
-
-if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[2]
-                  ) #list single detectors to run 
-detectorssinshort<- detectorssin
-}
-
-###############input parameters
 Maxdur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
 Mindur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
 timediffself<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
@@ -2165,9 +2132,7 @@ probdist<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
 timediff<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediff"),3])
 downsweepCompMod<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
 downsweepCompAdjust<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
-whiten<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
-FO<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
-LMS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
+
 CV<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
 TPRthresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
 greatcallThresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="greatcallThresh"),3])
@@ -2180,8 +2145,7 @@ allowedZeros<-as.numeric(ParamsTab[which(ParamsTab[,2]=="allowedZeros"),3])
 detskip<-as.numeric(ParamsTab[which(ParamsTab[,2]=="detskip"),3] )
 groupInt<-as.numeric(ParamsTab[which(ParamsTab[,2]=="groupInt"),3] )
 fileCombinesize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="fileCombinesize"),3] )
-decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
-decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
+
 timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
 Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
@@ -2189,6 +2153,32 @@ modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
 modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
 
 
+#############################
+
+detectorsspr<-list()
+detectorsspr[[1]] <- list.files(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
+
+#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
+detectorssprshort<- detectorsspr
+}
+
+if(dettype=="single"|dettype=="combined"){
+detectorssin <- c(dir(BLEDpath)[2]
+                  ) #list single detectors to run 
+detectorssinshort<- detectorssin
+}
+
+#moorings completed 
+allmooringsGT<- str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE)
+allmooringsSFpre<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE)
+allmooringsSF<-list()
+for(u in 1:length(allmooringsSFpre)){
+  allmooringsSF[[u]]<-c(as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[1]),as.numeric(str_split(allmooringsSFpre[u],":",simplify=TRUE)[2]))
+}
+
+MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlist(allmooringsSF[1]))))
+colnames(MooringsDat)<-c(allmooringsGT)
+MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
 
 ########################
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -2271,20 +2261,15 @@ decimationSteps<-prime.factor(decimationFactor)
 
 ################Script function
 
-if(user=="ACS-3"){
-  ##########sections to run
-  runRavenGT<-"n"
-  runProcessGT<-"y"
-  runTestModel<-"y" #run model on GT data
-  runNewData<-"n" #run on data that has not been ground truthed. 
-}else{
-  ##########sections to run
-  runRavenGT<-"n"
-  runProcessGT<-"n"
-  runTestModel<-"y" #run model on GT data
-  runNewData<-"n" #run on data that has not been ground truthed. 
+if(runGT=="y"){
+  runRavenGT<-runGTsections[1]
+  runProcessGT<-runGTsections[2]
+  runTestModel<-runGTsections[3]
 }
 
+if(runNew=="y"){
+  runNewData<-"y" 
+}
 
 ##################start script#################
 if(runRavenGT=="y"){
