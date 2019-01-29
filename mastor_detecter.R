@@ -2120,53 +2120,62 @@ decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),
 whiten<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
 FO<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
 LMS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
+Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 
 #Raven Detectors
 spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
 spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
 
-Maxdur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
-Mindur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
-timediffself<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
-probdist<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
-timediff<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediff"),3])
-downsweepCompMod<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
-downsweepCompAdjust<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
-
-CV<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
-TPRthresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
+#Context sim
 greatcallThresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="greatcallThresh"),3])
 maxBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxBonus"),3])
 goodcallBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="goodcallBonus"),3]) 
 maxPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxPenalty"),3] )
 badcallPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
+
+#Model
+CV<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
+TPRthresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
+modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
+modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+
+#Detection Processing Spread (algo)
 grpsize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
 allowedZeros<-as.numeric(ParamsTab[which(ParamsTab[,2]=="allowedZeros"),3]) 
 detskip<-as.numeric(ParamsTab[which(ParamsTab[,2]=="detskip"),3] )
 groupInt<-as.numeric(ParamsTab[which(ParamsTab[,2]=="groupInt"),3] )
+Maxdur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
+Mindur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
+
+#RW algo
+if(spec=="RW"){
+downsweepCompMod<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
+downsweepCompAdjust<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
+}
+
+#GS algo
+if(spec=="GS"){
+timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
+}
+
+#GT
+
+timediffself<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
+probdist<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
+timediff<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediff"),3])
+
+
+
+
 fileCombinesize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="fileCombinesize"),3] )
 
-timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
-Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
 ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
-modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
-modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+
 
 
 #############################
 
-detectorsspr<-list()
-detectorsspr[[1]] <- list.files(BLEDpath)[spStart:spEnd] #add more spreads with notation detectorspr[[x]]<-... #15-32
-
-#detectorsspr[[2]] <- dir(BLEDpath)[3:14]
-detectorssprshort<- detectorsspr
-}
-
-if(dettype=="single"|dettype=="combined"){
-detectorssin <- c(dir(BLEDpath)[2]
-                  ) #list single detectors to run 
-detectorssinshort<- detectorssin
-}
+detectorssprshort<- list.files(BLEDpath)[spStart:spEnd] 
 
 #moorings completed 
 allmooringsGT<- str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE)
@@ -2194,32 +2203,8 @@ moorings<-colnames(MooringsDat)
 
 detlist<-NULL
 detlist2<-NULL
-if(dettype=="spread"|dettype=="combined"){
-  for(n in 1:length(detectorsspr)){
-    detlist<-c(detlist,length(detectorsspr[[n]]))
-    sonlydetlist<-detlist
-    detlist2<-c(detlist2,substr(detectorssprshort[[n]][1],1,3))
-    sonlydetlist2<-detlist2
-  }
-}
 
-if(dettype=="single"|dettype=="combined"){
-    detlist<- c(detlist,length(detectorssin))
-    detlist2<-c(detlist2,detectorssinshort)
-}
-
-if(dettype=="single"){
-  sonlydetlist<-0
-  sonlydetlist2<-NA
-}
-
-detnum<-if(dettype=="spread"){
-    length(detectorsspr)
-  }else if(dettype=="single"){
-      length(detectorssin)
-    }else if(dettype=="combined"){
-        length(detectorssin)+length(detectorsspr)
-    }
+detnum<-1
 
 ###########################make txt file of params for run:
 write.csv(ParamsTab,paste(outputpath,runname,"/",spec,".csv",sep=""),row.names = FALSE)
