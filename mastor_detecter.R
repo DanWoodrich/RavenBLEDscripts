@@ -2645,105 +2645,105 @@ soundfiles<-sort(soundfiles)
 detfiles<-sort(detfiles)
 
 
-data=NULL
+GTset=NULL
 for(n in 1:length(detfiles)){
-  data2<-read.csv(paste(drivepath,"DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
-  data2<-cbind(soundfiles[n],data2)
-  data<-rbind(data,data2)
+  data<-read.csv(paste(drivepath,"DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
+  data<-cbind(soundfiles[n],GTset)
+  GTset<-rbind(GTset,data)
 }
 
 #translate response to binary 
-data$detectionType<- as.character(data$detectionType)
-data[which(data$detectionType=="TP"),9]<-1
-data[which(data$detectionType=="FP"),9]<-0
-data[which(data$detectionType=="FN"),9]<-2
+GTset$detectionType<- as.character(GTset$detectionType)
+GTset[which(GTset$detectionType=="TP"),9]<-1
+GTset[which(GTset$detectionType=="FP"),9]<-0
+GTset[which(GTset$detectionType=="FN"),9]<-2
 
-#remove FN from data
-data<-data[which(data$detectionType==0|data$detectionType==1),]
-data$detectionType<-as.numeric(data$detectionType)
-data$Low.Freq..Hz.<-as.numeric(data$Low.Freq..Hz.)
-data$High.Freq..Hz.<-as.numeric(data$High.Freq..Hz.)
-data$Begin.Time..s.<-as.numeric(data$Begin.Time..s.)
-data$End.Time..s.<-as.numeric(data$End.Time..s.)
+#remove FN from GTset
+GTset<-GTset[which(GTset$detectionType==0|GTset$detectionType==1),]
+GTset$detectionType<-as.numeric(GTset$detectionType)
+GTset$Low.Freq..Hz.<-as.numeric(GTset$Low.Freq..Hz.)
+GTset$High.Freq..Hz.<-as.numeric(GTset$High.Freq..Hz.)
+GTset$Begin.Time..s.<-as.numeric(GTset$Begin.Time..s.)
+GTset$End.Time..s.<-as.numeric(GTset$End.Time..s.)
 
 
 #######1 mooring test######
-#data<-data[which(data$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
+#GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#add frequency stats to data 
-data$meanfreq<- (data$Low.Freq..Hz.+data$High.Freq..Hz.)/2
-data$freqrange<- (data$High.Freq..Hz.-data$Low.Freq..Hz.)
-data$meantime<- (data$Begin.Time..s.+data$End.Time..s.)/2
+#add frequency stats to GTset 
+GTset$meanfreq<- (GTset$Low.Freq..Hz.+GTset$High.Freq..Hz.)/2
+GTset$freqrange<- (GTset$High.Freq..Hz.-GTset$Low.Freq..Hz.)
+GTset$meantime<- (GTset$Begin.Time..s.+GTset$End.Time..s.)/2
 
 #make interference columns into factors
-if(length(data)>12){
-  for(n in 13:length(data)){
-    data[,n]<-as.factor(data[,n])
+if(length(GTset)>12){
+  for(n in 13:length(GTset)){
+    GTset[,n]<-as.factor(GTset[,n])
   }
 }
-data$Selection<-seq(1,nrow(data))
+GTset$Selection<-seq(1,nrow(GTset))
 
 #temporary: to see how well RF works for longer GS
-#data<-data[which((data[,6]-data[,5])>=0.5),]
+#GTset<-GTset[which((GTset[,6]-GTset[,5])>=0.5),]
 
 #TEMPORARY TO DEBUG, REMOVE
-#data<-splitdf(data,weight = 1/4)[[1]]
+#GTset<-splitdf(GTset,weight = 1/4)[[1]]
 
-#"vectorize" data frame. 
+#"vectorize" GTset frame. 
 
-dataMat<- data.matrix(data[,c(1,5,6,7,8)])
-moorlib<-cbind(seq(1,length(unique(data$`soundfiles[n]`)),1),as.character(sort(unique(data$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
+dataMat<- data.matrix(GTset[,c(1,5,6,7,8)])
+moorlib<-cbind(seq(1,length(unique(GTset$`soundfiles[n]`)),1),as.character(sort(unique(GTset$`soundfiles[n]`))),seq(1,length(unique(GTset$`soundfiles[n]`)),1))
 print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat,moorlib,1,1)
 
 dataMat<-data.frame(dataMat)
-data<-cbind(data,dataMat[,c(6:length(dataMat))])
+GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
 
-data<-apply(data,2,function(x) unlist(x))
+GTset<-apply(GTset,2,function(x) unlist(x))
 
-write.csv(data,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
+write.csv(GTset,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
-data2<-data[,c(1,2,5,6,7,8,9:ncol(data))]
-data2<-data.frame(data2)
+GTset<-GTset[,c(1,2,5,6,7,8,9:ncol(GTset))]
+GTset<-data.frame(GTset)
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-  data<-read.csv(recentPath) #produces most recently modifed file 
-  colnames(data)[1]<-"soundfiles[n]"
+  GTset<-read.csv(recentPath) #produces most recently modifed file 
+  colnames(GTset)[1]<-"soundfiles[n]"
   
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
-  data2<-data[,c(1,2,5,6,7,8,9:length(data))]
-  data2$detectionType<-as.factor(data2$detectionType)
+  GTset<-GTset[,c(1,2,5,6,7,8,9:length(GTset))]
+  GTset$detectionType<-as.factor(GTset$detectionType)
   
-  moorlib<-cbind(seq(1,length(unique(data2$`soundfiles[n]`)),1),as.character(sort(unique(data2$`soundfiles[n]`))),seq(1,length(unique(data$`soundfiles[n]`)),1))
+  moorlib<-cbind(seq(1,length(unique(GTset$`soundfiles[n]`)),1),as.character(sort(unique(GTset$`soundfiles[n]`))),seq(1,length(unique(GTset$`soundfiles[n]`)),1))
 
 }
 
 if(runTestModel=="y"){
   
-pos<-length(data2)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+pos<-length(GTset)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
   
-data2[,2:length(data2)]<-apply(data2[,2:length(data2)],2,function(x) as.numeric(as.character(x)))
-data2$detectionType<-as.factor(data2$detectionType)
-colnames(data2)[1]<-"soundfiles[n]"
-data2$`soundfiles[n]`<-as.factor(data2$`soundfiles[n]`)
+GTset[,2:length(GTset)]<-apply(GTset[,2:length(GTset)],2,function(x) as.numeric(as.character(x)))
+GTset$detectionType<-as.factor(GTset$detectionType)
+colnames(GTset)[1]<-"soundfiles[n]"
+GTset$`soundfiles[n]`<-as.factor(GTset$`soundfiles[n]`)
 
 #remove rows with a known infinite value 
-data2<-data2[which(is.finite(data2$V51)),]
+GTset<-GTset[which(is.finite(GTset$V51)),]
 
 #fix any NAs using roughfix (inserts column medians)
-data2<-na.roughfix(data2)
+GTset<-na.roughfix(GTset)
 
 if(modelType=="rf"){
-  modelOutput<-runRandomForest(data2,1)
+  modelOutput<-runRandomForest(GTset,1)
 }else if(modelType=='orf'){
-  modelOutput<-runObliqueRandomForest(data2,1,method=modelMethod)
+  modelOutput<-runObliqueRandomForest(GTset,1,method=modelMethod)
 f}
 
 #end model function. export dataset, cutmean
@@ -3138,18 +3138,18 @@ if(runProcessGT=="n"){
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
-  data2<-data[,c(9,13:length(data))]
+  GTset<-data[,c(9,13:length(data))]
 }
-data2$detectionType<-as.factor(data2$detectionType)
-#data2<-data[,c(7,11:length(data))] #if running full workflow change so that data2 path is reduced to only detectionType and variables
+GTset$detectionType<-as.factor(GTset$detectionType)
+#GTset<-data[,c(7,11:length(data))] #if running full workflow change so that GTset path is reduced to only detectionType and variables
 
-colnames(data2)<-c(colnames(data2)[1],c(letters,strrep(letters,2))[1:(ncol(data2)-1)])
+colnames(GTset)<-c(colnames(GTset)[1],c(letters,strrep(letters,2))[1:(ncol(GTset)-1)])
 
 #generate models and apply to whole dataset. Should keep model parameters the same as when you assessed accuracy to have an idea of reliability. 
 CUTvec=NULL
 for(p in 1:CV){
   print(paste("model",p))
-  train<-splitdf(data2,weight = 2/3)
+  train<-splitdf(GTset,weight = 2/3)
   #apply model to data
   data.rf<-randomForest(formula=detectionType ~ .,data=train[[1]],mtry=7,na.action=na.roughfix)
   pred<-predict(data.rf,findataMat[,6:ncol(findataMat)],type="prob")
