@@ -2125,22 +2125,6 @@ MooringsDat<-rbind(allmooringsGT,matrix(unlist(allmooringsSF), nrow=length(unlis
 colnames(MooringsDat)<-c(allmooringsGT)
 MooringsDat<-MooringsDat[,order(colnames(MooringsDat))] 
 
-################Script function
-
-if(user=="ACS-3"){
-##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"y"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
-}else{
-##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
-}
-
 #enter the run name:
 runname<- "new variables test"
 
@@ -2284,6 +2268,23 @@ if(spec=="RW"){
 }
 
 decimationSteps<-prime.factor(decimationFactor)
+
+################Script function
+
+if(user=="ACS-3"){
+  ##########sections to run
+  runRavenGT<-"n"
+  runProcessGT<-"y"
+  runTestModel<-"y" #run model on GT data
+  runNewData<-"n" #run on data that has not been ground truthed. 
+}else{
+  ##########sections to run
+  runRavenGT<-"n"
+  runProcessGT<-"n"
+  runTestModel<-"y" #run model on GT data
+  runNewData<-"n" #run on data that has not been ground truthed. 
+}
+
 
 ##################start script#################
 if(runRavenGT=="y"){
