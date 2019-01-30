@@ -2332,30 +2332,64 @@ runRavenDetector<-function(){
 
 resltsTab <- NULL
 #decimate and whiten are not 
+if(whiten=="y"){
+  whiten2 <- paste("/",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
+}else if(whiten=="n"){
+  whiten2<-"No_whiten"
+}
 if(decimate=="y"){
   ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
-  
-}
-if(whiten=="y"){
-  allMoorings<-dir(allDataPath,pattern=paste(Filtype,"p",100*LMS,"x_","FO",FO,sep = "")) 
-}
-  
+  whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+ 
+fileSizeInt<-(fileCombinesize*decimationFactor)
+if(fileSizeInt>340&fileSizeInt<680){
+  fileSizeInt<-340
+}else if(fileSizeInt>=680){
+  fileSizeInt2<-fileSizeInt
+  fileSizeInt<-340
+  iterate_SF<-c(1,2)
+  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+}else{
+  iterate_SF<-1
 }
 
+}
 
-  
 #run sound files:
 resltsTab <- NULL
-for(m in moorings){
+decNeeded<-"n"
+for(m in 1:nrow(MoorInfo)){
   
-  if(whiten=="n"){
-  whiten2<-"No_whiten"
-  if(decimate=="y"){
-    whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+  if(MoorInfo[m,7]=="HG_datasets"){
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+      decNeeded<-"n"
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+      decNeeded<-"y"
+    }else if(decimate=="n"){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+      decNeeded<-"n"
+    }
+  }else if(MoorInfo[m,7]=="Full_datasets"){
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      decNeeded<-"n"
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      decNeeded<-"y"
+    }else if(decimate=="n"){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],decimationFactor,sep = "")
+      decNeeded<-"n"
+    }
+  
+  if(MoorInfo[m,8]=="open"){
+    sound_files <- dir(sfpath,pattern=".wav")[MoorInfo[m,2],MoorInfo[m,3]]
+    sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+  }else if(MoorInfo[m,8]=="month"){
+    sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
+    sound_filesfullpath<-NULL
   }
-  sfpath<-paste(drivepath,"Datasets/",m,"/",spec,"_ONLY_yesUnion/",sep = "")
-  sound_files <- dir(sfpath,pattern=".wav")[as.numeric(MooringsDat[2,colnames(MooringsDat)==m]):as.numeric(MooringsDat[3,colnames(MooringsDat)==m])] #based on amount analyzed in GT set
-  sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   
   #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
   combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",as.numeric(MooringsDat[2,colnames(MooringsDat)==m]),"-",as.numeric(MooringsDat[3,colnames(MooringsDat)==m]),".wav",sep="")
@@ -2372,7 +2406,6 @@ for(m in moorings){
   
   
   }else{
-  whiten2 <- paste("/",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
   if(decimate=="y"){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
