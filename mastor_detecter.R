@@ -130,6 +130,83 @@ decimateData<-function(dpath,whichRun){
     }
 }
 
+makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
+  status<-sf=="full"
+  type<-rep("partial",length(sf))
+  type[which(status)]<-"all"
+  
+  if(any(sf=="full")){
+    for(n in which(sf=="full")){
+      if(path[n]=="HG_datasets"){
+        lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+      }else if(path[n]=="Full_datasets"){
+        lookup<-paste(drivepath,path[n],moorings[n],sep="/")
+      }
+      if(sourceFormat[n]=="month"){
+        #save this section for when I am looking at a folder with months in it. 
+      }else if(sourceFormat[n]=="open"){
+        fileEnd<-length(list.files(lookup,pattern=".wav"))
+        sf[n]<-paste(1,fileEnd,sep=":")
+      }
+    }
+  }
+  
+  #test for file name formatting and convert to numeric
+  if(any(!grepl("[^A-Za-z]", sf))){
+    for(n in which(!grepl("[^A-Za-z]", sf))){
+      sf1<-c(as.character(str_split(sf[n],":",simplify=TRUE)[1]))
+      sf2<-c(as.character(str_split(sf[n],":",simplify=TRUE)[2]))
+      if(path[n]=="HG_datasets"){
+        lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+      }else if(path[n]=="Full_datasets"){
+        lookup<-paste(drivepath,path[n],moorings[n],sep="/")
+      }
+      if(sourceFormat[n]=="month"){
+        #save this section for when I am looking at a folder with months in it.  
+      }else if(sourceFormat[n]=="open"){
+        fileStart<-which(list.files(lookup,pattern=".wav")==sf1)
+        fileEnd<-which(list.files(lookup,pattern=".wav")==sf2)
+        sf[n]<-paste(fileStart,fileEnd,sep=":")
+      }
+    }
+  }
+  
+  sf1<-list()
+  sf2<-list()
+  for(n in 1:length(sf)){
+    sf1[[n]]<-c(as.numeric(str_split(sf[n],":",simplify=TRUE)[1]))
+    sf2[[n]]<-c(as.numeric(str_split(sf[n],":",simplify=TRUE)[2]))
+  }
+  
+  #add file name format
+  sf3<-list()
+  sf4<-list()
+  for(n in 1:length(sf)){
+    if(path[n]=="HG_datasets"){
+      lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+    }else if(path[n]=="Full_datasets"){
+      lookup<-paste(drivepath,path[n],moorings[n],sep="/")
+    }
+    if(sourceFormat[n]=="month"){
+      #save this section for when I am looking at a folder with months in it. 
+    }else if(sourceFormat[n]=="open"){
+      sf3[[n]]<-list.files(lookup,pattern=".wav")[sf1[[n]]]
+      sf4[[n]]<-list.files(lookup,pattern=".wav")[sf2[[n]]]
+    }
+  }
+  
+  for(n in length(sf)){
+    if(type[n]!="all"){
+      MoorsUniqueIDS<-paste(moorings,"_files_",path,sf1,"-",sf2,sep="")
+    }else if(type[n]=="all")
+      MoorsUniqueIDS<-paste(moorings,"_files_",path,"_All",sep="")
+  }
+  
+  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)))
+  
+  return(MoorsInfo)
+}
+
 
 parAlgo<-function(dataaa){
   if(user=="ACS-3"){
@@ -2201,72 +2278,7 @@ monthOrder<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 #make moorlib
 #GT moorings
 
-makeMoorLib<-function(moorings,sf,path,sourceFormat,spec){
-if(any(GTsf=="full")){
-  for(n in which(GTsf=="full")){
-    if(GTpath[n]=="HG_datasets"){
-      lookup<-paste(drivepath,GTpath[n],GTmoorings[n],paste(spec,"_ONLY_yesUnion",sep=""),sep="/")
-    }else if(GTpath[n]=="Full_datasets"){
-      lookup<-paste(drivepath,GTpath[n],GTmoorings[n],sep="/")
-    }
-    if(GTsourceFormat[n]=="month"){
-      #save this section for when I am looking at a folder with months in it. 
-    }else if(GTsourceFormat[n]=="open"){
-      fileEnd<-length(list.files(lookup,pattern=".wav"))
-      GTsf[n]<-paste(1,fileEnd,sep=":")
-    }
-  }
-}
-
-  #test for file name formatting and convert to numeric
-if(any(!grepl("[^A-Za-z]", GTsf))){
-  for(n in which(!grepl("[^A-Za-z]", GTsf))){
-    GTsf1<-c(as.character(str_split(GTsf[n],":",simplify=TRUE)[1]))
-    GTsf2<-c(as.character(str_split(GTsf[n],":",simplify=TRUE)[2]))
-    if(GTpath[n]=="HG_datasets"){
-      lookup<-paste(drivepath,GTpath[n],GTmoorings[n],paste(spec,"_ONLY_yesUnion",sep=""),sep="/")
-    }else if(GTpath[n]=="Full_datasets"){
-      lookup<-paste(drivepath,GTpath[n],GTmoorings[n],sep="/")
-    }
-    if(GTsourceFormat[n]=="month"){
-        #save this section for when I am looking at a folder with months in it.  
-    }else if(GTsourceFormat[n]=="open"){
-      fileStart<-which(list.files(lookup,pattern=".wav")==GTsf1)
-      fileEnd<-which(list.files(lookup,pattern=".wav")==GTsf2)
-      GTsf[n]<-paste(fileStart,fileEnd,sep=":")
-    }
-  }
-}
-  
-GTsf1<-list()
-GTsf2<-list()
-for(n in 1:length(GTsf)){
-  GTsf1[[n]]<-c(as.numeric(str_split(GTsf[n],":",simplify=TRUE)[1]))
-  GTsf2[[n]]<-c(as.numeric(str_split(GTsf[n],":",simplify=TRUE)[2]))
-}
-
-#add file name format
-GTsf3<-list()
-GTsf4<-list()
-for(n in 1:length(GTsf)){
-  if(GTpath[n]=="HG_datasets"){
-    lookup<-paste(drivepath,GTpath[n],GTmoorings[n],paste(spec,"_ONLY_yesUnion",sep=""),sep="/")
-  }else if(GTpath[n]=="Full_datasets"){
-    lookup<-paste(drivepath,GTpath[n],GTmoorings[n],sep="/")
-  }
-  if(GTsourceFormat[n]=="month"){
-    #save this section for when I am looking at a folder with months in it. 
-  }else if(GTsourceFormat[n]=="open"){
-    GTsf3[[n]]<-list.files(lookup,pattern=".wav")[GTsf1[[n]]]
-    GTsf4[[n]]<-list.files(lookup,pattern=".wav")[GTsf2[[n]]]
-  }
-}
-
-MoorsInfo<-cbind(t(GTmoorings),as.numeric(GTsf1),as.numeric(GTsf2),,as.numeric(GTsf3),,as.numeric(GTsf4),t(GTpath),t(GTsourceFormat),t(t(rep(spec,length(GTsf)))))
-
-return(MoorsInfo)
-}
-
+MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,spec)
 
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
@@ -2278,6 +2290,7 @@ detnum<-1
 
 ###########################make txt file of params for run:
 write.csv(ParamsTab,paste(outputpath,runname,"/",spec,".csv",sep=""),row.names = FALSE)
+write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
 
 ######################################Manipulate factors and calculate various things 
 #set FO and LMS to NA if no whiten
@@ -2286,24 +2299,8 @@ if(whiten=="n"){
   LMS<-NA
 }
 
-#path to ground truth table
-GT<-list()
-for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",spec,"/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
-  GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
-}
-
-if(dettype=="spread"|dettype=="combined"){
-for(i in 1:length(detectorsspr)){
-  for(j in 1:length(detectorsspr[[i]])){
-    detectorsspr[[i]][j]<-paste(BLEDpath,detectorsspr[[i]][j],sep="")
-  }
-}
-}
-if(dettype=="single"|dettype=="combined"){
-  for(k in 1:length(detectorssin)){
-    detectorssin[k]<-paste(BLEDpath,detectorssin[k],sep="")
-  }  
+for(j in 1:length(detectorssprshort)){
+  detectorsspr[j]<-paste(BLEDpath,detectorssprshort[j],sep="")
 }
 
 if(spec=="RW"){
@@ -2328,14 +2325,27 @@ if(runNew=="y"){
 
 ##################start script#################
 if(runRavenGT=="y"){
-  
+
+resltsTSPV<-runRavenDecector()
+
+runRavenDetector<-function(){
+
+resltsTab <- NULL
+#decimate and whiten are not 
 if(decimate=="y"){
   ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
-  }
+  
+}
+if(whiten=="y"){
+  allMoorings<-dir(allDataPath,pattern=paste(Filtype,"p",100*LMS,"x_","FO",FO,sep = "")) 
+}
+  
+}
+
+
   
 #run sound files:
 resltsTab <- NULL
-resltsTabInt<- NULL
 for(m in moorings){
   
   if(whiten=="n"){
@@ -2379,6 +2389,7 @@ for(r in detectorssprshort){
   resltVar$detector<-r
   resltVar$detectorType<-"spread"
   resltVar$detectorCount<-1
+  resltVar$Species<-spec
   if(is.null(nrow(resltVar))==FALSE){
   resltsTab<- rbind(resltsTab,resltVar)
   }
@@ -2397,6 +2408,14 @@ write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=
 }
 
 if(runProcessGT=="y"){
+  
+#path to ground truth table IN THE WRONG SPOT
+GT<-list()
+for(f in 1:length(moorings)){
+  GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",spec,"/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
+  GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
+}
+  
 
 #Combine and configure spread detectors. 
 DetecTab2<-process_data(1)
