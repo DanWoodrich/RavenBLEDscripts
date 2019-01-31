@@ -2275,7 +2275,7 @@ runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
 detlist<-NULL
-detlist2<-substr(detectorssprshort[[n]][1],1,3)
+detlist2<-substr(detectorssprshort[1],1,3)
 
 detnum<-1
 
@@ -2290,6 +2290,7 @@ if(whiten=="n"){
   LMS<-NA
 }
 
+detectorsspr<-NULL
 for(j in 1:length(detectorssprshort)){
   detectorsspr[j]<-paste(BLEDpath,detectorssprshort[j],sep="")
 }
@@ -2310,7 +2311,7 @@ if(runGT=="y"){
   runTestModel<-runGTsections[3]
 }
 
-if(runNew=="y"){
+if(runNEW=="y"){
   runNewData<-"y" 
 }
 
@@ -2340,9 +2341,11 @@ decNeeded<-"n"
 for(m in 1:nrow(MoorInfo)){
   
   durTab<-NULL
+  durTab2<-NULL
   
+  if(whiten=="y"){
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(file.exists(paste(startcombpath,MoorInfo[m,11],"/",MoorInfo[m,10],"_",whiten2,sep=""))){
+    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",MoorInfo[m,10],"_",whiten2,sep=""))){
     dontrun<-TRUE
     }else{
     stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
@@ -2354,27 +2357,28 @@ for(m in 1:nrow(MoorInfo)){
       stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
   }
+  }
   
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"y"
     }else if(decimate=="n"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"n"
     }
   }else if(MoorInfo[m,7]=="Full_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = "")
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,10],sep = "")
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
       decNeeded<-"y"
     }else if(decimate=="n"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],decimationFactor,sep = "")
       decNeeded<-"n"
     }
   }
@@ -2398,19 +2402,20 @@ for(m in 1:nrow(MoorInfo)){
     }
     decimateData()
   }
-    
-  if(length(sound_files)>340&length(sound_files)<680){
-    fileSizeInt<-340
-  }else if(length(sound_files)>=680){
+  
+  if(length(sound_files)>fileCombinesize&length(sound_files)<fileCombinesize){
+    fileSizeInt<-fileCombinesize
+    iterate_SF<-1
+  }else if(length(sound_files)>=fileCombinesize){
     fileSizeInt2<-length(sound_files)
-    fileSizeInt<-340
+    fileSizeInt<-fileCombinesize
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize))) 
   }else{
     iterate_SF<-1
   }
   
-  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) 
+  bigFile_breaks<-c(seq(1,length(sound_files),fileCombinesize),length(sound_files)) 
   
   for(b in 1:(length(bigFile_breaks)-1)){
     sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
@@ -2419,7 +2424,7 @@ for(m in 1:nrow(MoorInfo)){
     }
     sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
     if(MoorInfo[m,7]=="HG_datasets"){
-      pathh<-paste(startcombpath,MoorInfo[m,11],sep="")
+      pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
     }else if(MoorInfo[m,7]=="Full_datasets"){
       pathh<-startcombpath   
     }
@@ -2433,18 +2438,19 @@ for(m in 1:nrow(MoorInfo)){
     }
     filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
-    if(file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
-      durTab <-read.csv(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
-      stop<-TRUE
-    }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
-      durTab2<-sox.write(1)
+    if(file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+      durTab <-read.csv(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
+      stopRun<-TRUE
+    }else if(!file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+      durTab<-sox.write(1)
+      stopRun<-FALSE
     }
        
   }
   
-  #go through again if more than 340 files 
-  if(iterate_SF>1|stop!=TRUE){
-  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
+  #go through again if more than certain # of files 
+  if(iterate_SF>1&stopRun!=TRUE){
+
     sfpath<-filePath
     if(MoorInfo[m,8]=="open"){
       sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
@@ -2462,7 +2468,7 @@ for(m in 1:nrow(MoorInfo)){
       }
       sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
       if(MoorInfo[m,7]=="HG_datasets"){
-        pathh<-paste(startcombpath,MoorInfo[m,11],sep="")
+        pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
       }else if(MoorInfo[m,7]=="Full_datasets"){
         pathh<-startcombpath   
       }
@@ -2472,24 +2478,19 @@ for(m in 1:nrow(MoorInfo)){
 
       filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
       combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
-      if(file.exists(paste(filePath,"/",MoorInfo[10],"/SFiles_and_durations.csv",sep=""))){
-        durTab <-read.csv(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
-      }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
-        durTab2<-sox.write(2)
-      }
-      
+      durTab2<-sox.write(2)
     }
+
+    unlink(paste(startcombpath,MoorInfo[m,10],"/",whiten2,sep=""),recursive=TRUE)
+    dir.create(paste(startcombpath,MoorInfo[m,10],sep=""))
+    dir.create(paste(startcombpath,MoorInfo[m,10],"/",whiten2,sep=""))
+    file.copy(paste(paste(pathh,"/",MoorInfo[m,10],"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",MoorInfo[m,10],"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",MoorInfo[m,10],"/",whiten2,sep=""))
+    shell(paste("rmdir",shQuote(pathh),"/s","/q"))
+    durTab<-durTab2
+    
   }
   
- # if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
-#    unlink(paste(startcombpath,m,"/",whiten2,sep=""),recursive=TRUE)
-#    dir.create(paste(startcombpath,m,sep=""))
-#    dir.create(paste(startcombpath,m,"/",whiten2,sep=""))
- #   file.copy(paste(paste(pathh,"/",m,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",m,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
-  ##  shell(paste("rmdir",shQuote(pathh),"/s","/q"))
-  #  durTab<-durTab2
-  #  
-  #}
+
   
   #add cumsum for mooring time to durtab:
   durTab$MoorCumDur<-0
@@ -2511,7 +2512,7 @@ for(m in 1:nrow(MoorInfo)){
       resltVar$detector<-r
       resltVar$detectorType<-"spread"
       resltVar$detectorCount<-1
-      resltVar$Species<-MoorInfo[m,11]
+      resltVar$Species<-MoorInfo[m,9]
       if(is.null(nrow(resltVar))==FALSE){
       resltsTab<- rbind(resltsTab,resltVar)
       }
