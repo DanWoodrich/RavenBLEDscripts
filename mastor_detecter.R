@@ -431,10 +431,9 @@ GS_algo<-function(resltsTSPVmat,f){
 
 sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
-dir.create(paste(pathh,"/",m,sep=""))
-dir.create(paste(pathh,"/",m,"/",whiten2,"/",sep=""))
-print(paste("Creating file ",m,bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
+dir.create(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/",sep=""))
+print(paste("Creating file ",MoorInfo[m,10],"_",bigFile_breaks[b],sep=""))
+sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
 durList<-duration_store(numPass)
 if(numPass==1){
   return(durList[[1]])
@@ -1126,22 +1125,22 @@ duration_store<- function(numPass){
                      CombSF=character(), 
                      Mooring=character(),
                      stringsAsFactors=FALSE) 
-for(f in 1:length(sound_filesfullpath)){
-  durVar[f,1]<-sound_filesfullpath[f]
-  durVar[f,2]<-sound_files[f]
-  audio<-readWave(sound_filesfullpath[f], header=TRUE)
+for(f in 1:length(sound_filesfullpathB)){
+  durVar[f,1]<-sound_filesfullpathB[f]
+  durVar[f,2]<-sound_filesB[f]
+  audio<-readWave(sound_filesfullpathB[f], header=TRUE)
   durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
   durVar[,4]<-cumsum(durVar$Duration)
-  durVar[,5]<-paste(sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
-  durVar[,6]<-m
+  durVar[,5]<-paste(pad,MoorInfo[m,10],pad2,".wav",sep="")
+  durVar[,6]<-MoorInfo[m,10]
 
 durTab<-rbind(durTab,durVar)
 durTab2<-1 #workaround to R not allowing dataframes to be "null". 
   }else if(numPass==2){
-    durVar<-durTab[which(durTab$CombSF %in% sound_files),]
+    durVar<-durTab[which(durTab$CombSF %in% sound_filesB),]
    # durVar<-durVar[-which(duplicated(durVar$SFsh)),]
-    durVar$CombSF<-paste(sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
+    durVar$CombSF<-paste(pad,MoorInfo[m,10],pad2,".wav",sep="")
     durVar$CumDur<-cumsum(durVar$Duration)
     durTab2<-rbind(durTab2,durVar)
   }
@@ -2323,27 +2322,11 @@ runRavenDetector<-function(){
 
 resltsTab <- NULL
 #decimate and whiten are not 
-if(whiten=="y"){
-  whiten2 <- paste(Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
-}else if(whiten=="n"){
-  whiten2<-"No_whiten"
-}
+whiten2<-"No_whiten"
+
 if(decimate=="y"){
   ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
   whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
- 
-fileSizeInt<-(fileCombinesize*decimationFactor)
-if(fileSizeInt>340&fileSizeInt<680){
-  fileSizeInt<-340
-}else if(fileSizeInt>=680){
-  fileSizeInt2<-fileSizeInt
-  fileSizeInt<-340
-  iterate_SF<-c(1,2)
-  fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
-}else{
-  iterate_SF<-1
-}
-
 }
 
 #run sound files:
@@ -2351,32 +2334,42 @@ resltsTab <- NULL
 decNeeded<-"n"
 for(m in 1:nrow(MoorInfo)){
   
+  durTab<-NULL
+  
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+    if(file.exists(paste(startcombpath,MoorInfo[m,11],"/",MoorInfo[m,10],"_",whiten2,sep=""))){
+    dontrun<-TRUE
+    }else{
+    stop("Run whitening filter ")
+    }
+  }
+  
+  if(MoorInfo[m,7]=="HG_datasets"){
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"y"
     }else if(decimate=="n"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"n"
     }
   }else if(MoorInfo[m,7]=="Full_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = "")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,10],sep = "")
       decNeeded<-"y"
     }else if(decimate=="n"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,10],decimationFactor,sep = "")
       decNeeded<-"n"
     }
   }
   
   if(MoorInfo[m,8]=="open"){
-    sound_files <- dir(sfpath,pattern=".wav")[MoorInfo[m,2]:MoorInfo[m,3]]
+    sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
     sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   }else if(MoorInfo[m,8]=="month"){
     sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
@@ -2395,6 +2388,17 @@ for(m in 1:nrow(MoorInfo)){
     decimateData()
   }
     
+  if(length(sound_files)>340&length(sound_files)<680){
+    fileSizeInt<-340
+  }else if(length(sound_files)>=680){
+    fileSizeInt2<-length(sound_files)
+    fileSizeInt<-340
+    iterate_SF<-c(1,2)
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/340))) 
+  }else{
+    iterate_SF<-1
+  }
+  
   bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) 
   
   for(b in 1:(length(bigFile_breaks)-1)){
@@ -2406,36 +2410,65 @@ for(m in 1:nrow(MoorInfo)){
     if(MoorInfo[m,7]=="HG_datasets"){
       pathh<-paste(startcombpath,MoorInfo[m,11],sep="")
     }else if(MoorInfo[m,7]=="Full_datasets"){
-      pathh<-paste(startcombpath,MoorInfo[m,11],"/temp/",sep="")    
+      pathh<-startcombpath   
     }
-    combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
+    if(length(iterate_SF)>1){
+      pathh<-paste(pathh,"/temp",sep="")
+      pad<-sprintf("%02d",b)
+      pad2<-paste("_files",bigFile_breaks[b])
+    }else{
+      pad<-""
+      pad2<-""
+    }
+    filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2)
+    combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
+    if(file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+      durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      stop<-TRUE
+    }else if(!file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+      durTab2<-sox.write(1)
+    }
        
-    }
+  }
   
-  if()
+  #go through again if more than 340 files 
+  if(iterate_SF>1|stop!=TRUE){
+    sfpath<-filePath
+    if(MoorInfo[m,8]=="open"){
+      sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
+      sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+    }else if(MoorInfo[m,8]=="month"){
+      sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
+      sound_filesfullpath<-NULL
+    }
+    bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) 
+    
+    for(b in 1:(length(bigFile_breaks)-1)){
+      sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
+      if(b==length(bigFile_breaks)-1){
+        sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b]+length(sound_files)-1)]
+      }
+      sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
+      if(MoorInfo[m,7]=="HG_datasets"){
+        pathh<-paste(startcombpath,MoorInfo[m,11],sep="")
+      }else if(MoorInfo[m,7]=="Full_datasets"){
+        pathh<-startcombpath   
+      }
+      pathh<-paste(pathh,sep="")
+      pad<-sprintf("%02d",b)
+      pad2<-paste("_files",bigFile_breaks[b])
+
+      filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2)
+      combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
+      if(file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+        durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/SFiles_and_durations.csv",sep=""))  
+      }else if(!file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+        durTab2<-sox.write(2)
+      }
       
-  
-  if(!file.exists(combSound)){
-    dir.create(paste(startcombpath,spec,sep=""))
-    dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
-    if(decimate=="y"){
-    sound_filesfullpath<-paste(sfpath,"/",whiten2,"/",sound_files,sep="")
-    decimateData(sfpath,1)
     }
-    print(paste("SoXing file",combSound))
-    sox_alt(paste(noquote(paste(paste(sound_filesfullpath,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-    }
-  
-  
-  }else{
-  if(decimate=="y"){
-    whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
-  }
-
-  combname<- paste(m,"_files",as.numeric(MooringsDat[2,colnames(MooringsDat)==m]),"-",as.numeric(MooringsDat[3,colnames(MooringsDat)==m]),".wav",sep="")
-  endPath<-paste(startcombpath,spec,"/",whiten2,sep="")
-
+  
 #run detector(s)
 for(r in detectorssprshort){
   print(paste("Running detector for",m))
