@@ -91,43 +91,34 @@ lastFeature<-function(a,b){
 
 
 #decimate dataset. 
-decimateData<-function(dpath,whichRun){
-  print(paste("decimate file",dpath))
-  if(whichRun==1){
-    fstart<-as.numeric(MooringsDat[2,colnames(MooringsDat)==m])
-    fend<-as.numeric(MooringsDat[3,colnames(MooringsDat)==m])
-    dpath2<-dpath
-    dpath<-paste(dpath2,whiten2,sep="")
-  }else if(whichRun==2){
-    fstart<-1
-    fend<-length(dir(dpath,pattern=".wav"))
-    dpath2<-dpath
-    dpath<-paste(dpath,"decimate_by",decimationFactor,sep="_")
-  }
+decimateData<-function(){
+  print(paste("decimate folder",oldPath))
   
-    if(!dir.exists(dpath)){
-      dir.create(paste(dpath,sep=""))
-      for(z in dir(dpath2,pattern=".wav")[fstart:fend]){
-        print(paste(z,"to",dpath))
-        wav<-readWave(paste(dpath2,"/",z,sep=""),unit="sample")
-        wav.samp.rate<-wav@samp.rate
-        if(wav@samp.rate<16384){
+  fstart<-MoorInfo[m,2]
+  fend<-MoorInfo[m,3]
+    for(z in dir(oldPath,pattern=".wav")[fstart:fend]){
+      print(paste(z,"to",sfpath))
+      wav<-readWave(paste(oldPath,"/",z,sep=""),unit="sample")
+      wav.samp.rate<-wav@samp.rate
+      if(wav@samp.rate<16384){
         dfact<-16384/wav@samp.rate
         decdo<-prime.factor(decimationFactor/dfact)
         }else{
-        decdo<-decimationSteps
+          decdo<-decimationSteps
         }
-        wav<-wav@left
-        for(h in decdo){
-          wav<-decimate(wav,h)
-        }
-        wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
-        #wav<-normalize(wav,unit="16")
-        writeWave.nowarn(wav, filename=paste(dpath,"/",z,sep=""),extensible = FALSE)
-      }
-      write.table(paste("This data has been decimated by factor of",decdo),paste(dpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
-    }
+        wav<-wav@left
+        
+        for(h in decdo){
+          wav<-signal::decimate(wav,h)
+        }
+        
+        wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
+
+        writeWave.nowarn(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
+      }
+      write.table(paste("This data has been decimated by factor of",decdo),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+      
 }
 
 makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
@@ -202,7 +193,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
       MoorsUniqueIDS<-paste(moorings,"_files_",path,"_All",sep="")
   }
   
-  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)))
+  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)),t(t(rep,curSpec,length(sf))))
   
   return(MoorsInfo)
 }
@@ -2333,7 +2324,7 @@ runRavenDetector<-function(){
 resltsTab <- NULL
 #decimate and whiten are not 
 if(whiten=="y"){
-  whiten2 <- paste("/",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
+  whiten2 <- paste(Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
 }else if(whiten=="n"){
   whiten2<-"No_whiten"
 }
@@ -2365,7 +2356,7 @@ for(m in 1:nrow(MoorInfo)){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
       decNeeded<-"n"
     }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"y"
     }else if(decimate=="n"){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
@@ -2373,26 +2364,57 @@ for(m in 1:nrow(MoorInfo)){
     }
   }else if(MoorInfo[m,7]=="Full_datasets"){
     if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
       decNeeded<-"n"
     }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
       decNeeded<-"y"
     }else if(decimate=="n"){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],decimationFactor,sep = "")
       decNeeded<-"n"
     }
+  }
   
   if(MoorInfo[m,8]=="open"){
-    sound_files <- dir(sfpath,pattern=".wav")[MoorInfo[m,2],MoorInfo[m,3]]
+    sound_files <- dir(sfpath,pattern=".wav")[MoorInfo[m,2]:MoorInfo[m,3]]
     sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
   }else if(MoorInfo[m,8]=="month"){
     sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
     sound_filesfullpath<-NULL
   }
+    
+  if(decNeeded=="y"){
+    oldPath<-sfpath
+    if(MoorInfo[m,7]=="HG_datasets"){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+      dir.create(sfpath)
+    }else if(MoorInfo[m,7]=="Full_datasets"){
+      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      dir.create(sfpath)
+    }
+    decimateData()
+  }
+    
+  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) 
   
-  #too ineffecient to run sound files one by one, so check to see if combined file exists and if not combine them. 
-  combSound<-paste(startcombpath,spec,"/",whiten2,"/",m,"_files",as.numeric(MooringsDat[2,colnames(MooringsDat)==m]),"-",as.numeric(MooringsDat[3,colnames(MooringsDat)==m]),".wav",sep="")
+  for(b in 1:(length(bigFile_breaks)-1)){
+    sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
+    if(b==length(bigFile_breaks)-1){
+      sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b]+length(sound_files)-1)]
+    }
+    sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
+    if(MoorInfo[m,7]=="HG_datasets"){
+      pathh<-paste(startcombpath,MoorInfo[m,11],sep="")
+    }else if(MoorInfo[m,7]=="Full_datasets"){
+      pathh<-paste(startcombpath,MoorInfo[m,11],"/temp/",sep="")    
+    }
+    combSound<-paste(pathh,"/",m,"/",whiten2,"/",sprintf("%02d",b),m,"_files_",bigFile_breaks[b],".wav",sep="")
+       
+    }
+  
+  if()
+      
+  
   if(!file.exists(combSound)){
     dir.create(paste(startcombpath,spec,sep=""))
     dir.create(paste(startcombpath,spec,"/",whiten2,sep=""))
