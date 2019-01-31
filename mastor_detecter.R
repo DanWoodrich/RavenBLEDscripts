@@ -186,14 +186,15 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
     }
   }
   
-  for(n in length(sf)){
+  MoorsUniqueIDS<-NULL
+  for(n in 1:length(sf)){
     if(type[n]!="all"){
-      MoorsUniqueIDS<-paste(moorings,"_files_",path,sf1,"-",sf2,sep="")
+      MoorsUniqueIDS[n]<-paste(moorings[n],"_files_",sf1[n],"-",sf2[n],sep="")
     }else if(type[n]=="all")
-      MoorsUniqueIDS<-paste(moorings,"_files_",path,"_All",sep="")
+      MoorsUniqueIDS[n]<-paste(moorings[n],"_files_All",sep="")
   }
   
-  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)),t(t(rep,curSpec,length(sf))))
+  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)))
   
   return(MoorsInfo)
 }
@@ -2316,13 +2317,17 @@ if(runNew=="y"){
 ##################start script#################
 if(runRavenGT=="y"){
 
-resltsTSPV<-runRavenDecector()
+#resltsTSPV<-runRavenDecector()
 
-runRavenDetector<-function(){
+#runRavenDetector<-function(){
 
 resltsTab <- NULL
 #decimate and whiten are not 
-whiten2<-"No_whiten"
+if(whiten=="y"){
+  whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
+}else{
+  whiten2<-"No_whiten"
+}
 
 if(decimate=="y"){
   ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
@@ -2341,6 +2346,12 @@ for(m in 1:nrow(MoorInfo)){
     dontrun<-TRUE
     }else{
     stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
+    }
+  }else{
+    if(file.exists(paste(startcombpath,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
+      dontrun<-TRUE
+    }else{
+      stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
   }
   
@@ -2423,7 +2434,7 @@ for(m in 1:nrow(MoorInfo)){
     filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
     if(file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
-      durTab <-read.csv(paste(pathh,"/",whiten2,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
+      durTab <-read.csv(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
       stop<-TRUE
     }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
       durTab2<-sox.write(1)
@@ -2461,13 +2472,29 @@ for(m in 1:nrow(MoorInfo)){
 
       filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
       combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
-      if(file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
-        durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
+      if(file.exists(paste(filePath,"/",MoorInfo[10],"/SFiles_and_durations.csv",sep=""))){
+        durTab <-read.csv(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
       }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
       }
       
     }
+  }
+  
+ # if(!is.null(did2)&!file.exists(paste(pathh,"/",whiten2,"/SFiles_and_durations.csv",sep=""))){
+#    unlink(paste(startcombpath,m,"/",whiten2,sep=""),recursive=TRUE)
+#    dir.create(paste(startcombpath,m,sep=""))
+#    dir.create(paste(startcombpath,m,"/",whiten2,sep=""))
+ #   file.copy(paste(paste(pathh,"/",m,"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",m,"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",m,"/",whiten2,sep=""))
+  ##  shell(paste("rmdir",shQuote(pathh),"/s","/q"))
+  #  durTab<-durTab2
+  #  
+  #}
+  
+  #add cumsum for mooring time to durtab:
+  durTab$MoorCumDur<-0
+  for(y in unique(durTab$Mooring)){
+    durTab$MoorCumDur<-cumsum(durTab$Duration)
   }
   
   for(b in 1:length(bigFile_breaks)-1){
@@ -2491,6 +2518,9 @@ for(m in 1:nrow(MoorInfo)){
       resltVar<-NULL 
     }
   }
+  
+  #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
+  write.csv(durTab,paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""),row.names = F)
 
 }
 #Save raven output 
