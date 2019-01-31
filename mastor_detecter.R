@@ -2340,7 +2340,7 @@ for(m in 1:nrow(MoorInfo)){
     if(file.exists(paste(startcombpath,MoorInfo[m,11],"/",MoorInfo[m,10],"_",whiten2,sep=""))){
     dontrun<-TRUE
     }else{
-    stop("Run whitening filter ")
+    stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
   }
   
@@ -2420,12 +2420,12 @@ for(m in 1:nrow(MoorInfo)){
       pad<-""
       pad2<-""
     }
-    filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2)
+    filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
-    if(file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
-      durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/SFiles_and_durations.csv",sep=""))  
+    if(file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
+      durTab <-read.csv(paste(pathh,"/",whiten2,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
       stop<-TRUE
-    }else if(!file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+    }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
       durTab2<-sox.write(1)
     }
        
@@ -2433,6 +2433,7 @@ for(m in 1:nrow(MoorInfo)){
   
   #go through again if more than 340 files 
   if(iterate_SF>1|stop!=TRUE){
+  bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
     sfpath<-filePath
     if(MoorInfo[m,8]=="open"){
       sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
@@ -2441,7 +2442,7 @@ for(m in 1:nrow(MoorInfo)){
       sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
       sound_filesfullpath<-NULL
     }
-    bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt),length(sound_files)) 
+    bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
     
     for(b in 1:(length(bigFile_breaks)-1)){
       sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
@@ -2458,34 +2459,41 @@ for(m in 1:nrow(MoorInfo)){
       pad<-sprintf("%02d",b)
       pad2<-paste("_files",bigFile_breaks[b])
 
-      filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2)
+      filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
       combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
       if(file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
-        durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/SFiles_and_durations.csv",sep=""))  
-      }else if(!file.exists(paste(filePath,"/SFiles_and_durations.csv",sep=""))){
+        durTab <-read.csv(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))  
+      }else if(!file.exists(paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""))){
         durTab2<-sox.write(2)
       }
       
     }
   }
   
-#run detector(s)
-for(r in detectorssprshort){
-  print(paste("Running detector for",m))
-  resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = endPath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
-  resltVar$Mooring<-m
-  resltVar$detector<-r
-  resltVar$detectorType<-"spread"
-  resltVar$detectorCount<-1
-  resltVar$Species<-spec
-  if(is.null(nrow(resltVar))==FALSE){
-  resltsTab<- rbind(resltsTab,resltVar)
+  for(b in 1:length(bigFile_breaks)-1){
+    if(length(bigFile_breaks)>2){
+    combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
+    }else{
+    combname<- paste(MoorInfo[m,10],".wav",sep="")
+    }
+    #run detector(s)
+    for(r in detectorssprshort){
+      print(paste("Running detector for",MoorInfo[m,10]))
+      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
+      resltVar$Mooring<-MoorInfo[m,10]
+      resltVar$detector<-r
+      resltVar$detectorType<-"spread"
+      resltVar$detectorCount<-1
+      resltVar$Species<-MoorInfo[m,11]
+      if(is.null(nrow(resltVar))==FALSE){
+      resltsTab<- rbind(resltsTab,resltVar)
+      }
+      resltVar<-NULL 
+    }
   }
-  resltVar<-NULL 
-}
 
 }
-#Save progress
+#Save raven output 
 write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 
 }else{
