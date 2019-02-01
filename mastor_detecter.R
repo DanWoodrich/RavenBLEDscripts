@@ -2360,10 +2360,10 @@ for(m in 1:nrow(MoorInfo)){
   }
   
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/"))){
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
       decNeeded<-"y"
     }else if(decimate=="n"){
@@ -2371,14 +2371,14 @@ for(m in 1:nrow(MoorInfo)){
       decNeeded<-"n"
     }
   }else if(MoorInfo[m,7]=="Full_datasets"){
-    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+    if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
       sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
       decNeeded<-"n"
-    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = ""))){
+    }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
       sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
       decNeeded<-"y"
     }else if(decimate=="n"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],sep = "/")
       decNeeded<-"n"
     }
   }
@@ -2394,10 +2394,9 @@ for(m in 1:nrow(MoorInfo)){
   if(decNeeded=="y"){
     oldPath<-sfpath
     if(MoorInfo[m,7]=="HG_datasets"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion_decimate_by_",decimationFactor,sep=""),sep="/")
-      dir.create(sfpath)
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
     }else if(MoorInfo[m,7]=="Full_datasets"){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
       dir.create(sfpath)
     }
     decimateData()
@@ -2436,7 +2435,7 @@ for(m in 1:nrow(MoorInfo)){
       pad<-""
       pad2<-""
     }
-    filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
+    filePath<-pathh
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
     if(file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
       durTab <-read.csv(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
@@ -2498,7 +2497,7 @@ for(m in 1:nrow(MoorInfo)){
     durTab$MoorCumDur<-cumsum(durTab$Duration)
   }
   
-  for(b in 1:length(bigFile_breaks)-1){
+  for(b in 1:(length(bigFile_breaks)-1)){
     if(length(bigFile_breaks)>2){
     combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
     }else{
@@ -2521,7 +2520,7 @@ for(m in 1:nrow(MoorInfo)){
   }
   
   #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-  write.csv(durTab,paste(filePath,"/",MoorInfo[10],"_SFiles_and_durations.csv",sep=""),row.names = F)
+  write.csv(durTab,paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""),row.names = F)
 
 }
 #Save raven output 
