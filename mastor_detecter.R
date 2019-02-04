@@ -432,7 +432,6 @@ GS_algo<-function(resltsTSPVmat,f){
 
 sox.write<-function(numPass){
 dir.create(paste(pathh,sep=""))
-dir.create(paste(pathh,"/",MoorInfo[m,10],"_",whiten2,"/",sep=""))
 print(paste("Creating file ",MoorInfo[m,10],"_",bigFile_breaks[b],sep=""))
 sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
 durList<-duration_store(numPass)
@@ -825,6 +824,22 @@ stopCluster(cluz)
   Moddata<<-NULL
 }
 
+runRavenDetector<-function(){
+  for(r in detectorssprshort){
+    print(paste("Running detector for",MoorInfo[m,10]))
+    resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
+    resltVar$Mooring<-MoorInfo[m,10]
+    resltVar$detector<-r
+    resltVar$detectorType<-"spread"
+    resltVar$detectorCount<-1
+    resltVar$Species<-MoorInfo[m,9]
+    if(is.null(nrow(resltVar))==FALSE){
+      resltsTab<- rbind(resltsTab,resltVar)
+    }
+  resltVar<-NULL 
+  }
+  return(resltsTab)
+}
 
 runRandomForest<-function(Moddata,whichRun){
   
@@ -2345,20 +2360,19 @@ for(m in 1:nrow(MoorInfo)){
   
   if(whiten=="y"){
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",MoorInfo[m,10],"_",whiten2,sep=""))){
-    dontrun<-TRUE
+    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
     }else{
     stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
   }else{
-    if(file.exists(paste(startcombpath,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
-      dontrun<-TRUE
+    if(file.exists(paste(startcombpath,"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
     }else{
       stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
   }
   }
   
+  if(whiten=="n"){
   if(MoorInfo[m,7]=="HG_datasets"){
     if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
@@ -2383,6 +2397,7 @@ for(m in 1:nrow(MoorInfo)){
     }
   }
   
+  #maybe put whiten check right here? 
   if(MoorInfo[m,8]=="open"){
     sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
     sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
@@ -2395,6 +2410,7 @@ for(m in 1:nrow(MoorInfo)){
     oldPath<-sfpath
     if(MoorInfo[m,7]=="HG_datasets"){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+      dir.create(sfpath)
     }else if(MoorInfo[m,7]=="Full_datasets"){
       sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
       dir.create(sfpath)
@@ -2435,7 +2451,8 @@ for(m in 1:nrow(MoorInfo)){
       pad<-""
       pad2<-""
     }
-    filePath<-pathh
+    filePath<-paste(pathh,whiten2,sep="/")
+    dir.create(filePath)
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
     if(file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
       durTab <-read.csv(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
@@ -2475,7 +2492,8 @@ for(m in 1:nrow(MoorInfo)){
       pad<-sprintf("%02d",b)
       pad2<-paste("_files",bigFile_breaks[b])
 
-      filePath<-paste(pathh,"/",MoorInfo[m,10],"_",whiten2,sep="")
+      filePath<-paste(pathh,"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep="")
+      dir.create(filePath)
       combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
       durTab2<-sox.write(2)
     }
@@ -2499,24 +2517,24 @@ for(m in 1:nrow(MoorInfo)){
   
   for(b in 1:(length(bigFile_breaks)-1)){
     if(length(bigFile_breaks)>2){
-    combname<- paste(sprintf("%02d",b),m,"_files_HG",bigFile_breaks[b],".wav",sep="")
+    combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
     }else{
     combname<- paste(MoorInfo[m,10],".wav",sep="")
     }
     #run detector(s)
-    for(r in detectorssprshort){
-      print(paste("Running detector for",MoorInfo[m,10]))
-      resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
-      resltVar$Mooring<-MoorInfo[m,10]
-      resltVar$detector<-r
-      resltVar$detectorType<-"spread"
-      resltVar$detectorCount<-1
-      resltVar$Species<-MoorInfo[m,9]
-      if(is.null(nrow(resltVar))==FALSE){
-      resltsTab<- rbind(resltsTab,resltVar)
-      }
-      resltVar<-NULL 
-    }
+    resltsTab<-runRavenDetector()
+  }
+  
+  }else if(whiten=="y"){
+    if(MoorInfo[m,7]=="HG_datasets"){
+      pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
+    }else if(MoorInfo[m,7]=="Full_datasets"){
+      pathh<-startcombpath   
+    }  
+    for(i in list.files(paste(pathh,whiten2,sep="/"),pattern=".wav"))
+      combname<-i
+    
+      resltsTab<-runRavenDetector()
   }
   
   #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
