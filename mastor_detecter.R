@@ -1139,7 +1139,8 @@ duration_store<- function(numPass){
                      Duration=numeric(), 
                      CumDur=numeric(),
                      CombSF=character(), 
-                     Mooring=character(),
+                     MooringID=character(),
+                     MooringName=character(),
                      stringsAsFactors=FALSE) 
 for(f in 1:length(sound_filesfullpathB)){
   durVar[f,1]<-sound_filesfullpathB[f]
@@ -1150,6 +1151,7 @@ for(f in 1:length(sound_filesfullpathB)){
   durVar[,4]<-cumsum(durVar$Duration)
   durVar[,5]<-paste(pad,MoorInfo[m,10],pad2,".wav",sep="")
   durVar[,6]<-MoorInfo[m,10]
+  durVar[,7]<-MoorInfo[m,1]
 
 durTab<-rbind(durTab,durVar)
 durTab2<-1 #workaround to R not allowing dataframes to be "null". 
@@ -2425,7 +2427,7 @@ for(m in 1:nrow(MoorInfo)){
     fileSizeInt2<-length(sound_files)
     fileSizeInt<-fileCombinesize
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize))) 
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize*decimationFactor))) 
   }else{
     iterate_SF<-1
   }
@@ -2435,9 +2437,9 @@ for(m in 1:nrow(MoorInfo)){
   for(b in 1:(length(bigFile_breaks)-1)){
     sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
     if(b==length(bigFile_breaks)-1){
-      sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b]+length(sound_files)-1)]
+      sound_filesB <- dir(sfpath)[bigFile_breaks[b]:length(sound_files)]
     }
-    sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
+    sound_filesfullpathB <- paste(sfpath,"/",sound_filesB,sep = "")
     if(MoorInfo[m,7]=="HG_datasets"){
       pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
     }else if(MoorInfo[m,7]=="Full_datasets"){
@@ -2446,7 +2448,7 @@ for(m in 1:nrow(MoorInfo)){
     if(length(iterate_SF)>1){
       pathh<-paste(pathh,"/temp",sep="")
       pad<-sprintf("%02d",b)
-      pad2<-paste("_files",bigFile_breaks[b])
+      pad2<-paste("_files",bigFile_breaks[b],sep="")
     }else{
       pad<-""
       pad2<-""
@@ -2465,16 +2467,13 @@ for(m in 1:nrow(MoorInfo)){
   }
   
   #go through again if more than certain # of files 
-  if(iterate_SF>1&stopRun!=TRUE){
+  if(length(iterate_SF)>1&stopRun!=TRUE){
 
     sfpath<-filePath
-    if(MoorInfo[m,8]=="open"){
-      sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
-      sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
-    }else if(MoorInfo[m,8]=="month"){
-      sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
-      sound_filesfullpath<-NULL
-    }
+
+    sound_files <- dir(sfpath,pattern=".wav")
+    sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+
     bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
     
     for(b in 1:(length(bigFile_breaks)-1)){
@@ -2482,7 +2481,7 @@ for(m in 1:nrow(MoorInfo)){
       if(b==length(bigFile_breaks)-1){
         sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b]+length(sound_files)-1)]
       }
-      sound_filesfullpathB <- paste(sfpath,"/",sound_files,sep = "")
+      sound_filesfullpathB <- paste(sfpath,"/",sound_filesB,sep = "")
       if(MoorInfo[m,7]=="HG_datasets"){
         pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
       }else if(MoorInfo[m,7]=="Full_datasets"){
@@ -2490,19 +2489,20 @@ for(m in 1:nrow(MoorInfo)){
       }
       pathh<-paste(pathh,sep="")
       pad<-sprintf("%02d",b)
-      pad2<-paste("_files",bigFile_breaks[b])
+      pad2<-paste("_files",bigFile_breaks[b],sep="")
 
-      filePath<-paste(pathh,"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep="")
+
+      filePath<-paste(pathh,whiten2,sep="/")
       dir.create(filePath)
+      if(length(bigFile_breaks)<=2){
+      combSound<-paste(filePath,"/",MoorInfo[m,10],".wav",sep="")
+      }else if(length(bigFile_breaks)>2){
       combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
+      }
       durTab2<-sox.write(2)
     }
 
-    unlink(paste(startcombpath,MoorInfo[m,10],"/",whiten2,sep=""),recursive=TRUE)
-    dir.create(paste(startcombpath,MoorInfo[m,10],sep=""))
-    dir.create(paste(startcombpath,MoorInfo[m,10],"/",whiten2,sep=""))
-    file.copy(paste(paste(pathh,"/",MoorInfo[m,10],"/",whiten2,"/",sep=""),list.files(paste(pathh,"/",MoorInfo[m,10],"/",whiten2,"/",sep="")),sep=""),paste(startcombpath,"/",MoorInfo[m,10],"/",whiten2,sep=""))
-    shell(paste("rmdir",shQuote(pathh),"/s","/q"))
+    unlink(paste(pathh,"/temp/",whiten2,sep=""),recursive=TRUE)
     durTab<-durTab2
     
   }
