@@ -2362,7 +2362,7 @@ for(m in 1:nrow(MoorInfo)){
   
   if(whiten=="y"){
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep="")))){
+    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
     }else{
     stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
@@ -2507,14 +2507,6 @@ for(m in 1:nrow(MoorInfo)){
     
   }
   
-
-  
-  #add cumsum for mooring time to durtab:
-  durTab$MoorCumDur<-0
-  for(y in unique(durTab$CombSF)){
-    durTab$MoorCumDur<-cumsum(durTab$Duration)
-  }
-  
   for(b in 1:(length(bigFile_breaks)-1)){
     if(length(bigFile_breaks)>2){
     combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
@@ -2527,19 +2519,22 @@ for(m in 1:nrow(MoorInfo)){
   
   }else if(whiten=="y"){
     if(MoorInfo[m,7]=="HG_datasets"){
-      pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
+      filePath<-paste(startcombpath,MoorInfo[m,9],"/",whiten2,sep="")
     }else if(MoorInfo[m,7]=="Full_datasets"){
-      pathh<-startcombpath   
+      filePath<-paste(startcombpath,"/",whiten2,sep="")   
     }  
-    for(i in list.files(paste(pathh,whiten2,sep="/"),pattern=".wav"))
+    for(i in intersect(list.files(paste(filePath,whiten2,sep="/"),pattern = paste(MoorInfo[m,10])), list.files(paste(filePath,whiten2,sep="/"),pattern = ".wav"))){
       combname<-i
     
       resltsTab<-runRavenDetector()
+    }
   }
   
   #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
+  if(whiten=="n"){
   write.csv(durTab,paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""),row.names = F)
-
+  }
+  
 }
 #Save raven output 
 write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
