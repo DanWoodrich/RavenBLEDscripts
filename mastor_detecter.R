@@ -2388,7 +2388,7 @@ for(m in 1:nrow(MoorInfo)){
     }
   }else if(MoorInfo[m,7]=="Full_datasets"){
     if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
-      sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],"_decimate_by_",decimationFactor,sep = "")
+      sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
       decNeeded<-"n"
     }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
       sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
@@ -2427,7 +2427,7 @@ for(m in 1:nrow(MoorInfo)){
     fileSizeInt2<-length(sound_files)
     fileSizeInt<-fileCombinesize
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize*decimationFactor))) 
+    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize))) 
   }else{
     iterate_SF<-1
   }
@@ -2479,7 +2479,7 @@ for(m in 1:nrow(MoorInfo)){
     for(b in 1:(length(bigFile_breaks)-1)){
       sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b+1]-1)]
       if(b==length(bigFile_breaks)-1){
-        sound_filesB <- dir(sfpath)[bigFile_breaks[b]:(bigFile_breaks[b]+length(sound_files)-1)]
+        sound_filesB <- dir(sfpath)[bigFile_breaks[b]:length(sound_files)]
       }
       sound_filesfullpathB <- paste(sfpath,"/",sound_filesB,sep = "")
       if(MoorInfo[m,7]=="HG_datasets"){
