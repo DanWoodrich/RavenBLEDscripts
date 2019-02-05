@@ -2362,12 +2362,12 @@ for(m in 1:nrow(MoorInfo)){
   
   if(whiten=="y"){
   if(MoorInfo[m,7]=="HG_datasets"){
-    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
+    if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep="")))){
     }else{
     stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
-  }else{
-    if(file.exists(paste(startcombpath,"/",whiten2,"/",MoorInfo[m,10],"_",whiten2,sep=""))){
+  }else if(MoorInfo[m,7]=="Full_datasets"){
+    if(file.exists(paste(startcombpath,"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
     }else{
       stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
     }
@@ -2511,7 +2511,7 @@ for(m in 1:nrow(MoorInfo)){
   
   #add cumsum for mooring time to durtab:
   durTab$MoorCumDur<-0
-  for(y in unique(durTab$Mooring)){
+  for(y in unique(durTab$CombSF)){
     durTab$MoorCumDur<-cumsum(durTab$Duration)
   }
   
