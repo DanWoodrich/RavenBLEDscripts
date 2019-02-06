@@ -130,7 +130,7 @@ loadSpecVars<-function(whichSpec){
   
   #Species specific 
   #Signal manipulation
-  decimate<<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
+  Decimate<<-ParamsTab[which(ParamsTab[,2]=="Decimate"),3] 
   decimationFactor<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
   whiten<<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
   FO<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
@@ -197,6 +197,35 @@ loadSpecVars<-function(whichSpec){
   }
   
   write.csv(ParamsTab,paste(outputpath,runname,"/",whichSpec,".csv",sep=""),row.names = FALSE)
+  
+  ####################some var related calculations
+  detectorssprshort<<- list.files(BLEDpath)[spStart:spEnd] 
+  
+  detlist<<-NULL
+  detlist2<<-substr(detectorssprshort[1],1,3)
+  
+  detnum<<-1
+  
+  if(whiten=="n"){
+    FO<<-NA
+    LMS<<-NA
+  }
+  
+  detectorsspr<<-NULL
+  for(j in 1:length(detectorssprshort)){
+    detectorsspr[j]<<-paste(BLEDpath,detectorssprshort[j],sep="")
+  }
+  
+  if(whichSpec=="RW"){
+    ravenView<<-"RW_Upcalls"
+  }else if(whichSpec=="GS"){
+    ravenView<<-"RW_GS"
+  }
+  
+  decimationSteps<<-prime.factor(decimationFactor)
+  
+  
+  ###############################
 }
 
 makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
@@ -1314,7 +1343,7 @@ for(m in moors){
   }
   
   
-  if(decimate=="y"){
+  if(Decimate=="y"){
     specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
@@ -2256,7 +2285,7 @@ combineDecRaven<-function(){
     whiten2<-"No_whiten"
   }
   
-  if(decimate=="y"){
+  if(Decimate=="y"){
     ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
@@ -2284,24 +2313,24 @@ combineDecRaven<-function(){
     
     if(whiten=="n"){
       if(MoorInfo[m,7]=="HG_datasets"){
-        if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           decNeeded<-"n"
-        }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
           decNeeded<-"y"
-        }else if(decimate=="n"){
+        }else if(Decimate=="n"){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
           decNeeded<-"n"
         }
       }else if(MoorInfo[m,7]=="Full_datasets"){
-        if(decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
+        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
           decNeeded<-"n"
-        }else if(decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
+        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
           sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
           decNeeded<-"y"
-        }else if(decimate=="n"){
+        }else if(Decimate=="n"){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],sep = "/")
           decNeeded<-"n"
         }
@@ -2455,7 +2484,13 @@ combineDecRaven<-function(){
   return(resltsTab)
 }
 
-#paths
+#############################################################################
+
+
+###################### ACTUALLY RUN THE SCRIPT ##############################
+
+
+#############################################################################
 
 #dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
@@ -2481,7 +2516,7 @@ ControlTab[,3]<-as.character(ControlTab[,3])
 
 #General
 runname<- ControlTab[which(ControlTab[,2]=="runname"),3]
-spec<-ControlTab[which(ControlTab[,2]=="spec"),3]
+spec<-str_split(ControlTab[which(ControlTab[,2]=="spec"),3],",",simplify=TRUE)
 runGT<-ControlTab[which(ControlTab[,2]=="runGT"),3]
 if(runGT=="y"){
 runGTsections<-str_split(ControlTab[which(ControlTab[,2]=="runGTsections"),3],",",simplify=TRUE)
@@ -2493,56 +2528,17 @@ fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),
 fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize2ndIt"),3] )
 onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
 
-###########################make txt file of params for run:
-write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
-
-##########
-
-resltsTab <- NULL
-MoorInfoMspec<-NULL
-#maybe species loop starting here? 
-
-#populate global env with species specific variables
-loadSpecVars(spec)
-
-#############################
-
-detectorssprshort<- list.files(BLEDpath)[spStart:spEnd] 
-
-monthOrder<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-#make moorlib
-#GT moorings
-
-MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,spec)
-MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
-
+#assign runname and make run folder 
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
 
-detlist<-NULL
-detlist2<-substr(detectorssprshort[1],1,3)
+###########################make txt file of params for run:
+write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
 
-detnum<-1
-
-######################################Manipulate factors and calculate various things 
-#set FO and LMS to NA if no whiten
-if(whiten=="n"){
-  FO<-NA
-  LMS<-NA
-}
-
-detectorsspr<-NULL
-for(j in 1:length(detectorssprshort)){
-  detectorsspr[j]<-paste(BLEDpath,detectorssprshort[j],sep="")
-}
-
-if(spec=="RW"){
-  ravenView<-"RW_Upcalls"
-}else if(spec=="GS"){
-  ravenView<-"RW_GS"
-}
-
-decimationSteps<-prime.factor(decimationFactor)
+#####################maybe need later
+#monthOrder<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
+#make moorlib
+#GT moorings
 
 ################Script function
 
@@ -2559,7 +2555,22 @@ if(runNEW=="y"){
 ##################start script#################
 if(runRavenGT=="y"){
 
-resltsTab<-combineDecRaven()
+resltsTab <- NULL
+MoorInfoMspec<-NULL
+for(s in spec){
+    
+  #populate global env with species specific variables
+  loadSpecVars(spec)
+  
+  #############################
+  
+  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,spec)
+  MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
+  
+  resltsTab<-combineDecRaven()
+}
+  
+
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T))
@@ -2816,7 +2827,7 @@ if(whiten=="y"){
   soundfile<-"No_whiten"
 }
 
-if(decimate=="y"){
+if(Decimate=="y"){
   soundfile<-paste(soundfile,"_decimate_by_",decimationFactor,sep="")
 }
 
@@ -3023,7 +3034,7 @@ if(runNewData=="y"){
     allDataPath<-paste(drivepath,"Full_datasets",sep="")
   }
   
-  if(decimate=="y"){
+  if(Decimate=="y"){
     ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
     
     allMoorings<-dir(allDataPath,pattern=paste("_decimate_by_",decimationFactor,sep="")) 
@@ -3074,7 +3085,7 @@ if(moorType=="HG"){
 }
 
 #decimate dataset. 
-if(decimate=="y"&!decDone){
+if(Decimate=="y"&!decDone){
 decimateData(sfpath,2)
 }
 
@@ -3102,7 +3113,7 @@ decimateData(sfpath,2)
     sound_filesfullpath <- paste(sfpath,"/",sound_files,sep = "")
     if(whiten=="n" & moorType=="HG"){
       whiten2<-"HG_No_whiten"
-      if(decimate=="y"){
+      if(Decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
@@ -3126,7 +3137,7 @@ decimateData(sfpath,2)
       
     }else if(whiten=="n" & moorType!="HG"){
       whiten2<-"Full_No_whiten"
-      if(decimate=="y"){
+      if(Decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       if(a==1){
@@ -3154,7 +3165,7 @@ decimateData(sfpath,2)
   if(a==1){
     if(whiten=="y" & moorType=="HG"){
       whiten2 <- paste("HG_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
-      if(decimate=="y"){
+      if(Decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       filePath<- paste(pathh,whiten2,sep="")
@@ -3162,7 +3173,7 @@ decimateData(sfpath,2)
       break
     }else if(whiten=="y" & moorType!="HG"){
       whiten2 <- paste("Full_",Filtype,"p",100*LMS,"x_","FO",FO,sep = "")
-      if(decimate=="y"){
+      if(Decimate=="y"){
         whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
       }
       filePath<- paste(pathh,whiten2,sep="")
