@@ -931,7 +931,7 @@ stopCluster(cluz)
   Moddata<<-NULL
 }
 
-runRavenDetector<-function(){
+runRavenDetector<-function(m,filePath,combname){
   for(r in detectorssprshort){
     print(paste("Running detector for",MoorInfo[m,10]))
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
@@ -2454,7 +2454,7 @@ combineDecRaven<-function(){
           }
           #run detector(s)
           filePath<-filePathNoTemp
-          resltsTab<-runRavenDetector()
+          resltsTab<-runRavenDetector(m,filePath,combname)
         }
       }
       #write durtab to file
@@ -2472,14 +2472,14 @@ combineDecRaven<-function(){
       for(i in intersect(list.files(filePath,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
         combname<-i
         
-        resltsTab<-runRavenDetector()
+        resltsTab<-runRavenDetector(m,filePath,combname)
       }
       
     }
     
   }
   #Save raven output 
-  write.csv(resltsTab,paste(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+  write.csv(resltsTab,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
   
   return(resltsTab)
 }
@@ -2560,11 +2560,11 @@ MoorInfoMspec<-NULL
 for(s in spec){
     
   #populate global env with species specific variables
-  loadSpecVars(spec)
+  loadSpecVars(s)
   
   #############################
   
-  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,spec)
+  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
   
   resltsTab<-combineDecRaven()
