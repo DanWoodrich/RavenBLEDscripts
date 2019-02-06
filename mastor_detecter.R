@@ -2278,6 +2278,8 @@ return(DetecTab2)
 
 combineDecRaven<-function(){
   
+  resltsTab<-NULL
+  
   #decimate and whiten are not 
   if(whiten=="y"){
     whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
@@ -2553,7 +2555,7 @@ if(runNEW=="y"){
 ##################start script#################
 if(runRavenGT=="y"){
 
-resltsTab <- NULL
+resltsTabF <- NULL
 MoorInfoMspec<-NULL
 for(s in spec){
     
@@ -2565,12 +2567,14 @@ for(s in spec){
   MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
   
-  resltsTab<-rbind(resltsTab,combineDecRaven())
+  resltsTabS<-combineDecRaven()
+  resltsTabF<-rbind(resltsTabF,resltsTabS)
   
   #Save raven output 
-  write.csv(resltsTab,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+  write.csv(resltsTabS,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 }
   
+write.csv(resltsTabF,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 
 
 }else{
