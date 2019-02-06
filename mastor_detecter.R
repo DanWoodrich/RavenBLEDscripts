@@ -2478,8 +2478,6 @@ combineDecRaven<-function(){
     }
     
   }
-  #Save raven output 
-  write.csv(resltsTab,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
   
   return(resltsTab)
 }
@@ -2567,7 +2565,10 @@ for(s in spec){
   MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
   
-  resltsTab<-combineDecRaven()
+  resltsTab<-rbind(resltsTab,combineDecRaven())
+  
+  #Save raven output 
+  write.csv(resltsTab,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
 }
   
 
