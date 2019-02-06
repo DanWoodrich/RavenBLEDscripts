@@ -166,6 +166,7 @@ loadSpecVars<-function(whichSpec){
   if(whichSpec=="RW"){
     downsweepCompMod<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
     downsweepCompAdjust<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
+    timesepGS<<-NULL #placeholder so that I can export variable for parallel 
   }
   
   #GS algo
@@ -321,16 +322,16 @@ parAlgo<-function(dataaa){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("Matdata","detector","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS"))
+  clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
   
-  if(spec=="RW"){
+  if(s=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      RW_algo(resltsTSPVmat=dataaa[,1:3],f=grouppp)
+      RW_algo(resltsTabmat=dataaa[,1:3],f=grouppp)
     }
     wantedSelections<-as.integer(do.call('c', wantedSelections))
-  }else if(spec=="GS"){
+  }else if(s=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-    GS_algo(resltsTSPVmat=dataaa[,c(1,2,4,5)],f=grouppp)
+    GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
       }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
@@ -338,36 +339,36 @@ parAlgo<-function(dataaa){
   return(wantedSelections)
 }
 
-RW_algo<-function(resltsTSPVmat,f){
+RW_algo<-function(resltsTabmat,f){
   wantedSelections<-c()
-  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+  groupdat<- resltsTabmat[which(resltsTabmat[,2]==f),]
   grpvec<-groupdat[,1]
   colClasses = c("numeric","numeric","numeric","numeric","numeric")
   runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
+  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize-1)))
   
-  for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
+  for(g in 1:(nrow(groupdat)-(grpsize-1))){
     RM<-groupdat[g,1]
     groupdat[g,3+g]<-2
     skipvec<-0
     for(h in g:(nrow(groupdat)-1)){
       rsltvec0s<-rle(groupdat[,3+g][! groupdat[,3+g] %in% 98])
-      if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros[detector])){
+      if(any(rsltvec0s$lengths[rsltvec0s$values==0]>allowedZeros)){
         for(q in 1:allowedZeros){
           groupdat[h-(q-1),4+g]<-99
         }
         break
       }  
-      if(RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
+      if(RM<grpvec[h+1]&RM+(detskip+1)>grpvec[h+1]&groupdat[h,3]!=groupdat[h+1,3]){
         groupdat[h+1,3+g]<-1
         skipvec<-c(skipvec,(grpvec[h+1]-RM))
         RM<-grpvec[h+1]
-      }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip[detector]+1)>grpvec[h+1]&RM-(detskip[detector]+1)<=grpvec[h+1]){
+      }else if(groupdat[h,3]!=groupdat[h+1,3]&RM+(detskip+1)>grpvec[h+1]&RM-(detskip+1)<=grpvec[h+1]){
         groupdat[h+1,3+g]<-0
-      }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip[detector]+1)<=grpvec[h+1]|RM-(detskip[detector]+1)>grpvec[h+1])){
+      }else if(groupdat[h,3]!=groupdat[h+1,3]&(RM+(detskip+1)<=grpvec[h+1]|RM-(detskip+1)>grpvec[h+1])){
         groupdat[h+1,3+g]<-98
       }
-      if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip[detector]+1)>grpvec[h+1]){
+      if(groupdat[h,3]==groupdat[h+1,3]&groupdat[h,3+g]==0&RM<grpvec[h+1]&RM+(detskip+1)>grpvec[h+1]){
         groupdat[h+1,3+g]<-1
         groupdat[h,3+g]<-98
         skipvec<-c(skipvec,(grpvec[h+1]-RM))
@@ -405,39 +406,39 @@ RW_algo<-function(resltsTSPVmat,f){
   
   #if run is less than 33% of boxes, build a downsweep. If the downsweep has equal or more ones disqualify it.
   kill="n"
-  if((runsum[,2]+1)<grpsize[detector]){
+  if((runsum[,2]+1)<grpsize){
     kill="y"
   }
   if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
-    groupdat2<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+    groupdat2<- resltsTabmat[which(resltsTabmat[,2]==f),]
     groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
     grpvec2<-groupdat2[,1]
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
     runsum2<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
-    groupdat2<-cbind(groupdat,matrix(99,nrow(groupdat2),nrow(groupdat2)-(grpsize[detector]-1)))
+    groupdat2<-cbind(groupdat,matrix(99,nrow(groupdat2),nrow(groupdat2)-(grpsize-1)))
     
-    for(g in 1:(nrow(groupdat2)-(grpsize[detector]-1))){
+    for(g in 1:(nrow(groupdat2)-(grpsize-1))){
       RM2<-groupdat2[g,1]
       groupdat2[g,3+g]<-2
       skipvec2<-0
       for(h in g:(nrow(groupdat2)-1)){
         rsltvec0s2<-rle(groupdat2[,3+g][! groupdat2[,3+g] %in% 98])
-        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros[detector])){
+        if(any(rsltvec0s2$lengths[rsltvec0s2$values==0]>allowedZeros)){
           for(q in 1:allowedZeros){
             groupdat2[h-(q-1),4+g]<-99
           }
           break
         }  
-        if(RM2>grpvec2[h+1]&RM2-(detskip[detector]+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
+        if(RM2>grpvec2[h+1]&RM2-(detskip+1)<grpvec2[h+1]&groupdat2[h,3]!=groupdat2[h+1,3]){
           groupdat2[h+1,3+g]<-1
           skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
           RM2<-grpvec2[h+1]
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip[detector]+1)<grpvec2[h+1]&RM2+(detskip[detector]+1)>=grpvec2[h+1]){
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&RM2-(detskip+1)<grpvec2[h+1]&RM2+(detskip+1)>=grpvec2[h+1]){
           groupdat2[h+1,3+g]<-0
-        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip[detector]+1)>=grpvec2[h+1])|RM2+(detskip[detector]+1)<grpvec2[h+1]){
+        }else if(groupdat2[h,3]!=groupdat2[h+1,3]&(RM2-(detskip+1)>=grpvec2[h+1])|RM2+(detskip+1)<grpvec2[h+1]){
           groupdat2[h+1,3+g]<-98
         }
-        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip[detector]+1))<grpvec2[h+1]){
+        if(groupdat2[h,3]==groupdat2[h+1,3]&(groupdat2[h,3+g]==0|groupdat2[h,3+g]==98)&RM2>grpvec2[h+1]&(RM2-(detskip+1))<grpvec2[h+1]){
           groupdat2[h+1,3+g]<-1
           groupdat2[h,3+g]<-98
           skipvec2<-c(skipvec2,(grpvec2[h+1]-RM2))
@@ -487,13 +488,13 @@ RW_algo<-function(resltsTSPVmat,f){
   return(wantedSelections)
 }
 
-GS_algo<-function(resltsTSPVmat,f){
-  #for(f in unique(resltsTSPVmat[,2])){
-  groupdat<- resltsTSPVmat[which(resltsTSPVmat[,2]==f),]
+GS_algo<-function(resltsTabmat,f){
+  #for(f in unique(resltsTabmat[,2])){
+  groupdat<- resltsTabmat[which(resltsTabmat[,2]==f),]
   groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
-  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize[detector]-1)))
+  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize-1)))
   
-  for(g in 1:(nrow(groupdat)-(grpsize[detector]-1))){
+  for(g in 1:(nrow(groupdat)-(grpsize-1))){
     groupdat[g,4+g]<-2
     RT<-groupdat[g,3]
     RM<-groupdat[g,1]
@@ -502,7 +503,7 @@ GS_algo<-function(resltsTSPVmat,f){
       #do not compute run
     }else if(g>=1){
     for(h in g:(nrow(groupdat)-1)){
-      if(RM>groupdat[h+1,1]&(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)|((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0))&(RM-groupdat[h+1,1])<(detskip[detector]+1)){
+      if(RM>groupdat[h+1,1]&(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,3]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)|((RT-groupdat[h+1,4]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(RT-groupdat[h+1,4]+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0))&(RM-groupdat[h+1,1])<(detskip+1)){
         if(((RT-groupdat[h+1,3]-(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))<0&(groupdat[h+1,3]-RT+(timesepGS/((groupdat[h+1,1]+1.25)^1.1)))>0)&((timesepGS/((groupdat[h+1,1]+1.25)^1.1))<0.2|groupdat[h+1,3]>groupdat[h,3])){
           boxPos<-3
         }else{
@@ -530,7 +531,7 @@ GS_algo<-function(resltsTSPVmat,f){
   rownombres=NULL
   rowID=NULL
   for(k in 5:ncol(groupdat)){
-    if(length(which(groupdat[,k]==3|groupdat[,k]==4))>=grpsize[detector]-1){
+    if(length(which(groupdat[,k]==3|groupdat[,k]==4))>=grpsize-1){
       rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==4|groupdat[,k]==2),k])),999999999)
       rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==4|groupdat[,k]==2),k]))),999999999)
       p=p+1
@@ -1891,394 +1892,313 @@ foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopa
 stopCluster(cluz)
 }
 
-process_data<-function(whichRun){
+process_data<-function(){
 #Combine and configure spread detectors. 
-l=1
-DetecTab<-NULL
-if(dettype=="spread"|dettype=="combined"){
-  resltsTabspr<-resltsTab[which(resltsTab$detectorType=="spread"),]
-  RTSVar<-unique(substr(resltsTabspr$detector,1,3))
-  for(d in 1:length(RTSVar)){
-    print(paste("Combining spread for",RTSVar[d]))
-    resltsTSPVd<-resltsTabspr[which(substr(resltsTabspr$detector,1,3)==RTSVar[d]),]
-    for(e in unique(resltsTSPVd$sound.files)){
-      resltsTSPV<-resltsTSPVd[which(resltsTSPVd$sound.files==e),]
-      print(paste("    ",e))
-      for(f in 1:length(unique(resltsTSPV$bottom.freq))){
-        resltsTSPV[resltsTSPV$bottom.freq==sort(unique(resltsTSPV$bottom.freq))[f],13]<-f
+
+print(paste("Combining spread for"))
+  
+for(e in unique(resltsTab$sound.files)){
+  resltsVar<-resltsTab[which(resltsTab$sound.files==e),]
+  print(paste("    ",e))
+  for(f in 1:length(unique(resltsVar$bottom.freq))){
+    resltsVar[resltsVar$bottom.freq==sort(unique(resltsVar$bottom.freq))[f],13]<-f
+  }
+  colnames(resltsVar)[13] <- "detectorRank"
+  resltsVar$detectorRank<-as.numeric(resltsVar$detectorRank)
+  resltsVar$group[1]<-1
+      
+  #make sure these values are what they say they are- encountered some behaviors to suggest there was some behind the scenes decimals earlier. This may not be necessary. 
+  resltsVar$start<-as.numeric(as.character(resltsVar$start))
+  resltsVar$end<-as.numeric(as.character(resltsVar$end))
+  resltsVar$meantime<-(resltsVar$start+resltsVar$end)/2
+
+    if(s=="RW"){
+      #need to order chronologically. 
+      resltsVar<-resltsVar[order(resltsVar$sound.files,resltsVar$meantime,resltsVar$bottom.freq),]
+      
+      #assign groups based on groupInt value
+      f<-1
+      
+      #index columns to process faster:
+      gTime<-resltsVar[,15]
+      gGroup<-resltsVar[,14]
+      
+    print("assigning group values")
+    for(z in 1:(nrow(resltsVar)-1)){
+      if(gTime[z]+groupInt>=gTime[z+1]){
+        gGroup[z+1]<-f
+      }else{
+        f<-f+1
+        gGroup[z+1]<-f
       }
-      colnames(resltsTSPV)[13] <- "detectorRank"
-      resltsTSPV$detectorRank<-as.numeric(resltsTSPV$detectorRank)
-      resltsTSPV$group[1]<-1
+    }
+    }else if(s=="GS"){
       
-      #make sure these values are what they say they are- encountered some behaviors to suggest there was some behind the scenes decimals earlier. This may not be necessary. 
-      resltsTSPV$start<-as.numeric(as.character(resltsTSPV$start))
-      resltsTSPV$end<-as.numeric(as.character(resltsTSPV$end))
-      resltsTSPV$meantime<-(resltsTSPV$start+resltsTSPV$end)/2
+      #need to order chronologically. 
+      resltsVar<-resltsVar[order(resltsVar$sound.files,resltsVar$start,resltsVar$top.freq),]
       
-
-    
-
+      #assign groups based on groupInt value
+      f<-1
       
-      
-      if(spec=="RW"){
-        #need to order chronologically. 
-        resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$meantime,resltsTSPV$bottom.freq),]
-        
-        #assign groups based on groupInt value
-        f<-1
-        
-        #index columns to process faster:
-        gTime<-resltsTSPV[,15]
-        gGroup<-resltsTSPV[,14]
-        
+      #index columns to process faster:
+      gTimeS<-resltsVar$start        
+      gGroup<-resltsVar[,14]
+      nexstart<-gTimeS[1]
       print("assigning group values")
-      for(z in 1:(nrow(resltsTSPV)-1)){
-        if(gTime[z]+groupInt[d]>=gTime[z+1]){
+      for(z in 1:(nrow(resltsVar)-1)){
+        if(gTimeS[z]+groupInt>=gTimeS[z+1]){
           gGroup[z+1]<-f
         }else{
           f<-f+1
           gGroup[z+1]<-f
         }
       }
-      }else if(spec=="GS"){
-        
-        #need to order chronologically. 
-        resltsTSPV<-resltsTSPV[order(resltsTSPV$sound.files,resltsTSPV$start,resltsTSPV$top.freq),]
-        
-        #assign groups based on groupInt value
-        f<-1
-        
-        #index columns to process faster:
-        gTimeS<-resltsTSPV$start        
-        gGroup<-resltsTSPV[,14]
-        nexstart<-gTimeS[1]
-        print("assigning group values")
-        for(z in 1:(nrow(resltsTSPV)-1)){
-          if(gTimeS[z]+groupInt[d]>=gTimeS[z+1]){
-            gGroup[z+1]<-f
-          }else{
-            f<-f+1
-            gGroup[z+1]<-f
-          }
-        }
-      }
-      
-      
-      resltsTSPV[,14]<-gGroup
-      
-      #remove groups based on grpsize value
-      removegrp <- table(resltsTSPV$group)
-      resltsTSPV <- subset(resltsTSPV, group %in% names(removegrp[removegrp > (grpsize[d]-1)]))
-      Matdata<<-data.matrix(resltsTSPV[,c(13,14,15,4,5)])
-      detector<<-d
+    }
     
-      #updated algorithm, optimized for performance. avoids r bind
-      print(paste("calculating best runs for each group"))
-      #print(system.time(parAlgo(Matdata)))
-      wantedSelections<-parAlgo(Matdata)
+    resltsVar[,14]<-gGroup
+    
+    #remove groups based on grpsize value
+    removegrp <- table(resltsVar$group)
+    resltsVar <- subset(resltsVar, group %in% names(removegrp[removegrp > (grpsize-1)]))
+    Matdata<<-data.matrix(resltsVar[,c(13,14,15,4,5)])
+  
+    #updated algorithm, optimized for performance. avoids r bind
+    print(paste("calculating best runs for each group"))
+    #print(system.time(parAlgo(Matdata)))
+    wantedSelections<-parAlgo(Matdata)
+    
+    Matdata<<-NULL
+
+    if(s=="RW"){
+    resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% as.integer(wantedSelections)),]
+    }else if(spec=="GS"){
+    wantedSelections<-t(wantedSelections)
+    c=1
+    for(u in 1:nrow(wantedSelections)-1){
+      wantedSelections[u,2]<-c
+      if(wantedSelections[u+1,2]==999999999){
+      c=c+1
+    }
+    }
+    wantedSelections<-wantedSelections[which(wantedSelections[,1]!=999999999),]
+    wantedSelections<-wantedSelections[which(!duplicated(wantedSelections[,1])),] #throw out duplicates, later assign boxes just using first position of highest in group and last end time in group
+    resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% wantedSelections[,1]),]
+    
+    #create new groups values
+    for(u in 1:nrow(resltsVar)){
+      resltsVar[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsVar[u,]))),2] 
+    }
+    
+    }
+    
+    if(nrow(resltsVar)==0){
+      write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsVar$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+    }else{
+      colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","character","character","character")
+      resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, sound.files", colClasses = colClasses)
+      colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","sound.files")
       
-      Matdata<<-NULL
-      detector<<-NULL
-      if(spec=="RW"){
-      resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% as.integer(wantedSelections)),]
-      }else if(spec=="GS"){
-      wantedSelections<-t(wantedSelections)
-      c=1
-      for(u in 1:nrow(wantedSelections)-1){
-        wantedSelections[u,2]<-c
-        if(wantedSelections[u+1,2]==999999999){
-        c=c+1
-      }
-      }
-      wantedSelections<-wantedSelections[which(wantedSelections[,1]!=999999999),]
-      wantedSelections<-wantedSelections[which(!duplicated(wantedSelections[,1])),] #throw out duplicates, later assign boxes just using first position of highest in group and last end time in group
-      resltsTSPV<-resltsTSPV[which(as.integer(rownames(resltsTSPV)) %in% wantedSelections[,1]),]
-      
-      #create new groups values
-      for(u in 1:nrow(resltsTSPV)){
-        resltsTSPV[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsTSPV[u,]))),2] 
-      }
-      
-      }
-      
-      if(nrow(resltsTSPV)==0){
-        write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
-      }else{
-        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character","character")
-        resltsTSPVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring, sound.files", colClasses = colClasses)
-        colnames(resltsTSPVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring","sound.files")
+      if(s=="RW"){
+      p=1
+      for(j in unique(resltsVar$group)){
+        grpminfreq <- min(resltsVar[resltsVar$group==j,6])
+        grpmaxfreq <- max(resltsVar[resltsVar$group==j,7])
+        grpstarttime <- min(resltsVar[resltsVar$group==j,4])
+        grpendtime <- max(resltsVar[resltsVar$group==j,5])
         
+        resltsTabFinal[p,1]<-p
+        resltsTabFinal[p,4]<-grpstarttime
+        resltsTabFinal[p,5]<-grpendtime
+        resltsTabFinal[p,6]<-grpminfreq
+        resltsTabFinal[p,7]<-grpmaxfreq
+        resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
+        resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
+        resltsTabFinal[p,10]<-as.character(resltsVar$sound.files[1])
         
-        if(spec=="RW"){
+        p<-p+1
+      }
+        
+      }else if(s=="GS"){
         p=1
-        for(j in unique(resltsTSPV$group)){
-          grpminfreq <- min(resltsTSPV[resltsTSPV$group==j,6])
-          grpmaxfreq <- max(resltsTSPV[resltsTSPV$group==j,7])
-          grpstarttime <- min(resltsTSPV[resltsTSPV$group==j,4])
-          grpendtime <- max(resltsTSPV[resltsTSPV$group==j,5])
+        for(j in unique(resltsVar$group)){
+          grp<-resltsVar[resltsVar$group==j,]
+          grpminfreq <- min(grp[,6])
+          grpmaxfreq <- max(grp[,7])
+          if(any(duplicated(grp[,4]))){             #min(grp[which.max(grp[,13]),4]) #for start of 1st detector in run
+          grpstarttime <- getmode(grp[,4])
+          }else{
+          grpstarttime <- median(grp[,4])
+          }
+          grpendtime <- max(grp[,5])
           
-          resltsTSPVFinal[p,1]<-p
-          resltsTSPVFinal[p,4]<-grpstarttime
-          resltsTSPVFinal[p,5]<-grpendtime
-          resltsTSPVFinal[p,6]<-grpminfreq
-          resltsTSPVFinal[p,7]<-grpmaxfreq
-          resltsTSPVFinal[p,8]<-l
-          resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
-          resltsTSPVFinal[p,10]<-"spread"
-          resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
-          resltsTSPVFinal[p,12]<-as.character(resltsTSPV$Mooring[1])
-          resltsTSPVFinal[p,13]<-as.character(resltsTSPV$sound.files[1])
+          resltsTabFinal[p,1]<-p
+          resltsTabFinal[p,4]<-grpstarttime
+          resltsTabFinal[p,5]<-grpendtime
+          resltsTabFinal[p,6]<-grpminfreq
+          resltsTabFinal[p,7]<-grpmaxfreq
+          resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
+          resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
+          resltsTabFinal[p,10]<-as.character(resltsVar$sound.files[1])
           
           p<-p+1
         }
-        
-        
-        resltsTSPVFinal$View<-"Spectrogram 1"
-        resltsTSPVFinal$Channel<-1
-        
-        DetecTab<- rbind(DetecTab,resltsTSPVFinal)
-        
-        resltsTSPVFinal<- resltsTSPVFinal[,1:7]
-        write.table(resltsTSPVFinal,paste(outputpath,runname,"/",resltsTSPV$Mooring[1],"FINAL_Summary_spread_",substr(resltsTSPVd$detector[1],1,3),"_",length(detectorsspr[[d]]),"dnum_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-        }else if(spec=="GS"){
-          p=1
-          for(j in unique(resltsTSPV$group)){
-            grp<-resltsTSPV[resltsTSPV$group==j,]
-            grpminfreq <- min(grp[,6])
-            grpmaxfreq <- max(grp[,7])
-            if(any(duplicated(grp[,4]))){             #min(grp[which.max(grp[,13]),4]) #for start of 1st detector in run
-            grpstarttime <- getmode(grp[,4])
-            }else{
-            grpstarttime <- median(grp[,4])
-            }
-            grpendtime <- max(grp[,5])
-            
-            resltsTSPVFinal[p,1]<-p
-            resltsTSPVFinal[p,4]<-grpstarttime
-            resltsTSPVFinal[p,5]<-grpendtime
-            resltsTSPVFinal[p,6]<-grpminfreq
-            resltsTSPVFinal[p,7]<-grpmaxfreq
-            resltsTSPVFinal[p,8]<-l
-            resltsTSPVFinal[p,9]<-substr(resltsTSPV$detector[1],1,3)
-            resltsTSPVFinal[p,10]<-"spread"
-            resltsTSPVFinal[p,11]<-length(detectorsspr[[d]])
-            resltsTSPVFinal[p,12]<-as.character(resltsTSPV$Mooring[1])
-            resltsTSPVFinal[p,13]<-as.character(resltsTSPV$sound.files[1])
-            
-            p<-p+1
-          }
-
           #remove fragments (100hz or under) that are resonably high up 
-          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,6]>=225))),] #&resltsTSPVFinal[,6]>=225)
-          
-          #remove fragments (100hz or under) also on the low end
-          resltsTSPVFinal<-resltsTSPVFinal[which(!(((resltsTSPVFinal[,7]-resltsTSPVFinal[,6])<=100)&(resltsTSPVFinal[,7]<150)&(resltsTSPVFinal[,5]-resltsTSPVFinal[,4]<=0.5))),] #&resltsTSPVFinal[,6]>=225)
-          
-          #change end time of call to start of next call if they overlap. 
-          resltsTSPVFinal<-resltsTSPVFinal[order(resltsTSPVFinal[,4]),]
-          for(b in 1:(nrow(resltsTSPVFinal)-1)){
-            if(resltsTSPVFinal[b,5]>resltsTSPVFinal[b+1,4])
-              resltsTSPVFinal[b,5]<-resltsTSPVFinal[b+1,4]
-          }
-          
-          #remove ones with no data 
-          resltsTSPVFinal<-resltsTSPVFinal[which((resltsTSPVFinal[,5]-resltsTSPVFinal[,4])!=0),]
-          
-          
-          resltsTSPVFinal$View<-"Spectrogram 1"
-          resltsTSPVFinal$Channel<-1
-          
-          DetecTab<- rbind(DetecTab,resltsTSPVFinal)
-          
-          resltsTSPVFinal<- resltsTSPVFinal[,1:7]
-      }
+        resltsTabFinal<-resltsTabFinal[which(!(((resltsTabFinal[,7]-resltsTabFinal[,6])<=100)&(resltsTabFinal[,6]>=225))),] #&resltsTabFinal[,6]>=225)
+        
+        #remove fragments (100hz or under) also on the low end
+        resltsTabFinal<-resltsTabFinal[which(!(((resltsTabFinal[,7]-resltsTabFinal[,6])<=100)&(resltsTabFinal[,7]<150)&(resltsTabFinal[,5]-resltsTabFinal[,4]<=0.5))),] #&resltsTabFinal[,6]>=225)
+        
+        #change end time of call to start of next call if they overlap. 
+        resltsTabFinal<-resltsTabFinal[order(resltsTabFinal[,4]),]
+        for(b in 1:(nrow(resltsTabFinal)-1)){
+          if(resltsTabFinal[b,5]>resltsTabFinal[b+1,4])
+            resltsTabFinal[b,5]<-resltsTabFinal[b+1,4]
         }
-    }
-    l<-l+1}
-}
-
-
-if(dettype=="combined"){
-}else{
-  l=1
-}
-
-#Configure single detectors. 
-if(dettype=="single"|dettype=="combined"){
-  resltsTabsin<-resltsTab[which(resltsTab$detectorType=="single"),]
-  for(d in 1:length(unique(resltsTabsin$detector))){
-    print(paste("Configuring single detector",unique(resltsTabsin$detector)[d]))
-    resltsTSGVd<-resltsTabsin[which(resltsTabsin$detector==unique(resltsTabsin$detector)[d]),]
-    for(e in unique(resltsTSGVd$sound.files)){
-      resltsTSGV<-resltsTSGVd[which(resltsTSGVd$sound.files==e),]
-      print(paste("     ",e))
-      if(nrow(resltsTSGV)==0){
-        write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_single_",resltsTSGVd$detector[1],"_","_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
-      }else{
         
-        colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","numeric","character","character", "numeric","character","character")
-        resltsTSGVFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), DetectorCount, DetectorName, DetectorType, numDetectors, Mooring,sound.files", colClasses = colClasses)[1:nrow(resltsTSGV), ]
-        colnames(resltsTSGVFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","DetectorCount", "DetectorName", "DetectorType","numDetectors","Mooring","sound.files")
-        
-        resltsTSGVFinal$Selection<-seq(1,nrow(resltsTSGV),1)
-        resltsTSGVFinal$View<-"Spectrogram 1"
-        resltsTSGVFinal$Channel<-1
-        resltsTSGVFinal[,4]<-resltsTSGV$start
-        resltsTSGVFinal[,5]<-resltsTSGV$end
-        resltsTSGVFinal[,6]<-resltsTSGV$bottom.freq
-        resltsTSGVFinal[,7]<-resltsTSGV$top.freq
-        resltsTSGVFinal$DetectorCount<-l
-        resltsTSGVFinal$DetectorName<- resltsTSGV$detector[1]
-        resltsTSGVFinal$DetectorType<-"single"
-        resltsTSGVFinal$numDetectors<-1
-        resltsTSGVFinal$Mooring<-as.character(resltsTSGV$Mooring[1])
-        resltsTSGVFinal$sound.files<-as.character(resltsTSGV$sound.files[1])
-        
-        DetecTab<- rbind(DetecTab,resltsTSGVFinal)
-        
-        resltsTSGVFinal<- resltsTSGVFinal[,1:7]
-        write.table(resltsTSGVFinal,paste(outputpath,runname,"/",e,"FINAL_Summary_single_",resltsTSGVd$detector[1],"_",d,".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       }
-    }
-    l=l+1}
-}
+        
+        #remove ones with no data 
+        resltsTabFinal<-resltsTabFinal[which((resltsTabFinal[,5]-resltsTabFinal[,4])!=0),]
+        
+        resltsTabFinal$View<-"Spectrogram 1"
+        resltsTabFinal$Channel<-1
+        
+        resltsTabFinal<-resltsTabFinal[order(resltsTabFinal$`Begin Time (s)`),]
+        
+        #remove detections that do not fit min/max duration parameters  #
+        resltsTabFinal$remove<-0
+        for(f in 1:nrow(resltsTabFinal)){
+          if((resltsTabFinal[f,5]-resltsTabFinal[f,4])>Maxdur|(resltsTabFinal[f,5]-resltsTabFinal[f,4])<Mindur){
+            resltsTabFinal[f,11]<-1
+          }
+        }
+        
+        resltsTabFinal<-resltsTabFinal[which(resltsTabFinal$remove==0),]
+        
+        resltsTabFinal$remove<-NULL
+        
+        #######
+        
+        
+        ##############do the durtab stuff
+        if(whiten=="y"){
+          whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
+        }else{
+          whiten2<-"No_whiten"
+        }
+        if(Decimate=="y"){
+          whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+        }
+        
+        if(MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),7]=="HG_datasets"){
+          pathh<-paste(startcombpath,MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),9],sep="")
+        }else if(MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),7]=="Full_datasets"){
+          pathh<-startcombpath   
+        }
+        
+        filePath<-paste(pathh,whiten2,sep="/")
+        
+        durTab<-read.csv(paste(filePath,"/",MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),10],"_SFiles_and_durations.csv",sep=""))
+        
+        #add information on original sound files and calculate time since file start
+        resltsTabFinal$File<-""
+        FileStartSec<-c()
+        resltsTabFinal$FileOffsetBegin<-0
+        resltsTabFinal$FileOffsetEnd<-0
+        for(w in unique(resltsTabFinal$sound.files)){
+          print(paste("calculate file ID and begin time and end time relative to file for sound.files",w))
+          resltsTFV<-resltsTabFinal[which(resltsTabFinal$sound.files==w),]
+          durVar<-durTab[which(durTab$CombSF==w),]
+          for(c in 1:nrow(resltsTFV)){
+            index<-findInterval(resltsTFV[c,14], c(0,durVar$CumDur))
+            resltsTFV$File[c]<-as.character(durVar[index,2])
+            FileStartSec[c]<-durVar[index,4]-durVar[index,3]
+          }
+          resltsTFV$FileOffsetBegin<-resltsTFV$`Begin Time (s)`-FileStartSec
+          resltsTFV$FileOffsetEnd<-resltsTFV$`End Time (s)`-FileStartSec  
+          resltsTabFinal<-resltsTabFinal[-which(resltsTabFinal$sound.files==w),]
+          resltsTabFinal<-rbind(resltsTabFinal,resltsTFV)
+          
+        }
+        
+        resltsTabFinal$Selection<-seq(1,nrow(resltsTabFinal))
+        
+        ###
+        DetecTab<- rbind(DetecTab,resltsTabFinal)
+        
+        resltsTabFinal<- resltsTabFinal[,1:7]
+        
+        write.table(resltsTabFinal,paste(outputpath,runname,"/",resltsTabFinal$MooringID[1],"FINAL_Summary_spread_",substr(resltsVar$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        
+      }
+  }
 
 ############
 
-#now need to average detections between detectors. set 
-DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
-#need to order chronologically
-DetecTab<-DetecTab[order(DetecTab$meantime),]
-DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
-DetecTab$UniqueID<-seq(1:nrow(DetecTab))
-DetecTab$remove<-0
+return(DetecTab)
+}
 
-DetecTab<-DetecTab[order(DetecTab$meantime),]
-
-#average between detectors
-AvgDet<-DetecTab[0,]
-DetecTab2<-DetecTab[0,]
-for(w in unique(DetecTab$sound.files)){
-  print(paste("For sound.files",w))
-  CompareDet<-DetecTab[which(DetecTab$sound.files==w),]
-  if(detnum>1){
-    CDvar<-unique(CompareDet$DetectorCount)
-    for(x in 1:(length(CDvar)-1)){
-      i = CompareDet[which(CompareDet$DetectorCount==CDvar[x]),]
-      j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
-      print(paste("      Average detectors",i[1,9],"and",j[1,9]))
-      for(y in 1:nrow(i)){
-        jvec <- which(j$meantime<(i$meantime+2)&j$meantime>(i$meantime-2))
-        if(length(jvec)>0){
-        for(z in min(jvec):max(jvec)){
-          if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
-            CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
-            CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
-            meanS<-mean(c(i[y,4],j[z,4]))
-            meanE<-mean(c(i[y,5],j[z,5]))
-            meanL<-mean(c(i[y,6],j[z,6]))
-            meanH<-mean(c(i[y,7],j[z,7]))
-            
-            AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
-            names(AvgDet2)<-colnames(AvgDet)
-            #make new dataframe be second detector ID so it will loop properly
-            
-            AvgDet<- rbind(AvgDet,AvgDet2)  
-            
+combineSpeciesDetections<-function(){
+  #now need to average detections between detectors. set 
+  DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
+  #need to order chronologically
+  DetecTab<-DetecTab[order(DetecTab$meantime),]
+  DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
+  DetecTab$UniqueID<-seq(1:nrow(DetecTab))
+  DetecTab$remove<-0
+  
+  DetecTab<-DetecTab[order(DetecTab$meantime),]
+  
+  #average between detectors
+  AvgDet<-DetecTab[0,]
+  DetecTab2<-DetecTab[0,]
+  for(w in unique(DetecTab$sound.files)){
+    print(paste("For sound.files",w))
+    CompareDet<-DetecTab[which(DetecTab$sound.files==w),]
+    if(detnum>1){
+      CDvar<-unique(CompareDet$DetectorCount)
+      for(x in 1:(length(CDvar)-1)){
+        i = CompareDet[which(CompareDet$DetectorCount==CDvar[x]),]
+        j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
+        print(paste("      Average detectors",i[1,9],"and",j[1,9]))
+        for(y in 1:nrow(i)){
+          jvec <- which(j$meantime<(i$meantime+2)&j$meantime>(i$meantime-2))
+          if(length(jvec)>0){
+            for(z in min(jvec):max(jvec)){
+              if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
+                CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
+                CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
+                meanS<-mean(c(i[y,4],j[z,4]))
+                meanE<-mean(c(i[y,5],j[z,5]))
+                meanL<-mean(c(i[y,6],j[z,6]))
+                meanH<-mean(c(i[y,7],j[z,7]))
+                
+                AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
+                names(AvgDet2)<-colnames(AvgDet)
+                #make new dataframe be second detector ID so it will loop properly
+                
+                AvgDet<- rbind(AvgDet,AvgDet2)  
+                
+              }
+            }
           }
         }
-        }
+        CompareDet<-CompareDet[-which(CompareDet$remove==1),]
+        
+        CompareDet[which(CompareDet$DetectorCount==i[1,8]),8]<-j[1,8]
+        CompareDet[which(CompareDet$DetectorName==i[1,9] |CompareDet$DetectorName==j[1,9]),9]<-as.character(paste(i[1,9],"+",j[1,9]))
+        CompareDet[which(CompareDet$DetectorType==i[1,10] |CompareDet$DetectorType==j[1,10]),10]<-as.character(paste(i[1,10],"+",j[1,10]))
+        CompareDet[which(CompareDet$numDetector==i[1,11] |CompareDet$numDetector==j[1,11]),11]<-(j[1,11]+i[1,11])
+        
+        CompareDet<-rbind(CompareDet,AvgDet)
+        CompareDet<-CompareDet[order(CompareDet$meantime),]
+        
+        CompareDet$UniqueID<-seq(1:nrow(CompareDet))
+        AvgDet<-DetecTab[0,]
       }
-      CompareDet<-CompareDet[-which(CompareDet$remove==1),]
-      
-      CompareDet[which(CompareDet$DetectorCount==i[1,8]),8]<-j[1,8]
-      CompareDet[which(CompareDet$DetectorName==i[1,9] |CompareDet$DetectorName==j[1,9]),9]<-as.character(paste(i[1,9],"+",j[1,9]))
-      CompareDet[which(CompareDet$DetectorType==i[1,10] |CompareDet$DetectorType==j[1,10]),10]<-as.character(paste(i[1,10],"+",j[1,10]))
-      CompareDet[which(CompareDet$numDetector==i[1,11] |CompareDet$numDetector==j[1,11]),11]<-(j[1,11]+i[1,11])
-      
-      CompareDet<-rbind(CompareDet,AvgDet)
-      CompareDet<-CompareDet[order(CompareDet$meantime),]
-      
-      CompareDet$UniqueID<-seq(1:nrow(CompareDet))
-      AvgDet<-DetecTab[0,]
-   }
-  }
-  DetecTab2<-rbind(DetecTab2,CompareDet)
-}
-
-DetecTab2<-DetecTab2[order(DetecTab2$meantime),]
-
-#remove detections that do not fit min/max duration parameters  #
-DetecTab2$UniqueID<-NULL
-for(c in unique(DetecTab2$sound.files)){
-  Tab<-DetecTab2[which(DetecTab2$sound.files==c),]
-  for(f in 1:nrow(Tab)){
-    if((Tab[f,5]-Tab[f,4])>Maxdur|(Tab[f,5]-Tab[f,4])<Mindur){
-      Tab[f,16]<-1
     }
+    DetecTab2<-rbind(DetecTab2,CompareDet)
   }
-  DetecTab2<-DetecTab2[-which(DetecTab2$sound.files==c),]
-  DetecTab2<-rbind(DetecTab2,Tab)
-}
-
-DetecTab2<-DetecTab2[which(DetecTab2$remove==0),]
-
-DetecTab2$remove<-NULL
-
-#add information on original sound files and calculate time since file start
-if(whichRun==2){
-DetecTab2$File<-""
-DetecTab2$FileStartSec<-0
-DetecTab2$FileOffsetBegin<-0
-DetecTab2$FileOffsetEnd<-0
-DetecTab2$MoorStartSec<-0
-DetecTab2$MoorOffsetBegin<-0
-DetecTab2$MoorOffsetEnd<-0
-for(w in unique(DetecTab2$sound.files)){
-  print(paste("calculate file ID and begin time and end time relative to file for sound.files",w))
-  DetecVar<-DetecTab2[which(DetecTab2$sound.files==w),]
-  durVar<-durTab[which(durTab$CombSF==w),]
-  for(c in 1:nrow(DetecVar)){
-    index<-findInterval(DetecVar[c,14], c(0,durVar$CumDur))
-    DetecVar$File[c]<-as.character(durVar[index,2])
-    DetecVar$FileStartSec[c]<-durVar[index,4]-durVar[index,3]
-    DetecVar$MoorStartSec[c]<-durVar[index,7]-durVar[index,3]
-  }
-  DetecVar$FileOffsetBegin<-DetecVar$`Begin Time (s)`-DetecVar$FileStartSec
-  DetecVar$FileOffsetEnd<-DetecVar$`End Time (s)`-DetecVar$FileStartSec  
-  DetecVar$MoorOffsetBegin<-DetecVar$FileOffsetBegin+DetecVar$MoorStartSec
-  DetecVar$MoorOffsetEnd<-DetecVar$FileOffsetEnd+DetecVar$MoorStartSec  
-  DetecTab2<-DetecTab2[-which(DetecTab2$sound.files==w),]
-  DetecTab2<-rbind(DetecTab2,DetecVar)
-  
-}
-
-#DetecTab2$MoorStartSec<-0
-#DetecTab2$MoorOffsetBegin<-0
-#DetecTab2$MoorOffsetEnd<-0
-#for(w in unique(DetecTab2$Mooring)){
-#  print(paste("calculate file ID and begin time and end time relative to file for Mooring",w))
-#  DetecVar<-DetecTab2[which(DetecTab2$Mooring==w),]
-#  durVar<-durTab[which(durTab$Mooring==w),]
-#  for(c in 1:nrow(DetecVar)){
-#    index<-findInterval(DetecVar[c,14], c(0,durVar$MoorCumDur))
-#    DetecVar$MoorStartSec[c]<-durVar[index,7]-durVar[index,3]
-#  }
-#  DetecVar$MoorOffsetBegin<-DetecVar$`Begin Time (s)`+DetecVar$MoorStartSec
-#  DetecVar$MoorOffsetEnd<-DetecVar$`End Time (s)`+DetecVar$MoorStartSec  
-#  DetecTab2<-DetecTab2[-which(DetecTab2$Mooring==w),]
-#  DetecTab2<-rbind(DetecTab2,DetecVar)
-#  
-#}
-
-DetecTab2$FileStartSec<-NULL
-DetecTab2$MoorStartSec<-NULL
-
-}
-DetecTab2$Selection<-seq(1,nrow(DetecTab2))
-
-return(DetecTab2)
 }
 
 combineDecRaven<-function(){
@@ -2459,11 +2379,6 @@ combineDecRaven<-function(){
             combname<- paste(MoorInfo[m,10],".wav",sep="")
           }
           #run detector(s)
-          filePath<-filePathNoTemp
-          print(bigFile_breaks)
-          print(combname)
-          print(filePath)
-          print(b)
           resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
         }
       }
@@ -2579,34 +2494,64 @@ for(s in spec){
   resltsTabF<-rbind(resltsTabF,resltsTabS)
   
   #Save raven output 
-  write.csv(resltsTabS,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+  write.csv(resltsTabS,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = FALSE)
+  write.csv(MoorInfo,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGTMoorInfo.csv",sep=""),row.names = FALSE,col.names = FALSE)
+  
 }
   
-write.csv(resltsTabF,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = F)
+if(spec>1){
+write.csv(resltsTabF,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = FALSE)
+write.csv(MoorInfoMspec,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGTMoorInfo.csv",sep=""),row.names = F,col.names = FALSE)
+}
 
+MoorInfo<-MoorInfoMspec
+resltsTab<-resltsTabF
 
 }else{
-  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T))
+  
+  if(length(spec)==1){
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "GT.csv"))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   resltsTab<-read.csv(recentPath) #produces most recently modifed file 
+  
+  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  MoorInfo<-read.csv(recentPath) #produces most recently modifed file 
+  
+  
+  }else if(length(spec)>1){
+  recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "GT.csv"))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  resltsTab<-read.csv(recentPath) #produces most recently modifed file 
+  
+  recentTab<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
+  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+  MoorInfo<-read.csv(recentPath) #produces most recently modifed file 
+  
+  }
 
 }
 
 if(runProcessGT=="y"){
+
+#Combine and configure spread detectors. 
+DetecTab<-NULL
+for(s in spec){
   
-#path to ground truth table IN THE WRONG SPOT
+  loadSpecVars(s)
+
+  DetecTab<-rbind(DetecTab,process_data())
+  #resltsTab<-NULL
+
+  DetecTab$detectionType<-0
+
+}
+#path to ground truth table 
 GT<-list()
 for(f in 1:length(moorings)){
   GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",spec,"/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
   GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
 }
-  
-
-#Combine and configure spread detectors. 
-DetecTab2<-process_data(1)
-resltsTab<-NULL
-
-DetecTab2$detectionType<-0
 
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
