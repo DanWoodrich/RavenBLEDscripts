@@ -121,7 +121,83 @@ decimateData<-function(){
       
 }
 
-loadSpecVars<-function(spec)
+loadSpecVars<-function(whichSpec){
+  #save species variables in global environment
+  
+  #species specific
+  ParamsTab<-read.csv(paste(drivepath,"CallParams/",whichSpec,".csv",sep=""))
+  ParamsTab[,3]<-as.character(ParamsTab[,3])
+  
+  #Species specific 
+  #Signal manipulation
+  decimate<<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
+  decimationFactor<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
+  whiten<<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
+  FO<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
+  LMS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
+  Filtype<<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
+  
+  #Raven Detectors
+  spStart<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
+  spEnd<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
+  
+  #Context sim
+  greatcallThresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="greatcallThresh"),3])
+  maxBonus<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxBonus"),3])
+  goodcallBonus<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="goodcallBonus"),3]) 
+  maxPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxPenalty"),3] )
+  badcallPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
+  
+  #Model
+  CV<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
+  TPRthresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
+  modelType<<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
+  modelMethod<<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+  
+  #Detection Processing Spread (algo)
+  grpsize<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
+  allowedZeros<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="allowedZeros"),3]) 
+  detskip<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="detskip"),3] )
+  groupInt<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="groupInt"),3] )
+  Maxdur<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
+  Mindur<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
+  
+  #RW algo
+  if(whichSpec=="RW"){
+    downsweepCompMod<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
+    downsweepCompAdjust<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
+  }
+  
+  #GS algo
+  if(whichSpec=="GS"){
+    timesepGS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
+  }
+  
+  #Image analysis
+  ImgThresh<<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
+  
+  #adaptive Compare
+  timediffself<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
+  probdist<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
+  
+  #GT
+  if(runGT=="y"){
+    GTmoorings<<- str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE)
+    GTsf<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE)
+    GTpath<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTpath"),3],",",simplify=TRUE)
+    GTsourceFormat<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE)
+  }
+  
+  #NEW
+  if(runNEW=="y"){
+    NEWmoorings<<- str_split(ParamsTab[which(ParamsTab[,2]=="NEWmoorings"),3],",",simplify=TRUE)
+    NEWsf<<-str_split(ParamsTab[which(ParamsTab=="NEWsf"),3],",",simplify=TRUE)  
+    NEWpath<<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWpath"),3],",",simplify=TRUE)
+    NEWsourceFormat<<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
+  }
+  
+  write.csv(ParamsTab,paste(outputpath,runname,"/",whichSpec,".csv",sep=""),row.names = FALSE)
+}
 
 makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
   status<-sf=="full"
@@ -2211,77 +2287,7 @@ fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesi
 onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
 
 
-#species specific
-ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
-ParamsTab[,3]<-as.character(ParamsTab[,3])
 
-#Species specific 
-#Signal manipulation
-decimate<-ParamsTab[which(ParamsTab[,2]=="decimate"),3] 
-decimationFactor<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
-whiten<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
-FO<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
-LMS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
-Filtype<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
-
-#Raven Detectors
-spStart<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
-spEnd<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
-
-#Context sim
-greatcallThresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="greatcallThresh"),3])
-maxBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxBonus"),3])
-goodcallBonus<-as.numeric(ParamsTab[which(ParamsTab[,2]=="goodcallBonus"),3]) 
-maxPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxPenalty"),3] )
-badcallPenalty<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
-
-#Model
-CV<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
-TPRthresh<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
-modelType<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
-modelMethod<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
-
-#Detection Processing Spread (algo)
-grpsize<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
-allowedZeros<-as.numeric(ParamsTab[which(ParamsTab[,2]=="allowedZeros"),3]) 
-detskip<-as.numeric(ParamsTab[which(ParamsTab[,2]=="detskip"),3] )
-groupInt<-as.numeric(ParamsTab[which(ParamsTab[,2]=="groupInt"),3] )
-Maxdur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Maxdur"),3])
-Mindur<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Mindur"),3])
-
-#RW algo
-if(spec=="RW"){
-downsweepCompMod<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
-downsweepCompAdjust<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
-}
-
-#GS algo
-if(spec=="GS"){
-timesepGS<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
-}
-
-#Image analysis
-ImgThresh<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
-
-#adaptive Compare
-timediffself<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
-probdist<-as.numeric(ParamsTab[which(ParamsTab[,2]=="probdist"),3])
-
-#GT
-if(runGT=="y"){
-GTmoorings<- str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE)
-GTsf<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE)
-GTpath<-str_split(ParamsTab[which(ParamsTab[,2]=="GTpath"),3],",",simplify=TRUE)
-GTsourceFormat<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE)
-}
-
-#NEW
-if(runNEW=="y"){
-NEWmoorings<- str_split(ParamsTab[which(ParamsTab[,2]=="NEWmoorings"),3],",",simplify=TRUE)
-NEWsf<-str_split(ParamsTab[which(ParamsTab=="NEWsf"),3],",",simplify=TRUE)  
-NEWpath<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWpath"),3],",",simplify=TRUE)
-NEWsourceFormat<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
-}
 
 #############################
 
@@ -2302,7 +2308,6 @@ detlist2<-substr(detectorssprshort[1],1,3)
 detnum<-1
 
 ###########################make txt file of params for run:
-write.csv(ParamsTab,paste(outputpath,runname,"/",spec,".csv",sep=""),row.names = FALSE)
 write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
 
 ######################################Manipulate factors and calculate various things 
