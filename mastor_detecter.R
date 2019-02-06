@@ -121,6 +121,8 @@ decimateData<-function(){
       
 }
 
+loadSpecVars<-function(spec)
+
 makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
   status<-sf=="full"
   type<-rep("partial",length(sf))
@@ -2205,6 +2207,9 @@ runGTsections<-c("n","n","n")
 }
 runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),3] )
+fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize2ndIt"),3] )
+onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
+
 
 #species specific
 ParamsTab<-read.csv(paste(drivepath,"CallParams/",spec,".csv",sep=""))
@@ -2420,14 +2425,10 @@ for(m in 1:nrow(MoorInfo)){
     decimateData()
   }
   
-  if(length(sound_files)>fileCombinesize&length(sound_files)<fileCombinesize){
-    fileSizeInt<-fileCombinesize
-    iterate_SF<-1
-  }else if(length(sound_files)>=fileCombinesize){
-    fileSizeInt2<-length(sound_files)
+  if(length(sound_files)>=fileCombinesize){
     fileSizeInt<-fileCombinesize
     iterate_SF<-c(1,2)
-    fileSizeInt2<-(as.integer(floor(fileSizeInt2/fileCombinesize))) 
+    fileSizeInt2<-fileCombinesize2ndIt 
   }else{
     iterate_SF<-1
   }
@@ -2446,26 +2447,30 @@ for(m in 1:nrow(MoorInfo)){
       pathh<-startcombpath   
     }
     if(length(iterate_SF)>1){
+      filePathNoTemp<-pathh
       pathh<-paste(pathh,"/temp",sep="")
       pad<-sprintf("%02d",b)
       pad2<-paste("_files",bigFile_breaks[b],sep="")
     }else{
+      filePathNoTemp<-pathh
       pad<-""
       pad2<-""
     }
     filePath<-paste(pathh,whiten2,sep="/")
+    filePathNoTemp<-paste(filePathNoTemp,whiten2,sep="/")#look in final folder to see if SFiles is populated. 
     dir.create(filePath)
     combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
-    if(file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
-      durTab <-read.csv(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
+    if(file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+      durTab <-read.csv(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
       stopRun<-TRUE
-    }else if(!file.exists(paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+    }else if(!file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
       durTab<-sox.write(1)
       stopRun<-FALSE
     }
        
   }
   
+  did2<-FALSE
   #go through again if more than certain # of files 
   if(length(iterate_SF)>1&stopRun!=TRUE){
 
@@ -2505,34 +2510,39 @@ for(m in 1:nrow(MoorInfo)){
     unlink(paste(pathh,"/temp/",whiten2,sep=""),recursive=TRUE)
     durTab<-durTab2
     
+    did2<-TRUE
   }
   
+  if(onlyPopulate=="n"){
   for(b in 1:(length(bigFile_breaks)-1)){
-    if(length(bigFile_breaks)>2){
+    if(length(bigFile_breaks)>2&did2==TRUE){
     combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
     }else{
     combname<- paste(MoorInfo[m,10],".wav",sep="")
     }
     #run detector(s)
+    filePath<-filePathNoTemp
     resltsTab<-runRavenDetector()
   }
+  }
+  #write durtab to file
+  write.csv(durTab,paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""),row.names = F)
   
   }else if(whiten=="y"){
+    if(onlyPopulate=="y"){
+    stop("you cannot populate and whiten. First populate, then whiten in raven, then use whiten argument to specify you have whitened data")
+      }
     if(MoorInfo[m,7]=="HG_datasets"){
       filePath<-paste(startcombpath,MoorInfo[m,9],"/",whiten2,sep="")
     }else if(MoorInfo[m,7]=="Full_datasets"){
       filePath<-paste(startcombpath,"/",whiten2,sep="")   
     }  
-    for(i in intersect(list.files(paste(filePath,whiten2,sep="/"),pattern = paste(MoorInfo[m,10])), list.files(paste(filePath,whiten2,sep="/"),pattern = ".wav"))){
+    for(i in intersect(list.files(filePath,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
       combname<-i
     
       resltsTab<-runRavenDetector()
     }
-  }
   
-  #write durTab to file. 1st time run will set but will not modify durTab after in any case so no need for conditional
-  if(whiten=="n"){
-  write.csv(durTab,paste(filePath,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""),row.names = F)
   }
   
 }
