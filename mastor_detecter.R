@@ -195,6 +195,7 @@ loadSpecVars<-function(whichSpec){
     NEWpath<<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWpath"),3],",",simplify=TRUE)
     NEWsourceFormat<<-str_split(ParamsTab[which(ParamsTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
   }
+
   
   write.csv(ParamsTab,paste(outputpath,runname,"/",whichSpec,".csv",sep=""),row.names = FALSE)
   
@@ -220,6 +221,10 @@ loadSpecVars<-function(whichSpec){
     ravenView<<-"RW_Upcalls"
   }else if(whichSpec=="GS"){
     ravenView<<-"RW_GS"
+  }
+  
+  if(Decimate=="y"){
+    ravenView<<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
   }
   
   decimationSteps<<-prime.factor(decimationFactor)
@@ -931,7 +936,7 @@ stopCluster(cluz)
   Moddata<<-NULL
 }
 
-runRavenDetector<-function(m,filePath,combname){
+runRavenDetector<-function(m,filePath,combname,resltsTab){
   for(r in detectorssprshort){
     print(paste("Running detector for",MoorInfo[m,10]))
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
@@ -2288,7 +2293,6 @@ combineDecRaven<-function(){
   }
   
   if(Decimate=="y"){
-    ravenView<-paste(ravenView,"_",decimationFactor,"Decimate",sep="")
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
   
@@ -2456,7 +2460,11 @@ combineDecRaven<-function(){
           }
           #run detector(s)
           filePath<-filePathNoTemp
-          resltsTab<-rbind(resltsTab,runRavenDetector(m,filePath,combname))
+          print(bigFile_breaks)
+          print(combname)
+          print(filePath)
+          print(b)
+          resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
         }
       }
       #write durtab to file
@@ -2474,7 +2482,7 @@ combineDecRaven<-function(){
       for(i in intersect(list.files(filePath,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
         combname<-i
         
-        resltsTab<-rbind(resltsTab,runRavenDetector(m,filePath,combname))
+        resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
       }
       
     }
