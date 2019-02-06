@@ -91,7 +91,7 @@ lastFeature<-function(a,b){
 
 
 #decimate dataset. 
-decimateData<-function(){
+decimateData<-function(m,oldPath,sfpath){
   print(paste("decimate folder",oldPath))
   
   fstart<-MoorInfo[m,2]
@@ -537,11 +537,11 @@ GS_algo<-function(resltsTSPVmat,f){
 # }
 }
 
-sox.write<-function(numPass){
+sox.write<-function(numPass,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB){
 dir.create(paste(pathh,sep=""))
 print(paste("Creating file ",MoorInfo[m,10],"_",bigFile_breaks[b],sep=""))
 sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-durList<-duration_store(numPass)
+durList<-duration_store(numPass,m,sound_filesfullpathB,durTab,pad,pad2,sound_filesB)
 if(numPass==1){
   return(durList[[1]])
 }else if(numPass==2){
@@ -1237,7 +1237,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
 }
 
   
-duration_store<- function(numPass){
+duration_store<- function(numPass,m,sound_filesfullpathB,durTab,pad,pad2,sound_filesB){
   if(numPass==1){
   durVar<-NULL
   durVar<-data.frame(SFfp=character(),
@@ -2354,7 +2354,7 @@ combineDecRaven<-function(){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
           dir.create(sfpath)
         }
-        decimateData()
+        decimateData(m,oldPath,sfpath)
       }
       
       if(length(sound_files)>=fileCombinesize){
@@ -2396,7 +2396,7 @@ combineDecRaven<-function(){
           durTab <-read.csv(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
           stopRun<-TRUE
         }else if(!file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
-          durTab<-sox.write(1)
+          durTab<-sox.write(1,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB)
           stopRun<-FALSE
         }
         
@@ -2436,7 +2436,7 @@ combineDecRaven<-function(){
           }else if(length(bigFile_breaks)>2){
             combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
           }
-          durTab2<-sox.write(2)
+          durTab2<-sox.write(2,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB)
         }
         
         unlink(paste(pathh,"/temp/",whiten2,sep=""),recursive=TRUE)
