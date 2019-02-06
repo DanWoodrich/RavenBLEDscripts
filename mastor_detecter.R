@@ -906,10 +906,9 @@ runRavenDetector<-function(){
   for(r in detectorssprshort){
     print(paste("Running detector for",MoorInfo[m,10]))
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
-    resltVar$Mooring<-MoorInfo[m,10]
+    resltVar$MooringID<-MoorInfo[m,10]
+    resltVar$MooringName<-MoorInfo[m,1]
     resltVar$detector<-r
-    resltVar$detectorType<-"spread"
-    resltVar$detectorCount<-1
     resltVar$Species<-MoorInfo[m,9]
     if(is.null(nrow(resltVar))==FALSE){
       resltsTab<- rbind(resltsTab,resltVar)
@@ -2250,7 +2249,6 @@ return(DetecTab2)
 
 combineDecRaven<-function(){
   
-  resltsTab <- NULL
   #decimate and whiten are not 
   if(whiten=="y"){
     whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
@@ -2264,7 +2262,6 @@ combineDecRaven<-function(){
   }
   
   #run sound files:
-  resltsTab <- NULL
   decNeeded<-"n"
   for(m in 1:nrow(MoorInfo)){
     
@@ -2496,9 +2493,17 @@ fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),
 fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize2ndIt"),3] )
 onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
 
+###########################make txt file of params for run:
+write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
+
+##########
+
+resltsTab <- NULL
+MoorInfoMspec<-NULL
+#maybe species loop starting here? 
+
 #populate global env with species specific variables
 loadSpecVars(spec)
-
 
 #############################
 
@@ -2509,6 +2514,7 @@ monthOrder<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 #GT moorings
 
 MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,spec)
+MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
 
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
 dir.create(paste(outputpath,runname,sep=""))
@@ -2517,9 +2523,6 @@ detlist<-NULL
 detlist2<-substr(detectorssprshort[1],1,3)
 
 detnum<-1
-
-###########################make txt file of params for run:
-write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
 
 ######################################Manipulate factors and calculate various things 
 #set FO and LMS to NA if no whiten
