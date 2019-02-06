@@ -1895,6 +1895,9 @@ stopCluster(cluz)
 process_data<-function(){
 #Combine and configure spread detectors. 
 
+  #seperate by species
+resltsTab<-resltsTab[which(resltsTab$Species==s),]
+
 print(paste("Combining spread for"))
   
 for(e in unique(resltsTab$sound.files)){
@@ -1971,7 +1974,7 @@ for(e in unique(resltsTab$sound.files)){
 
     if(s=="RW"){
     resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% as.integer(wantedSelections)),]
-    }else if(spec=="GS"){
+    }else if(s=="GS"){
     wantedSelections<-t(wantedSelections)
     c=1
     for(u in 1:nrow(wantedSelections)-1){
@@ -2105,21 +2108,19 @@ for(e in unique(resltsTab$sound.files)){
         FileStartSec<-c()
         resltsTabFinal$FileOffsetBegin<-0
         resltsTabFinal$FileOffsetEnd<-0
-        for(w in unique(resltsTabFinal$sound.files)){
-          print(paste("calculate file ID and begin time and end time relative to file for sound.files",w))
-          resltsTFV<-resltsTabFinal[which(resltsTabFinal$sound.files==w),]
-          durVar<-durTab[which(durTab$CombSF==w),]
-          for(c in 1:nrow(resltsTFV)){
-            index<-findInterval(resltsTFV[c,14], c(0,durVar$CumDur))
-            resltsTFV$File[c]<-as.character(durVar[index,2])
-            FileStartSec[c]<-durVar[index,4]-durVar[index,3]
+        
+        resltsTabFinal<<-resltsTabFinal
+
+        print(paste("calculate file ID and begin time and end time relative to file for sound.file"))
+          for(c in 1:nrow(resltsTabFinal)){
+            index<-findInterval(resltsTabFinal[c,4], c(0,durTab$CumDur))
+            resltsTabFinal$File[c]<-as.character(durTab[index,2])
+            FileStartSec[c]<-durTab[index,4]-durTab[index,3]
           }
-          resltsTFV$FileOffsetBegin<-resltsTFV$`Begin Time (s)`-FileStartSec
-          resltsTFV$FileOffsetEnd<-resltsTFV$`End Time (s)`-FileStartSec  
-          resltsTabFinal<-resltsTabFinal[-which(resltsTabFinal$sound.files==w),]
-          resltsTabFinal<-rbind(resltsTabFinal,resltsTFV)
-          
-        }
+        resltsTabFinal$FileOffsetBegin<-resltsTabFinal$`Begin Time (s)`-FileStartSec
+        resltsTabFinal$FileOffsetEnd<-resltsTabFinal$`End Time (s)`-FileStartSec  
+        
+        #add real times! 
         
         resltsTabFinal$Selection<-seq(1,nrow(resltsTabFinal))
         
@@ -2128,7 +2129,7 @@ for(e in unique(resltsTab$sound.files)){
         
         resltsTabFinal<- resltsTabFinal[,1:7]
         
-        write.table(resltsTabFinal,paste(outputpath,runname,"/",resltsTabFinal$MooringID[1],"FINAL_Summary_spread_",substr(resltsVar$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        write.table(resltsTabFinal,paste(outputpath,runname,"/",resltsTabFinal$MooringID[1],"FINAL_Summary_spread_",substr(resltsTabFinal$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         
       }
   }
@@ -2543,9 +2544,12 @@ for(s in spec){
   DetecTab<-rbind(DetecTab,process_data())
   #resltsTab<-NULL
 
-  DetecTab$detectionType<-0
-
 }
+
+DetecTab$detectionType<-0
+
+stop()
+
 #path to ground truth table 
 GT<-list()
 for(f in 1:length(moorings)){
