@@ -37,6 +37,11 @@ library(Cairo)
 library(obliqueRF)
 library(fpc)
 
+substrRight <- function(x, n){
+  substr(x, nchar(x)-n+1, nchar(x))
+}
+
+
 varImpPlot_AVG <- function(x, sort=TRUE,
                        n.var=min(30, nrow(x)),
                        type=NULL, class=NULL, scale=TRUE, 
@@ -2109,7 +2114,7 @@ for(e in unique(resltsTab$sound.files)){
         resltsTabFinal$FileOffsetBegin<-0
         resltsTabFinal$FileOffsetEnd<-0
         
-        resltsTabFinal<<-resltsTabFinal
+        resltsTabFinal<-resltsTabFinal
 
         print(paste("calculate file ID and begin time and end time relative to file for sound.file"))
           for(c in 1:nrow(resltsTabFinal)){
@@ -2124,7 +2129,18 @@ for(e in unique(resltsTab$sound.files)){
         
         resltsTabFinal$Selection<-seq(1,nrow(resltsTabFinal))
         
+        RT<-substrRight(as.character(resltsTabFinal$File),19)
+        RT<-substr(RT,1,15)
+        RT<-strptime(RT,format='%Y%m%d_%H%M%S')
+        
+        resltsTabFinal$RTfile<-RT
+        resltsTabFinal$RTb<-RT+resltsTabFinal$FileOffsetBegin
+        resltsTabFinal$RTe<-RT+resltsTabFinal$FileOffsetEnd #these are storing fractional times, just doesn't display it in the current format
+        
+        
         ###
+        resltsTabFinal$Species<-s
+        
         DetecTab<- rbind(DetecTab,resltsTabFinal)
         
         resltsTabFinal<- resltsTabFinal[,1:7]
@@ -2135,7 +2151,6 @@ for(e in unique(resltsTab$sound.files)){
   }
 
 ############
-
 return(DetecTab)
 }
 
