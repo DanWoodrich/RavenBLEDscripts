@@ -2131,12 +2131,11 @@ for(e in unique(resltsTab$sound.files)){
         
         RT<-substrRight(as.character(resltsTabFinal$File),19)
         RT<-substr(RT,1,15)
-        RT<-strptime(RT,format='%Y%m%d_%H%M%S')
+        RT<-strptime(RT,format='%Y%m%d_%H%M%S',tz="UTC")
         
         resltsTabFinal$RTfile<-RT
         resltsTabFinal$RTb<-RT+resltsTabFinal$FileOffsetBegin
         resltsTabFinal$RTe<-RT+resltsTabFinal$FileOffsetEnd #these are storing fractional times, just doesn't display it in the current format
-        
         
         ###
         resltsTabFinal$Species<-s
@@ -2474,11 +2473,6 @@ dir.create(paste(outputpath,runname,sep=""))
 ###########################make txt file of params for run:
 write.csv(ControlTab,paste(outputpath,runname,"/Detector_control.csv",sep=""),row.names = FALSE)
 
-#####################maybe need later
-#monthOrder<-c("Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec")
-#make moorlib
-#GT moorings
-
 ################Script function
 
 if(runGT=="y"){
@@ -2561,18 +2555,28 @@ for(s in spec){
 
 }
 
+#depending on how RF handles multiple species classification- add step here that isolates boxes with overlap between species and allows them to be treated differently
+
 DetecTab$detectionType<-0
 
-stop()
+stop("yeah")
 
-#path to ground truth table 
+#assess accuracy compared to GT 
+
+for(s in spec){
 GT<-list()
-for(f in 1:length(moorings)){
-  GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",spec,"/",moorings[f],"Sum/",moorings[f],"_All.txt",sep=""))
-  GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
+DetecTab2<-DetecTab[which(DetecTab$Species==s),]
+for(f in 1:length(unique(DetecTab2$MooringName))){
+  DetecVar<-DetecTab2[which(DetecTab2$MooringName==sort(unique(DetecTab2$MooringName))[f]),]
+  for(g in 1:length(sort(unique(DetecVar$MooringName)))){
+    GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",sort(unique(DetecVar$MooringName))[f],"Sum/",sort(unique(DetecVar$MooringID))[g],".txt",sep=""))
+    GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
+  }
 }
 
-#Define table for later excel file export. 
+#Define table for later excel file export.
+
+
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
@@ -2580,14 +2584,11 @@ detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName,
   GTtot2=NULL
   TPtot=NULL
   MoorCor=NULL
-for(v in 1:length(unique(DetecTab2$Mooring))){
-  print(paste("Comparing ground truth of",sort(unique(DetecTab2$Mooring))[v],"with final detector"))   
-  MoorVar<-DetecTab2[which(DetecTab2$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
+for(v in 1:length(unique(DetecTab2$MooringID))){
+  print(paste("Comparing ground truth of",sort(unique(DetecTab2$MooringID))[v],"with final detector"))   
+  MoorVar<-DetecTab2[which(DetecTab2$MooringID==sort(unique(DetecTab2$MooringID))[v]),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
-  #this table is mostly buggy and useless in its stats 
-  write.csv(MoorVar,paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Info",".csv",sep=""),quote=FALSE,row.names=FALSE)
-  #useable table to evaluate just results of combined detectors. 
-  write.table(MoorVar[,1:7],paste(outputpath,runname,"/",MoorVar[1,12],"_Summary_",dettype,"_Ravenformat",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
   
   #Define useful comlumns in both MoorVar and GT
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
@@ -2607,15 +2608,16 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   OutputCompare2 <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),meantime, detection type", colClasses = colClasses)
   colnames(OutputCompare2)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   
+  OutputCompare<-MoorVar[1,]
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
-    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+3)&GT[[v]]$meantime>(MoorVar$meantime[h]-3))
+    gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+Maxdur+1)&GT[[v]]$meantime>(MoorVar$meantime[h]-Maxdur-1))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if((MoorVar[h,14]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])|(GT[[v]][g,8]>MoorVar[h,4] & GT[[v]][g,8]<MoorVar[h,5])){
-        OutputCompare[p,]<-MoorVar[h,c(1:7,14,16)]
-        OutputCompare[p,9]<-"TP"
+      if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
+        OutputCompare[p,]<-MoorVar[h,]
+        OutputCompare$detectionType<-"TP"
         p=p+1
       }
     }
@@ -2661,27 +2663,6 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   OutputCompare <- subset(OutputCompare,detectionType!="x")
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   
-  #compare detections to sources of interference
-  if(interfere=="y"){
-    for(n in 1:max(resltsTabInt$detectorCount)){
-      MoorInt<-resltsTabInt[which(resltsTabInt$Mooring==sort(unique(DetecTab2$Mooring))[v]),]
-      OutputCompare[,n+9]<-0
-      colnames(OutputCompare)[length(OutputCompare)]<-paste(resltsTabInt[which(resltsTabInt$detectorCount==n),10])[1]
-      MoorInt<-MoorInt[which(MoorInt$detectorCount==n),]
-      print(paste("       Compare with detector",MoorInt[1,10]))   
-      for(g in 1:nrow(OutputCompare)){
-        hvec <- which(MoorInt$meantime<(OutputCompare$meantime[g]+2)&MoorInt$meantime>(OutputCompare$meantime[g]-2))
-        if(length(hvec)>0){
-        for(h in min(hvec):max(hvec)){
-          if((MoorInt[h,4]<OutputCompare[g,8] & MoorInt[h,5]>OutputCompare[g,8])|(MoorInt[h,4]>OutputCompare[g,4] & MoorInt[h,5]<OutputCompare[g,5])){
-            OutputCompare[g,n+9]<-1
-          }
-        }
-        }
-        }
-      }
-    }
-  
   #Ready table for Raven and save. 
   colnames(OutputCompare)[8]<-'TP/FP/FN'
   OutputCompareRav<- OutputCompare[,-8]
@@ -2690,15 +2671,10 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   OutputCompareRav$Selection<-seq(1:nrow(OutputCompareRav))
   write.table(OutputCompareRav,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
 
-  OutputCompareRF<- OutputCompare[,-8]
-  OutputCompareRF$Selection<-seq(1:nrow(OutputCompareRF))
-  write.table(OutputCompareRF,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_RF.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-  
   OutputCompare<- OutputCompare[,-8]
   OutputCompare<- OutputCompare[,1:8]
 
   }else{
-    write.table("There were no true positive detections for this mooring",paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     
   }
   
@@ -2711,7 +2687,7 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
 
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
-  MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
+  MoorCor<-c(MoorCor,sort(unique(DetecTab2$MooringID))[v])
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
   TPhitRate <- numTP/numTPtruth*100
@@ -2721,9 +2697,9 @@ for(v in 1:length(unique(DetecTab2$Mooring))){
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$Mooring))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
@@ -2764,22 +2740,7 @@ DetecTab2<-NULL
 
 beep(10)
 ###################
-#MAYBE TEMPORARY- Save dataset for next steps so don't have to rerun after crash
 
-#write.csv(DetecTab2,paste(outputpath,"DetecTab2.csv",sep=""),row.names=FALSE)
-
-
-###################
-
-###############################################
-
-
-#RUN RANDOM FOREST MODEL 
-
-
-#################
-
-################################################
 runname<-runname
 spec<-spec
 #Which data would you like to evaluate?
@@ -2884,6 +2845,8 @@ write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.
 GTset<-GTset[,c(1,2,5,6,7,8,9:ncol(GTset))]
 GTset<-data.frame(GTset)
 
+}
+
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -2900,6 +2863,14 @@ GTset<-data.frame(GTset)
   moorlib<-cbind(seq(1,length(unique(GTset$`soundfiles[n]`)),1),as.character(sort(unique(GTset$`soundfiles[n]`))),seq(1,length(unique(GTset$`soundfiles[n]`)),1))
 
 }
+
+###############################################
+
+
+#RUN TEST RANDOM FOREST MODEL 
+
+
+#################
 
 if(runTestModel=="y"){
   
