@@ -2559,9 +2559,9 @@ for(s in spec){
 
 DetecTab$detectionType<-0
 
-stop("yeah")
-
 #assess accuracy compared to GT 
+
+GTset=NULL
 
 for(s in spec){
 GT<-list()
@@ -2587,8 +2587,8 @@ detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName,
 for(v in 1:length(unique(DetecTab2$MooringID))){
   print(paste("Comparing ground truth of",sort(unique(DetecTab2$MooringID))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$MooringID==sort(unique(DetecTab2$MooringID))[v]),]
-  MoorVar$Selection<-seq(1:nrow(MoorVar))
   MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
+  MoorVar$Selection<-seq(1:nrow(MoorVar))
   
   #Define useful comlumns in both MoorVar and GT
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
@@ -2608,15 +2608,14 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   OutputCompare2 <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),meantime, detection type", colClasses = colClasses)
   colnames(OutputCompare2)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   
-  OutputCompare<-MoorVar[1,]
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
   for(h in 1:nrow(MoorVar)){
     gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+Maxdur+1)&GT[[v]]$meantime>(MoorVar$meantime[h]-Maxdur-1))
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
-      if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar[h,14]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
-        OutputCompare[p,]<-MoorVar[h,]
+      if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
+        OutputCompare[p,]<-MoorVar[h,c(1:7,18,19)]
         OutputCompare$detectionType<-"TP"
         p=p+1
       }
@@ -2625,20 +2624,19 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   }
   #remove duplicates:
   OutputCompare<-OutputCompare[which(!duplicated(OutputCompare$Selection)),]
+
   
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
-  if(nrow(OutputCompare)>0){
-  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,14,16)])
+  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,18,19)])
   OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
-  }
   
   #Add rows where GT meantime was in between 
   p=1
   for(h in 1:nrow(GT[[v]])){
-    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+3)&MoorVar$meantime>(GT[[v]]$meantime[h]-3))
+    gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+Maxdur+1)&MoorVar$meantime>(GT[[v]]$meantime[h]-Maxdur-1))
     if(length(gvec)>0){
       for(g in min(gvec):max(gvec)){
-        if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar[g,14]>GT[[v]][h,4]) & (MoorVar[g,14]<GT[[v]][h,5]))){
+        if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar$meantime[g]>GT[[v]][h,4]) & (MoorVar$meantime[g]<GT[[v]][h,5]))){
           OutputCompare2[p,]<-GT[[v]][h,]
           OutputCompare2[p,9]<-"TP truth"
           p=p+1
@@ -2651,11 +2649,11 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   
   
   #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
-  if(nrow(OutputCompare2)>0){
   OutputCompare2 <- rbind(OutputCompare2,GT[[v]][-which(GT[[v]]$Selection %in% OutputCompare2$Selection),])
   OutputCompare2[which(OutputCompare2$detectionType!="TP truth"),9]<-"FN"
   
-  #Combine tables and remove GT TPs from dataset. 
+  #Combine tables and remove GT TPs from dataset. Save TPs in other vector 
+  TPFPs<-OutputCompare$detectionType
   OutputCompare<-rbind(OutputCompare,OutputCompare2)
   OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
   OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
@@ -2665,19 +2663,11 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   
   #Ready table for Raven and save. 
   colnames(OutputCompare)[8]<-'TP/FP/FN'
-  OutputCompareRav<- OutputCompare[,-8]
-  OutputCompareRav<- OutputCompareRav[,1:8]
-  
-  OutputCompareRav$Selection<-seq(1:nrow(OutputCompareRav))
-  write.table(OutputCompareRav,paste(outputpath,runname,"/",MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-
   OutputCompare<- OutputCompare[,-8]
   OutputCompare<- OutputCompare[,1:8]
-
-  }else{
-    
-  }
   
+  OutputCompare$Selection<-seq(1:nrow(OutputCompare))
+  write.table(OutputCompare,paste(outputpath,runname,"/",s,MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   #Make summary table of statistics for table comparison. 
   numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
@@ -2696,20 +2686,15 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-  }else{
-    detecEval[1,]<-c(spec,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
-  }
+  detecEval[1,]<-c(s,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
-  png(paste(outputpath,runname,"/",MoorVar[1,12],"_Distribution.png",sep =""), width = 600, height = 300)
-  hist(MoorVar$meantime,main=paste(MoorVar[1,12],"Detections"))
-  dev.off()
+  MoorVar$detectionType<-TPFPs
   
-  png(paste(outputpath,runname,"/",MoorVar[1,12],"_GTDistribution.png",sep =""), width = 600, height = 300)
-  hist(GT[[v]]$meantime,main=paste(MoorVar[1,12],"Ground Truth Detections"))
-  dev.off()
+  
+  #combine all data:
+  
+  GTset<-rbind(GTset,MoorVar)
 }
 
 #Make summary table of whole run statistics for table comparison. 
@@ -2724,11 +2709,8 @@ TPdivFP<- numTP/numFP
 
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
-if(dettype=="spread"|dettype=="combined"){
-  detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-  }else{
-detecEval[1,]<-c(spec,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
-  }
+detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
 detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -2736,58 +2718,14 @@ detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
 
 write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 
-DetecTab2<-NULL
-
-beep(10)
 ###################
 
-runname<-runname
-spec<-spec
-#Which data would you like to evaluate?
-#species
-#yminn<-0 #for spec plotting. Should be the same as detector window preset
-#ymaxx<-1000 #" "
+}
+stop("yeah")
+
 
 #define this table to compare counts after running model
 TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
-
-detfiles<-list.files(paste(drivepath,"DetectorRunOutput/",runname,sep=""),pattern = "RF")  
-
-#extract mooring names from moorings used in run
-mooringpat=NULL
-for(n in 1:length(detfiles)){
-  mooringpat<-c(mooringpat,substr(detfiles[n],1,11))
-}
-
-if(whiten=="y"){
-  soundfile<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
-}else{
-  soundfile<-"No_whiten"
-}
-
-if(Decimate=="y"){
-  soundfile<-paste(soundfile,"_decimate_by_",decimationFactor,sep="")
-}
-
-#only choose soundfiles that match those used in run
-soundfiles<-NULL
-for(n in 1:length(dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep="")))){
-  if(substr(dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep=""))[n],1,11) %in% mooringpat){
-    soundfiles<-c(soundfiles,dir(paste(drivepath,"Combined_sound_files/",spec,"/",soundfile,sep=""))[n])
-  }
-}
-
-#make sure they are in same order
-soundfiles<-sort(soundfiles)
-detfiles<-sort(detfiles)
-
-
-GTset=NULL
-for(n in 1:length(detfiles)){
-  data<-read.csv(paste(drivepath,"DetectorRunOutput/",runname,"/",detfiles[n],sep=""), sep = "\t")
-  data<-cbind(soundfiles[n],GTset)
-  GTset<-rbind(GTset,data)
-}
 
 #translate response to binary 
 GTset$detectionType<- as.character(GTset$detectionType)
@@ -2795,20 +2733,10 @@ GTset[which(GTset$detectionType=="TP"),9]<-1
 GTset[which(GTset$detectionType=="FP"),9]<-0
 GTset[which(GTset$detectionType=="FN"),9]<-2
 
-#remove FN from GTset
-GTset<-GTset[which(GTset$detectionType==0|GTset$detectionType==1),]
-GTset$detectionType<-as.numeric(GTset$detectionType)
-GTset$Low.Freq..Hz.<-as.numeric(GTset$Low.Freq..Hz.)
-GTset$High.Freq..Hz.<-as.numeric(GTset$High.Freq..Hz.)
-GTset$Begin.Time..s.<-as.numeric(GTset$Begin.Time..s.)
-GTset$End.Time..s.<-as.numeric(GTset$End.Time..s.)
-
-
 #######1 mooring test######
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
 #add frequency stats to GTset 
-GTset$meanfreq<- (GTset$Low.Freq..Hz.+GTset$High.Freq..Hz.)/2
 GTset$freqrange<- (GTset$High.Freq..Hz.-GTset$Low.Freq..Hz.)
 GTset$meantime<- (GTset$Begin.Time..s.+GTset$End.Time..s.)/2
 
@@ -2844,8 +2772,6 @@ write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.
 
 GTset<-GTset[,c(1,2,5,6,7,8,9:ncol(GTset))]
 GTset<-data.frame(GTset)
-
-}
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
