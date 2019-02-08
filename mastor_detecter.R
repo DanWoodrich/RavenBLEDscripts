@@ -2388,14 +2388,13 @@ combineDecRaven<-function(){
       
       if(onlyPopulate=="n"){
         for(b in 1:(length(bigFile_breaks)-1)){
-          if(length(bigFile_breaks)>2&did2==TRUE){
+          if(length(bigFile_breaks)>=2&did2==TRUE){
             combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
           }else{
             combname<- paste(MoorInfo[m,10],".wav",sep="")
           }
           #run detector(s)
-          print(paste(m,filePath,combname,resltsTab))
-          resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
+          resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
         }
       }
       #write durtab to file
@@ -2410,10 +2409,10 @@ combineDecRaven<-function(){
       }else if(MoorInfo[m,7]=="Full_datasets"){
         filePath<-paste(startcombpath,"/",whiten2,sep="")   
       }  
-      for(i in intersect(list.files(filePath,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
+      for(i in intersect(list.files(filePathNoTemp,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
         combname<-i
         
-        resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
+        resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
       }
       
     }
