@@ -1283,11 +1283,11 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,libb,whichRun,count){
+spectral_features<- function(specdata,libb,Info,count){
   
   specdata<<-specdata
   libb<<-libb
-  whichRun<<-whichRun
+  MoorInfo<<-MoorInfo
   
   specpath<<-NULL
   specTab<<-NULL
@@ -1898,6 +1898,8 @@ stopCluster(cluz)
 }
 
 process_data<-function(){
+  
+  allRSTF<-NULL
 #Combine and configure spread detectors. 
 
   #seperate by species
@@ -2140,9 +2142,7 @@ for(e in unique(resltsTab$sound.files)){
         ###
         resltsTabFinal$Species<-s
         
-        DetecTab<- rbind(DetecTab,resltsTabFinal)
-        
-        resltsTabFinal<- resltsTabFinal[,1:7]
+        allRSTF<- rbind(allRSTF,resltsTabFinal)
         
         write.table(resltsTabFinal,paste(outputpath,runname,"/",resltsTabFinal$MooringID[1],"FINAL_Summary_spread_",substr(resltsTabFinal$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         
@@ -2150,7 +2150,7 @@ for(e in unique(resltsTab$sound.files)){
   }
 
 ############
-return(DetecTab)
+return(allRSTF)
 }
 
 combineSpeciesDetections<-function(){
@@ -2394,6 +2394,7 @@ combineDecRaven<-function(){
             combname<- paste(MoorInfo[m,10],".wav",sep="")
           }
           #run detector(s)
+          print(paste(m,filePath,combname,resltsTab))
           resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
         }
       }
@@ -2667,7 +2668,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   OutputCompare<- OutputCompare[,1:8]
   
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
-  write.table(OutputCompare,paste(outputpath,runname,"/",s,MoorVar[1,12],OutputCompare$Mooring[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  write.table(OutputCompare,paste(outputpath,runname,"/",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
   #Make summary table of statistics for table comparison. 
   numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
@@ -2703,6 +2704,10 @@ numFN <- sum(as.numeric(detecEvalFinal[,8]))
 numFP <- sum(as.numeric(detecEvalFinal[,7]))
 numTPtruth<- GTtot
 
+TPtot<-c(TPtot,numTP)
+MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
+GTtot2<-c(GTtot2,nrow(GT[[v]]))
+
 TPhitRate <- numTP/numTPtruth*100
 TPR <- numTP/(numTP+numFN)
 TPdivFP<- numTP/numFP
@@ -2729,38 +2734,31 @@ TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
 
 #translate response to binary 
 GTset$detectionType<- as.character(GTset$detectionType)
-GTset[which(GTset$detectionType=="TP"),9]<-1
-GTset[which(GTset$detectionType=="FP"),9]<-0
-GTset[which(GTset$detectionType=="FN"),9]<-2
+GTset[which(GTset$detectionType=="TP"),which(colnames(GTset)=="detectionType")]<-1
+GTset[which(GTset$detectionType=="FP"),which(colnames(GTset)=="detectionType")]<-0
+GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<-2
 
 #######1 mooring test######
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
 #add frequency stats to GTset 
-GTset$freqrange<- (GTset$High.Freq..Hz.-GTset$Low.Freq..Hz.)
-GTset$meantime<- (GTset$Begin.Time..s.+GTset$End.Time..s.)/2
+GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
+GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
+GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 
 #make interference columns into factors
-if(length(GTset)>12){
-  for(n in 13:length(GTset)){
-    GTset[,n]<-as.factor(GTset[,n])
-  }
-}
+
 GTset$Selection<-seq(1,nrow(GTset))
-
-#temporary: to see how well RF works for longer GS
-#GTset<-GTset[which((GTset[,6]-GTset[,5])>=0.5),]
-
-#TEMPORARY TO DEBUG, REMOVE
-#GTset<-splitdf(GTset,weight = 1/4)[[1]]
 
 #"vectorize" GTset frame. 
 
-dataMat<- data.matrix(GTset[,c(1,5,6,7,8)])
-moorlib<-cbind(seq(1,length(unique(GTset$`soundfiles[n]`)),1),as.character(sort(unique(GTset$`soundfiles[n]`))),seq(1,length(unique(GTset$`soundfiles[n]`)),1))
+dataMat<- data.matrix(GTset[,c(1,4:7)])
+aggregate(GTset$MooringID~GTset$MooringName,FUN=unique)
+moorlib<-cbind(seq(1,length(unique(GTset$MooringID)),1),as.character(unique(GTset$MooringID)))
+moorlib<-cbind(moorlib,GTset[which(GTset$MooringID==moorlib[,2]),])
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,moorlib,1,1)
+dataMat<-spectral_features(dataMat,moorlib,MoorInfo,1)
 
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
