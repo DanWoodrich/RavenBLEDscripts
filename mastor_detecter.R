@@ -177,6 +177,9 @@ loadSpecVars<-function(whichSpec){
   #GS algo
   if(whichSpec=="GS"){
     timesepGS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
+    downsweepCompMod<<-NULL #placeholder so that I can export variable for parallel 
+    downsweepCompAdjust<<-NULL #placeholder so that I can export variable for parallel 
+    
   }
   
   #Image analysis
@@ -2116,12 +2119,11 @@ for(e in unique(resltsTab$sound.files)){
         resltsTabFinal$FileOffsetBegin<-0
         resltsTabFinal$FileOffsetEnd<-0
         
-        resltsTabFinal<-resltsTabFinal
-
         print(paste("calculate file ID and begin time and end time relative to file for sound.file"))
           for(c in 1:nrow(resltsTabFinal)){
             index<-findInterval(resltsTabFinal[c,4], c(0,durTab$CumDur))
             resltsTabFinal$File[c]<-as.character(durTab[index,2])
+            durations<-durTab[index,3]
             FileStartSec[c]<-durTab[index,4]-durTab[index,3]
           }
         resltsTabFinal$FileOffsetBegin<-resltsTabFinal$`Begin Time (s)`-FileStartSec
@@ -2141,6 +2143,10 @@ for(e in unique(resltsTab$sound.files)){
         
         ###
         resltsTabFinal$Species<-s
+        resltsTabFinal$RTFb<-RT
+        resltsTabFinal$RTFe<-RT+durations
+        #for HG,
+          
         
         allRSTF<- rbind(allRSTF,resltsTabFinal)
         
@@ -2346,7 +2352,6 @@ combineDecRaven<-function(){
       did2<-FALSE
       #go through again if more than certain # of files 
       if(length(iterate_SF)>1&stopRun!=TRUE){
-        
         sfpath<-filePath
         
         sound_files <- dir(sfpath,pattern=".wav")
@@ -2384,11 +2389,16 @@ combineDecRaven<-function(){
         durTab<-durTab2
         
         did2<-TRUE
+        
+      }
+      
+      if(did2==FALSE&length(bigFile_breaks)>2){
+        bigFile_breaks<-c(1,fileCombinesize) #if data is able to be combined in 1 file and ran again it will not update bF_b so this is a fix 
       }
       
       if(onlyPopulate=="n"){
         for(b in 1:(length(bigFile_breaks)-1)){
-          if(length(bigFile_breaks)>=2&did2==TRUE){
+          if(length(bigFile_breaks)>2&did2==TRUE){
             combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
           }else{
             combname<- paste(MoorInfo[m,10],".wav",sep="")
