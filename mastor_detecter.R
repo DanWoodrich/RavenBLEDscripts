@@ -1299,7 +1299,7 @@ for(m in moors){
   
   specVar<<-NULL
     
-  if(whichRun==1){
+  if(Info[m,7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
@@ -2132,13 +2132,12 @@ for(e in unique(resltsTab$sound.files)){
         RT<-strptime(RT,format='%Y%m%d_%H%M%S',tz="UTC")
         
         resltsTabFinal$RTfile<-RT
-        resltsTabFinal$RTb<-RT+resltsTabFinal$FileOffsetBegin
-        resltsTabFinal$RTe<-RT+resltsTabFinal$FileOffsetEnd #these are storing fractional times, just doesn't display it in the current format
+        resltsTabFinal$RTFb<-RT
+        resltsTabFinal$RTFe<-RT+durations
         
         ###
         resltsTabFinal$Species<-s
-        resltsTabFinal$RTFb<-RT
-        resltsTabFinal$RTFe<-RT+durations
+
         #for HG,
           
         
@@ -2578,11 +2577,13 @@ GTset=NULL
 for(s in spec){
 GT<-list()
 DetecTab2<-DetecTab[which(DetecTab$Species==s),]
+p=1
 for(f in 1:length(unique(DetecTab2$MooringName))){
   DetecVar<-DetecTab2[which(DetecTab2$MooringName==sort(unique(DetecTab2$MooringName))[f]),]
-  for(g in 1:length(sort(unique(DetecVar$MooringName)))){
-    GT[[f]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",sort(unique(DetecVar$MooringName))[f],"Sum/",sort(unique(DetecVar$MooringID))[g],".txt",sep=""))
-    GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
+  for(g in 1:length(sort(unique(DetecVar$MooringID)))){
+    GT[[p]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",sort(unique(DetecVar$MooringID))[g],".txt",sep=""))
+    GT[[p]] <- GT[[p]][GT[[p]]$View=="Spectrogram 1",]
+    p=p+1
   }
 }
 
@@ -2698,7 +2699,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -2715,17 +2716,13 @@ numFN <- sum(as.numeric(detecEvalFinal[,8]))
 numFP <- sum(as.numeric(detecEvalFinal[,7]))
 numTPtruth<- GTtot
 
-TPtot<-c(TPtot,numTP)
-MoorCor<-c(MoorCor,sort(unique(DetecTab2$Mooring))[v])
-GTtot2<-c(GTtot2,nrow(GT[[v]]))
-
 TPhitRate <- numTP/numTPtruth*100
 TPR <- numTP/(numTP+numFN)
 TPdivFP<- numTP/numFP
 
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
-detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
@@ -2764,9 +2761,8 @@ GTset$Selection<-seq(1,nrow(GTset))
 #"vectorize" GTset frame. 
 
 dataMat<- data.matrix(GTset[,c(1,4:7)])
-aggregate(GTset$MooringID~GTset$MooringName,FUN=unique)
-moorlib<-cbind(seq(1,length(unique(GTset$MooringID)),1),as.character(unique(GTset$MooringID)))
-moorlib<-cbind(moorlib,GTset[which(GTset$MooringID==moorlib[,2]),])
+
+moorlib<-cbind(seq(1,length(unique(GTset$MooringID)),1),as.character(unique(GTset$MooringID)),aggregate(GTset$MooringName~GTset$MooringID,FUN=unique)[,2])
 print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat,moorlib,MoorInfo,1)
@@ -2941,6 +2937,8 @@ for(s in spec){
   }
   
   DetecTab$detectionType<-0
+  
+  #print table that has buffer to allow for easily playing shorter GS
   
 stop()
 }
