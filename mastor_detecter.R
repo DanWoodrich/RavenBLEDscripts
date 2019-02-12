@@ -1304,6 +1304,10 @@ for(m in 1:length(moors)){
       specpath<<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
     }
     
+    if(Decimate=="y"){
+      specpath<-paste(specpath,"_decimate_by_",decimationFactor,sep="")
+    }
+    
     if(is.null(nrow(specdata))){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,63))
@@ -1311,7 +1315,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% MoorInfo[m,10]),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,4]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1338,7 +1342,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% MoorInfo[m,10]),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,4]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1346,11 +1350,6 @@ for(m in 1:length(moors)){
       
     }
     
-  }
-  
-  
-  if(Decimate=="y"){
-    specpath<<-paste(specpath,"_decimate_by_",decimationFactor,"/",sep="")
   }
   
   if(noPar==FALSE){
@@ -1399,17 +1398,17 @@ specTab<<-rbind(specTab,specVar)
 specDo<-function(z,featList,specpathh){
   
   #store reused calculations to avoid indexing 
-  Start<-specList[2]
-  End<-  specList[3]
+  Start<-featList[2]
+  End<-  featList[3]
   if(End-Start<0.1){
     End<-End+(0.9-(End-Start))
     Start<-Start-0.1
     
   }
-  Low<-specList[4]
-  High<-specList[5]
+  Low<-featList[4]
+  High<-featList[5]
   
-  foo <-readWave(paste(specpathh,MoorInfo[which(featList[1]==MoorInfo[4]),4],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpathh,MoorInfo[which(featList[1]==as.factor(MoorInfo[m,4])),4],sep=""),Start,End,units="seconds")
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -2478,10 +2477,11 @@ GTset$Selection<-seq(1,nrow(GTset))
 
 #"vectorize" GTset frame. 
 
-dataMat<- data.matrix(GTset[,c(1,4:7)])
+GTset$sound.files<-as.factor(GTset$sound.files)
+dataMat<- data.matrix(GTset[,c(10,4:7)])
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,MoorInfo,1)
+dataMat<-spectral_features(dataMat,1)
 
 stop("yeah")
 
