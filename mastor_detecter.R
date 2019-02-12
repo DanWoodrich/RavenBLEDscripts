@@ -820,9 +820,9 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
   
 }
 
-process_model<-function(stuff2,Moddata2,whichRun){
+process_model<-function(stuff2,Moddata2){
 
-  if(whichRun==1){
+  if(length(unique(Moddata$detectionType))==2){
   
   if(modelType=="rf"){
   giniTab<-data.frame(stuff2[[1]][2])
@@ -870,18 +870,14 @@ process_model<-function(stuff2,Moddata2,whichRun){
   Moddata2$probstderr<-probstderr
   Moddata2$n<-n
   
-  if(any(is.na(probmean))){
-    Moddata2<-Moddata2[-which(is.na(Moddata2$probmean)),]
-  }
-  
   return(list(Moddata2,CUTmean))
 }
 
-runObliqueRandomForest<-function(Moddata,whichRun,method){
+runObliqueRandomForest<-function(Moddata,method){
   
   Moddata<<-Moddata
   
-  if(whichRun=="1"){
+  if(length(unique(Moddata$detectionType))==2){
     
     #appears oblique RF only supports binary classification and doesn't allow formula style input. Need to take row I don't want to be predictors out before fitting model. 
     
@@ -934,7 +930,7 @@ stopCluster(cluz)
    #do other one (need up update full mooring on this)
 }
   
-  stuff<-process_model(stuff,Moddata,1)
+  stuff<-process_model(stuff,Moddata)
   return(stuff)
   Moddata<<-NULL
 }
@@ -955,11 +951,11 @@ runRavenDetector<-function(m,filePath,combname,resltsTab){
   return(resltsTab)
 }
 
-runRandomForest<-function(Moddata,whichRun){
+runRandomForest<-function(Moddata){
   
   Moddata<<-Moddata
     
-if(whichRun=="1"){
+if(length(unique(Moddata$detectionType))==2){
 
   print(paste("creating random forest models with CV",CV))
 
@@ -1001,7 +997,7 @@ stopCluster(cluz)
   
   #do other one (need up update full mooring on this)
 }
-  stuff<-process_model(stuff,Moddata,1)
+  stuff<-process_model(stuff,Moddat)
   return(stuff)
   Moddata<<-NULL
 }
@@ -1296,7 +1292,9 @@ spectral_features<- function(specdata,count){
 for(m in 1:length(moors)){
   
   specVar<<-NULL
-    
+  whiten2<<-NULL
+  specpath<<-NULL
+  
   if(MoorInfo[m,7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
@@ -1305,7 +1303,7 @@ for(m in 1:length(moors)){
     }
     
     if(Decimate=="y"){
-      specpath<-paste(specpath,"_decimate_by_",decimationFactor,sep="")
+      specpath<<-paste(specpath,"_decimate_by_",decimationFactor,sep="")
     }
     
     if(is.null(nrow(specdata))){
@@ -1315,7 +1313,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,4]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1325,12 +1323,12 @@ for(m in 1:length(moors)){
   }else{
     
     if(whiten=="y"){
-      whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
+      whiten2<<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
     }else{
-      whiten2<-"No_whiten"
+      whiten2<<-"No_whiten"
     }
     if(Decimate=="y"){
-      whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+      whiten2<<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
     }
     
     specpath<<-paste(startcombpath,whiten2,sep="")
@@ -1342,7 +1340,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,4]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1408,7 +1406,7 @@ specDo<-function(z,featList,specpathh){
   Low<-featList[4]
   High<-featList[5]
   
-  foo <-readWave(paste(specpathh,MoorInfo[which(featList[1]==as.factor(MoorInfo[m,4])),4],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpathh,"/",MoorInfo[which(as.numeric(as.factor(MoorInfo[,4]))==featList[1]),10],".wav",sep=""),Start,End,units="seconds")
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -1610,7 +1608,7 @@ specDo<-function(z,featList,specpathh){
   featList[67]<-max(vpEven)#switchesYmax
   featList[68]<-min(vpEven)#switchesYmin
   
-  return(specList)
+  return(featList)
 }
 
 process_data<-function(){
@@ -2320,6 +2318,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   print(paste("Comparing ground truth of",sort(unique(DetecTab2$MooringID))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$MooringID==sort(unique(DetecTab2$MooringID))[v]),]
   MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
+  MoorVar<-MoorVar[order(MoorVar$meantime),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   
   #Define useful comlumns in both MoorVar and GT
@@ -2385,7 +2384,10 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
   OutputCompare2[which(OutputCompare2$detectionType!="TP truth"),9]<-"FN"
   
   #Combine tables and remove GT TPs from dataset. Save TPs in other vector 
-  TPFPs<-OutputCompare$detectionType
+  OutputCompareDet<-OutputCompare
+  OutputCompareDet$meantime<-(OutputCompareDet[,4]+OutputCompareDet[,5])/2  
+  OutputCompareDet<-OutputCompareDet[order(OutputCompareDet$meantime),]
+  TPFPs<-OutputCompareDet$detectionType
   OutputCompare<-rbind(OutputCompare,OutputCompare2)
   OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
   OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
@@ -2483,12 +2485,13 @@ print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat,1)
 
-stop("yeah")
-
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
+
+dir.create(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""))
+dir.create(paste(outputpathfiles,spec,"TPtottab/",sep=""))
 
 write.csv(GTset,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
@@ -2500,13 +2503,12 @@ GTset<-data.frame(GTset)
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   GTset<-read.csv(recentPath) #produces most recently modifed file 
-  colnames(GTset)[1]<-"soundfiles[n]"
-  
+
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
   
-  GTset<-GTset[,c(1,2,5,6,7,8,9:length(GTset))]
+  GTset<-GTset[,c(1,4:length(GTset))]
   GTset$detectionType<-as.factor(GTset$detectionType)
   
 }
@@ -2521,7 +2523,9 @@ GTset<-data.frame(GTset)
 
 if(runTestModel=="y"){
   
-pos<-length(GTset)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+modelDat<-
+otherDat<-
+  
   
 GTset[,2:length(GTset)]<-apply(GTset[,2:length(GTset)],2,function(x) as.numeric(as.character(x)))
 GTset$detectionType<-as.factor(GTset$detectionType)
@@ -2535,9 +2539,9 @@ GTset<-GTset[which(is.finite(GTset$V51)),]
 GTset<-na.roughfix(GTset)
 
 if(modelType=="rf"){
-  modelOutput<-runRandomForest(GTset,1)
+  modelOutput<-runRandomForest(GTset)
 }else if(modelType=='orf'){
-  modelOutput<-runObliqueRandomForest(GTset,1,method=modelMethod)
+  modelOutput<-runObliqueRandomForest(GTset,method=modelMethod)
 f}
 
 #end model function. export dataset, cutmean
@@ -2547,6 +2551,15 @@ f}
 ######################
 data3<-modelOutput[[1]]
 CUTmean<-modelOutput[[2]]
+
+pos<-length(GTset)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+
+#put columns excluded from model back in ?
+
+if(any(is.na(data3$probmean))){
+  data3<-data3[-which(is.na(data3$probmean)),]
+}
+
 #adaptively combine detections based on probability
 data3Mat<- data.matrix(data3)
 #if(spec=="RW"){
