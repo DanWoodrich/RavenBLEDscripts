@@ -1075,9 +1075,9 @@ context_sim <-function(sdata){
   return(datTab)
 }
 
-after_model_write <-function(mdata,libb,finaldatrun){
+after_model_write <-function(mdata,finaldatrun){
   MoorVar1<-NULL
-  for(v in 1:length(unique(libb[,3]))){
+  for(v in 1:length(unique(MoorInfo[,10]))){
     if(finaldatrun==1){
       if(modelType=="orf"){
       name<-paste(modelType,modelMethod,sep=":")
@@ -1087,7 +1087,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
     }else{
       name<-"full"
     }
-    MoorVar1<-mdata[which(mdata[,1] %in% libb[which(libb[,3]==sort(unique(libb[,3]))[v]),1]),]
+    MoorVar1<-mdata[which(mdata[,1] %in% MoorInfo[which(MoorInfo[,10]==sort(unique(MoorInfo[,10]))[v]),1]),]
 
     MoorVar1<-MoorVar1[which(MoorVar1[,pos+5]>CUTmean),]
     
@@ -1189,7 +1189,7 @@ after_model_write <-function(mdata,libb,finaldatrun){
 adaptive_compare<-function(Compdata,specfeatrun){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(o in unique(Compdata[,1])){
-    print(paste("for mooring",moorlib[o,2]))
+    print(paste("for mooring",MoorInfo[o,3]))
     CompVar<-Compdata[which(Compdata[,1]==o),]
     CompVar<-CompVar[order(CompVar[,3]),]
     n=0
@@ -1215,7 +1215,7 @@ adaptive_compare<-function(Compdata,specfeatrun){
           fr<-(h-l)
           row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
 
-          row2<-unlist(spectral_features(row[c(1,3,4,5,6)],moorlib,specfeatrun,q))
+          row2<-unlist(spectral_features(row[c(1,3,4,5,6)],q))
           
           row<-c(row,row2[c(6:length(row2))],c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
           
@@ -1280,26 +1280,24 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,libb,Info,count){
+spectral_features<- function(specdata,count){
   
   specdata<<-specdata
-  libb<<-libb
-  MoorInfo<<-MoorInfo
-  
+
   specpath<<-NULL
   specTab<<-NULL
   
   if(is.null(nrow(specdata))){
-  moors<-libb[which(libb[,1] %in% unique(specdata[1])),3]
+  moors<-MoorInfo[which(MoorInfo[,1] %in% unique(specdata[1])),10]
   }else{
-    moors<-unique(libb[,3])
+    moors<-unique(MoorInfo[,10])
   }
   
-for(m in moors){
+for(m in 1:length(moors)){
   
   specVar<<-NULL
     
-  if(Info[m,7]=="HG_datasets"){
+  if(MoorInfo[m,7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
@@ -1313,7 +1311,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      specVar<<-specdata[which(specdata[,1] %in% MoorInfo[m,10]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1322,17 +1320,17 @@ for(m in moors){
     
   }else{
     
-    if(whiten=="y" & moorType=="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/",spec,"/HG_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
-    }else if(whiten=="y" & moorType!="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/HG_full_",Filtype,"p",LMS*100,"x_FO",FO,sep="")
-    }else if(whiten=="n" & moorType=="HG"){
-      specpath<<-paste(startcombpath,"/",m,"/",spec,"/HG_No_whiten",sep="")
+    if(whiten=="y"){
+      whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
     }else{
-      specpath<<-paste(startcombpath,"/",m,"/HG_full_No_whiten",sep="")
+      whiten2<-"No_whiten"
+    }
+    if(Decimate=="y"){
+      whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
     }
     
-    
+    specpath<<-paste(startcombpath,whiten2,sep="")
+      
     if(is.null(nrow(specdata))){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,63))
@@ -1340,7 +1338,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% libb[which(libb[,3]==m),1]),]
+      specVar<<-specdata[which(specdata[,1] %in% MoorInfo[m,10]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1356,7 +1354,7 @@ for(m in moors){
   }
   
   if(noPar==FALSE){
-    print(paste("      for mooring",libb[specVar[1,1],2]))
+    print(paste("      for mooring",MoorInfo[m,10]))
   if(user=="ACS-3"){
     num_cores <- detectCores()
   }else{
@@ -1365,12 +1363,12 @@ for(m in moors){
   cluz <- makeCluster(num_cores)
   registerDoParallel(cluz)
   
-  clusterExport(cluz, c("ImgThresh","moorlib","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
+  clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
   
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
-  unlist(specDo(z,moorlib,specRow,specpath))
+  unlist(specDo(z,specRow,specpath))
 }
 stopCluster(cluz)
 
@@ -1384,7 +1382,7 @@ specVar<<-do.call('rbind', specVar2)
   }else if(noPar==TRUE){
     z=count
     specRow<-unlist(specVar[1,])
-    specVar<<-unlist(specDo(z,moorlib,specRow,specpath))
+    specVar<<-unlist(specDo(z,specRow,specpath))
     
     prevdir<-getwd()
     setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
@@ -1398,10 +1396,8 @@ specTab<<-rbind(specTab,specVar)
   return(specTab)
 }
 
-specDo<-function(z,libb,specStuff,specpathh){
+specDo<-function(z,featList,specpathh){
   
-  specList<-specStuff
-
   #store reused calculations to avoid indexing 
   Start<-specList[2]
   End<-  specList[3]
@@ -1413,7 +1409,7 @@ specDo<-function(z,libb,specStuff,specpathh){
   Low<-specList[4]
   High<-specList[5]
   
-  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpathh,MoorInfo[which(featList[1]==MoorInfo[4]),4],sep=""),Start,End,units="seconds")
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -1440,43 +1436,43 @@ specDo<-function(z,libb,specStuff,specpathh){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  specList[6] = rugo(foo@left / max(foo@left)) #rugosity
-  specList[7] = crest(foo,wl=128)$C #crest factor
+  featList[6] = rugo(foo@left / max(foo@left)) #rugosity
+  featList[7] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  specList[8] = th(foo.env) #temporal entropy
-  specList[9] = sh(foo.spec) #shannon entropy
-  specList[10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  specList[11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  specList[12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  specList[13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  specList[14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  specList[15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  specList[16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  specList[17] = foo.specprop$sd[1] #specprop sd
-  specList[18] = foo.specprop$sem[1] #specprop sem
-  specList[19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  specList[20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  specList[21] = foo.specprop$Q25[1] # specprop q25
-  specList[22] = foo.specprop$Q75[1] #specprop q75
-  specList[23] = foo.specprop$IQR[1] #specprop IQR
-  specList[24] = foo.specprop$cent[1] #specrop cent
-  specList[25] = foo.specprop$skewness[1] #specprop skewness
-  specList[26] = foo.specprop$kurtosis[1] #specprop kurtosis
-  specList[27] = foo.specprop$sfm[1] #specprop sfm
-  specList[28] = foo.specprop$sh[1] #specprop sh
-  specList[29] = foo.specprop$prec[1] #specprop prec
-  specList[30] = M(foo,wl=128) #amp env median
-  specList[31] = H(foo,wl=128) #total entropy
-  #specList[32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
+  featList[8] = th(foo.env) #temporal entropy
+  featList[9] = sh(foo.spec) #shannon entropy
+  featList[10] = roughness(foo.meanspec[,2]) #spectrum roughness
+  featList[11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  featList[12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  featList[13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  featList[14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  featList[15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  featList[16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  featList[17] = foo.specprop$sd[1] #specprop sd
+  featList[18] = foo.specprop$sem[1] #specprop sem
+  featList[19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  featList[20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  featList[21] = foo.specprop$Q25[1] # specprop q25
+  featList[22] = foo.specprop$Q75[1] #specprop q75
+  featList[23] = foo.specprop$IQR[1] #specprop IQR
+  featList[24] = foo.specprop$cent[1] #specrop cent
+  featList[25] = foo.specprop$skewness[1] #specprop skewness
+  featList[26] = foo.specprop$kurtosis[1] #specprop kurtosis
+  featList[27] = foo.specprop$sfm[1] #specprop sfm
+  featList[28] = foo.specprop$sh[1] #specprop sh
+  featList[29] = foo.specprop$prec[1] #specprop prec
+  featList[30] = M(foo,wl=128) #amp env median
+  featList[31] = H(foo,wl=128) #total entropy
+  #featList[32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  specList[33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  specList[34]<-freqstat.normalize(Startdom,Low,High) #startdom
-  specList[35]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  specList[36]<-freqstat.normalize(Mindom,Low,High) #mindom
-  specList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  specList[38]<-Dfrange #dfrange
-  specList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  specList[40]  <- lastFeature(fs,foo.meanspec)
+  featList[33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  featList[34]<-freqstat.normalize(Startdom,Low,High) #startdom
+  featList[35]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  featList[36]<-freqstat.normalize(Mindom,Low,High) #mindom
+  featList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  featList[38]<-Dfrange #dfrange
+  featList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  featList[40]  <- lastFeature(fs,foo.meanspec)
   
   
   #FEATURES FROM IMAGE 
@@ -1580,318 +1576,42 @@ specDo<-function(z,libb,specStuff,specpathh){
   vpEven<-c(vpEven,sum(diff(image1[456,1:480]) == 1) + sum(diff(image1[456,1:480]) == -1))
   
   #add new variables
-  specList[41]<-which.max(areaX) #areaXmaxP
-  specList[42]<-max(areaX) #areaXmax
-  specList[43]<-max(areaX)/sum(areaX) #areaXdom
-  specList[44]<-std.error(areaX) #areaXstd
+  featList[41]<-which.max(areaX) #areaXmaxP
+  featList[42]<-max(areaX) #areaXmax
+  featList[43]<-max(areaX)/sum(areaX) #areaXdom
+  featList[44]<-std.error(areaX) #areaXstd
   
-  specList[45]<-which.max(areaY) #areaYmaxP
-  specList[46]<-max(areaY) #areaYmax
-  specList[47]<-max(areaY)/sum(areaY)#areaYdom
-  specList[48]<-std.error(areaY)#areaYstd
+  featList[45]<-which.max(areaY) #areaYmaxP
+  featList[46]<-max(areaY) #areaYmax
+  featList[47]<-max(areaY)/sum(areaY)#areaYdom
+  featList[48]<-std.error(areaY)#areaYstd
   
-  #specList[49]<-std.error(areaW) #Areaspread
-  specList[50]<-max(areaW)#AreaTop
-  specList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
-  specList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
-  specList[53]<-length(areaW)#NumShapes
+  #featList[49]<-std.error(areaW) #Areaspread
+  featList[50]<-max(areaW)#AreaTop
+  featList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
+  featList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
+  featList[53]<-length(areaW)#NumShapes
   
-  specList[54]<-Bestline[4]#bestSlopeHough
-  specList[55]<-Bestline[5]#bestBHough
-  specList[56]<-nrow(Bestlines)#numGoodlines
-  specList[57]<-median(Bestlines[,4])#medSlope
-  specList[58]<-median(Bestlines[,5])#medB
+  featList[54]<-Bestline[4]#bestSlopeHough
+  featList[55]<-Bestline[5]#bestBHough
+  featList[56]<-nrow(Bestlines)#numGoodlines
+  featList[57]<-median(Bestlines[,4])#medSlope
+  featList[58]<-median(Bestlines[,5])#medB
 
-  specList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
-  specList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+  featList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+  featList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
-  specList[61]<-mean(hpEven)#switchesX
-  specList[62]<-std.error(hpEven)#switchesXreg
-  specList[63]<-max(hpEven)#switchesXmax
-  specList[64]<-min(hpEven)#switchesXmin
+  featList[61]<-mean(hpEven)#switchesX
+  featList[62]<-std.error(hpEven)#switchesXreg
+  featList[63]<-max(hpEven)#switchesXmax
+  featList[64]<-min(hpEven)#switchesXmin
   
-  specList[65]<-mean(vpEven)#switchesY
-  specList[66]<-std.error(vpEven)#switchesYreg
-  specList[67]<-max(vpEven)#switchesYmax
-  specList[68]<-min(vpEven)#switchesYmin
+  featList[65]<-mean(vpEven)#switchesY
+  featList[66]<-std.error(vpEven)#switchesYreg
+  featList[67]<-max(vpEven)#switchesYmax
+  featList[68]<-min(vpEven)#switchesYmin
   
   return(specList)
-}
-
-runthisthing<-"n"
-#test
-if(runthisthing=="y"){
-  num_cores <- detectCores()-1
-cluz <- makeCluster(num_cores)
-registerDoParallel(cluz)
-
-clusterExport(cluz, c("specVar","specpath","specgram","imagep"))
-
-foreach(y=300:100,.packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
-  dev.off()
-  specList<-specVar[y,]
-  
-  #store reused calculations to avoid indexing 
-  Start<-specList[2]
-  End<-  specList[3]
-  if(End-Start<0.1){
-    End<-End+(0.1-(End-Start))
-    
-  }
-  Low<-specList[4]
-  High<-specList[5]
-  
-  foo <-readWave(paste(specpathh,libb[which(as.numeric(libb[,1])==specList[1]),2],sep=""),Start,End,units="seconds")
-  # extract signal
-  snd = foo@left
-  
-  # determine duration
-  dur = length(snd)/foo@samp.rate
-  #dur # seconds
-  ## [1] 3.588
-  
-  # determine sample rate
-  fs = foo@samp.rate
-  #fs # Hz
-  ## [1] 2000
-  
-  # demean to remove DC offset
-  snd = snd - mean(snd)
-  
-  # number of points to use for the fft
-  nfft=2024
-  
-  window<-132
-
-  overlap=128
-  
-  # create spectrogram
-  spec.gram = specgram(x = snd,
-                  Fs = fs,
-                  window=window,
-                  overlap=overlap
-  )
-  
-  # discard phase information
-  P = abs(spec.gram$S)
-  
-  # normalize
-  P = P/max(P)
-  
-  # convert to dB
-  P = 15*log10(P)
-  
-  # config time axis
-  t = spec.gram$t
-  
-  # plot spectrogram
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
-  dev.off()
-  
-  test<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
-  
-  test<-grayscale(test, method = "Luma", drop = TRUE)
-  f <- ecdf(test)
-  #f(test) %>% as.cimg(dim=dim(test)) %>% plot()
-  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
-  #highlight() looks lit
-  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""),quality=100)
-  test2<-threshold(test,"65%") 
-  #plot(test2)
-  test2<-clean(test2,5) %>% imager::fill(1) 
-  par(mar=c(0,0,0,0))
-  plot(test2,axes=FALSE,asp="varying")
-  
-  labels<-label(test2)
-  labels<-as.matrix(labels[1:480,1:480])
-  threshBool<-as.matrix(test2[1:480,1:480])
-  for(i in 1:length(labels)){
-    if(threshBool[i]){
-      labels[i]<-labels[i]+1000000
-    }
-  }
-  labels[which(labels<1000000)]<-0
-  area<-table(labels)
-  #plot(as.cimg(test15))
-  area<-area[2:length(area)]
-  
-  AreaSpread<-std.error(area)
-  AreaTop<-max(area)
-  AreaTopDom<-max(area)/(sum(area))
-  AreaTop3Dom<-if(length(area)>=3){sum(-sort(-area)[1:3])/sum(area)}else{1}
-  NumShapes<-length(area)
-  
-  test9<-hough_line(test2,data.frame = TRUE)
-  test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
-  test9<-test9[which(!is.infinite(test9[,4])),]
-  Bestline<-test9[which.max(test9$score),]
-  Bestlines<-test9[which(test9$score>=350),]
-  
-  positionsX <- apply(test2[1:480,1:480], 1, function(x) which(x==TRUE))
-  positionsY <- apply(test2[1:480,1:480], 2, function(x) which(x==TRUE))
-  xavg<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)
-  yavg<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)
-
-  
-  #plot best line
-  #nfline(Bestline[1,1],Bestline[1,2],col=rgb(1, 0, 0,1),lwd=3)
-  
-  #calculate some stats:
-  bestSlopeHough<-Bestline[4]
-  bestBHough<-Bestline[5]
-  numGoodlines<-if(!is.null(nrow(test11))){nrow(Bestlines)}else{0}
-  medSlope<-median(Bestlines[4])
-  medB<-median(Bestlines[5])
-  
-  chunks<-5
-  areaX<-NULL
-  for(u in 1:chunks){
-    start<-(u*480/chunks)-95
-    end<-(u*480/chunks)
-    areaChunkX<-sum(test2[start:end,1:480])
-    areaX<-c(areaX,areaChunkX)
-  }
-
-  areaXmaxP<-which.max(areaX)
-  areaXmax<-max(areaX)
-  areaXdom<-max(areaX)/sum(areaX)
-  areaXstd<-std.error(areaX)
-  
-  areaY<-NULL
-  for(u in 1:chunks){
-    start<-(u*480/chunks)-95
-    end<-(u*480/chunks)
-    areaChunkY<-sum(test2[1:480,start:end])
-    areaY<-c(areaY,areaChunkY)
-  }
-  
-  areaYmaxP<-which.max(areaY)
-  areaYmax<-max(areaY)
-  areaYdom<-max(areaY)/sum(areaY)
-  areaYstd<-std.error(areaY)
-
-  hpEven<-c()
-  hpEven<-c(hpEven,sum(diff(test2[1:480,24]) == 1) + sum(diff(test2[1:480,24]) == -1))
-  hpEven<-c(hpEven,sum(diff(test2[1:480,96]) == 1) + sum(diff(test2[1:480,96]) == -1))
-  hpEven<-c(hpEven,sum(diff(test2[1:480,192]) == 1) + sum(diff(test2[1:480,192]) == -1))
-  hpEven<-c(hpEven,sum(diff(test2[1:480,288]) == 1) + sum(diff(test2[1:480,288]) == -1))
-  hpEven<-c(hpEven,sum(diff(test2[1:480,384]) == 1) + sum(diff(test2[1:480,384]) == -1))
-  hpEven<-c(hpEven,sum(diff(test2[1:480,456]) == 1) + sum(diff(test2[1:480,456]) == -1))
-  
-  switchesX<-mean(hpEven)
-  switchesXreg<-std.error(hpEven)
-  switchesXmax<-max(hpEven)
-  switchesXmin<-min(hpEven)
-  
-  
-  vpEven<-c()
-  vpEven<-c(vpEven,sum(diff(test2[24,1:480]) == 1) + sum(diff(test2[24,1:480]) == -1))
-  vpEven<-c(vpEven,sum(diff(test2[96,1:480]) == 1) + sum(diff(test2[96,1:480]) == -1))
-  vpEven<-c(vpEven,sum(diff(test2[192,1:480]) == 1) + sum(diff(test2[192,1:480]) == -1))
-  vpEven<-c(vpEven,sum(diff(test2[288,1:480]) == 1) + sum(diff(test2[288,1:480]) == -1))
-  vpEven<-c(vpEven,sum(diff(test2[384,1:480]) == 1) + sum(diff(test2[384,1:480]) == -1))
-  vpEven<-c(vpEven,sum(diff(test2[456,1:480]) == 1) + sum(diff(test2[456,1:480]) == -1))
-  
-  switchesY<-mean(vpEven)
-  switchesYreg<-std.error(vpEven)
-  switchesYmax<-max(vpEven)
-  switchesYmin<-min(vpEven)
-  
-  #plot(test)
-  #test3<-contours(test2)
-  #minx<-1
-  #maxx<-max(unlist(lapply(test3,find_xmax)))
-  #miny<-1
-  #maxy<-max(unlist(lapply(test3,find_ymax)))
-  
-  #rect(minx,miny,maxx,maxy)
-  
-  #dev.off()
-  #test2<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",y,".jpg",sep=""))
-  
-  #par(mar=c(0,0,0,0))
-  #plot(test2,axes=FALSE,asp="varying")
-  
-  ## Split into connected components (individual coins)
-  
-  ## Compute their respective area
-  #area <- sapply(pxs,sum)
-  ## Highlight largest coin in green
-  #highlight(pxs[[6]],col="orange",lwd=2)
-  
-
-
-  
-  
-  test11<-test9[which(test9$score>=350),]
-  
-  test11<-c(mean(test11[,1]),mean(test11[,2]),mean(test11[,3]))
-
-  nfline(test11[1],test11[2],col=rgb(0, 0, 1,1),lwd=3)
-  
-  test9<-test9[which(test9$score>=350),]
-  slopes<- cbind(test9[,c(1,2)],(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
-  remove<-which(is.infinite(slopes[,3]))
-  if(length(remove)!=0){
-  slopes<-slopes[-remove,]
-  test9<-test9[-remove,]
-  }
-  
-  slopes<-slopes[,c(3,4)]
-  slopes<-scale(slopes)
-  
-  #remove outliers
-  slopes<-slopes[which(abs(slopes[,1])-1.5*IQR(slopes[,1])<=0),]
-  slopes<-slopes[which(abs(slopes[,2])-1.5*IQR(slopes[,2])<=0),]
-  
-
-  #test9$b<- test9$rho/sin(test9$theta)
-  
-  km <- kmeans(slopes,2)
-  if(dudahart2(slopes,km$cluster,alpha=1)$cluster1==FALSE){
-    
-    pamk.best <- pamk(slopes)
-    slopes<-cbind(slopes,pamk.best$pamobject$clustering)
-  }else{
-    slopes<-cbind(slopes,1)
-  }
-  
-  for(q in 1:nrow(slopes)){
-  nfline(test9[q,1],test9[q,2],col=c("blue","red","orange","yellow","brown","gray","purple")[slopes[q,3]])
-  }
-
-  dev.off()  
-  
-  #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",y,"kmeans.jpg",sep=""),quality=100)
-  
-  #fit<-kmeans(test9[,c(1:2)],3)
-  #plotcluster(test9[,c(1,2)],fit$cluster)
-  
-
-
-  
-  #dev.off()
-  
-  #ideas for stastics: 
-  #1. is there a "strong group" of lines present? 
-  #1. is the best group of lines approx. parallel with the next best group of lines? 
-  #2. do the red and blue lines converge? 
-  #3. does the strongest group coincide with 
-  
-  #test4<-threshold(test,.5) %>% plot(axes=TRUE)
-  #test5<-threshold(test2-test4,)
-  #test5 %>% plot(axes=TRUE)
-  #imgradient(test,"x") %>% enorm %>% plot(main="Gradient magnitude (again)")
-  
-  #dev.off()
- # test2<-imgradient(test,"x")
- # plot(test2)
-  #print(spec)
-  #spectro(foo,grid=FALSE,flim=c(Low/1000,High/1000,overlap=16,wl=32, normalize = F,nfft=128)) 
-}
-
-stopCluster(cluz)
 }
 
 process_data<-function(){
@@ -2734,8 +2454,6 @@ write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names
 ###################
 
 }
-stop("yeah")
-
 
 #define this table to compare counts after running model
 TPtottab<-data.frame(TPtot,GTtot2,MoorCor)
@@ -2761,11 +2479,11 @@ GTset$Selection<-seq(1,nrow(GTset))
 #"vectorize" GTset frame. 
 
 dataMat<- data.matrix(GTset[,c(1,4:7)])
-
-moorlib<-cbind(seq(1,length(unique(GTset$MooringID)),1),as.character(unique(GTset$MooringID)),aggregate(GTset$MooringName~GTset$MooringID,FUN=unique)[,2])
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,moorlib,MoorInfo,1)
+dataMat<-spectral_features(dataMat,MoorInfo,1)
+
+stop("yeah")
 
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
@@ -2791,8 +2509,6 @@ GTset<-data.frame(GTset)
   GTset<-GTset[,c(1,2,5,6,7,8,9:length(GTset))]
   GTset$detectionType<-as.factor(GTset$detectionType)
   
-  moorlib<-cbind(seq(1,length(unique(GTset$`soundfiles[n]`)),1),as.character(sort(unique(GTset$`soundfiles[n]`))),seq(1,length(unique(GTset$`soundfiles[n]`)),1))
-
 }
 
 ###############################################
