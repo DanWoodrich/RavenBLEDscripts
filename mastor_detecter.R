@@ -832,7 +832,7 @@ process_model<-function(stuff2,Moddata2){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<-c("meanfreq","freqrange",colnames(Moddata2[,11:ncol(Moddata2)]))
+  giniRows<-c(colnames(Moddata2[,1:ncol(Moddata2)]))
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -941,6 +941,7 @@ runRavenDetector<-function(m,filePath,combname,resltsTab){
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
     resltVar$MooringID<-MoorInfo[m,10]
     resltVar$MooringName<-MoorInfo[m,1]
+    resltVar$MooringCode<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", MoorInfo[m,1], perl=T), " "))[c(FALSE, TRUE)])
     resltVar$detector<-r
     resltVar$Species<-MoorInfo[m,9]
     if(is.null(nrow(resltVar))==FALSE){
@@ -971,7 +972,7 @@ clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 
 stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -`soundfiles[n]` -meantime -Begin.Time..s. -End.Time..s. -Low.Freq..Hz. -High.Freq..Hz.,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   
@@ -997,7 +998,7 @@ stopCluster(cluz)
   
   #do other one (need up update full mooring on this)
 }
-  stuff<-process_model(stuff,Moddat)
+  stuff<-process_model(stuff,Moddata)
   return(stuff)
   Moddata<<-NULL
 }
@@ -1625,9 +1626,9 @@ for(e in unique(resltsTab$sound.files)){
   resltsVar<-resltsTab[which(resltsTab$sound.files==e),]
   print(paste("    ",e))
   for(f in 1:length(unique(resltsVar$bottom.freq))){
-    resltsVar[resltsVar$bottom.freq==sort(unique(resltsVar$bottom.freq))[f],13]<-f
+    resltsVar[resltsVar$bottom.freq==sort(unique(resltsVar$bottom.freq))[f],14]<-f
   }
-  colnames(resltsVar)[13] <- "detectorRank"
+  colnames(resltsVar)[14] <- "detectorRank"
   resltsVar$detectorRank<-as.numeric(resltsVar$detectorRank)
   resltsVar$group[1]<-1
       
@@ -1644,8 +1645,8 @@ for(e in unique(resltsTab$sound.files)){
       f<-1
       
       #index columns to process faster:
-      gTime<-resltsVar[,15]
-      gGroup<-resltsVar[,14]
+      gTime<-resltsVar[,16]
+      gGroup<-resltsVar[,15]
       
     print("assigning group values")
     for(z in 1:(nrow(resltsVar)-1)){
@@ -1666,7 +1667,7 @@ for(e in unique(resltsTab$sound.files)){
       
       #index columns to process faster:
       gTimeS<-resltsVar$start        
-      gGroup<-resltsVar[,14]
+      gGroup<-resltsVar[,15]
       nexstart<-gTimeS[1]
       print("assigning group values")
       for(z in 1:(nrow(resltsVar)-1)){
@@ -1679,12 +1680,12 @@ for(e in unique(resltsTab$sound.files)){
       }
     }
     
-    resltsVar[,14]<-gGroup
+    resltsVar[,15]<-gGroup
     
     #remove groups based on grpsize value
     removegrp <- table(resltsVar$group)
     resltsVar <- subset(resltsVar, group %in% names(removegrp[removegrp > (grpsize-1)]))
-    Matdata<<-data.matrix(resltsVar[,c(13,14,15,4,5)])
+    Matdata<<-data.matrix(resltsVar[,c(14,15,16,4,5)])
   
     #updated algorithm, optimized for performance. avoids r bind
     print(paste("calculating best runs for each group"))
@@ -1710,7 +1711,7 @@ for(e in unique(resltsTab$sound.files)){
     
     #create new groups values
     for(u in 1:nrow(resltsVar)){
-      resltsVar[u,14]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsVar[u,]))),2] 
+      resltsVar[u,15]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsVar[u,]))),2] 
     }
     
     }
@@ -1719,8 +1720,8 @@ for(e in unique(resltsTab$sound.files)){
       write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsVar$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     }else{
       colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","character","character","character")
-      resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, sound.files", colClasses = colClasses)
-      colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","sound.files")
+      resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, MooringCode, sound.files", colClasses = colClasses)
+      colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","MooringCode","sound.files")
       
       if(s=="RW"){
       p=1
@@ -1737,7 +1738,8 @@ for(e in unique(resltsTab$sound.files)){
         resltsTabFinal[p,7]<-grpmaxfreq
         resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
         resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
-        resltsTabFinal[p,10]<-as.character(resltsVar$sound.files[1])
+        resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", resltsVar$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
+        resltsTabFinal[p,11]<-as.character(resltsVar$sound.files[1])
         
         p<-p+1
       }
@@ -1762,7 +1764,8 @@ for(e in unique(resltsTab$sound.files)){
           resltsTabFinal[p,7]<-grpmaxfreq
           resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
           resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
-          resltsTabFinal[p,10]<-as.character(resltsVar$sound.files[1])
+          resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", resltsVar$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
+          resltsTabFinal[p,11]<-as.character(resltsVar$sound.files[1])
           
           p<-p+1
         }
@@ -1793,7 +1796,7 @@ for(e in unique(resltsTab$sound.files)){
         resltsTabFinal$remove<-0
         for(f in 1:nrow(resltsTabFinal)){
           if((resltsTabFinal[f,5]-resltsTabFinal[f,4])>Maxdur|(resltsTabFinal[f,5]-resltsTabFinal[f,4])<Mindur){
-            resltsTabFinal[f,11]<-1
+            resltsTabFinal$remove[f]<-1
           }
         }
         
@@ -2358,7 +2361,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
 
   
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
-  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,18,19)])
+  OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,19,20)])
   OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
   
   #Add rows where GT meantime was in between 
@@ -2480,7 +2483,7 @@ GTset$Selection<-seq(1,nrow(GTset))
 #"vectorize" GTset frame. 
 
 GTset$sound.files<-as.factor(GTset$sound.files)
-dataMat<- data.matrix(GTset[,c(10,4:7)])
+dataMat<- data.matrix(GTset[,c(11,4:7)])
 print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat,1)
@@ -2496,8 +2499,9 @@ dir.create(paste(outputpathfiles,spec,"TPtottab/",sep=""))
 write.csv(GTset,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
-GTset<-GTset[,c(1,2,5,6,7,8,9:ncol(GTset))]
+GTset<-GTset[,c(1,4:ncol(GTset))]
 GTset<-data.frame(GTset)
+GTset$detectionType<-as.factor(GTset$detectionType)
 
 }else{
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
@@ -2522,11 +2526,26 @@ GTset<-data.frame(GTset)
 #################
 
 if(runTestModel=="y"){
+
+GTset$year<-format(as.Date(GTset$RTfile),"%y")
+GTset$month<-format(as.Date(GTset$RTfile),"%m")
+    
+modelDat<-GTset[,c(1,17:(ncol(GTset)-2))]
+modelDatFactors<-GTset[,c(8,84,85)]
+otherDat<-GTset[,c(1:7,9:16)]
   
-modelDat<-
-otherDat<-
-  
-  
+modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x)))
+removeMat<-apply(modelDat,2,function(x) !is.finite(x))
+removeVec<-which(apply(removeMat,1,function(x) any(x)))
+
+modelDat<-modelDat[-removeVec,]
+modelDatFactors<-modelDatFactors[-removeVec,]
+otherDat<-otherDat[-removeVec,]
+
+modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
+
+modelDat<-cbind(modelDat,modelDatFactors)
+
 GTset[,2:length(GTset)]<-apply(GTset[,2:length(GTset)],2,function(x) as.numeric(as.character(x)))
 GTset$detectionType<-as.factor(GTset$detectionType)
 colnames(GTset)[1]<-"soundfiles[n]"
@@ -2539,9 +2558,9 @@ GTset<-GTset[which(is.finite(GTset$V51)),]
 GTset<-na.roughfix(GTset)
 
 if(modelType=="rf"){
-  modelOutput<-runRandomForest(GTset)
+  modelOutput<-runRandomForest(modelDat)
 }else if(modelType=='orf'){
-  modelOutput<-runObliqueRandomForest(GTset,method=modelMethod)
+  modelOutput<-runObliqueRandomForest(modelDat,method=modelMethod)
 f}
 
 #end model function. export dataset, cutmean
