@@ -9,7 +9,10 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF") install.packages("fpc")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF") install.packages("fpc") install.packages("devtools") devtools::install_github("Azure/rAzureBatch") devtools::install_github("Azure/doAzureParallel")
+
+
+
 
 library(e1071)  
 library(foreach)
@@ -36,6 +39,21 @@ library(imager)
 library(Cairo)
 library(obliqueRF)
 library(fpc)
+library(doAzureParallel)
+
+#generateCredentialsConfig("credentials.json")
+#generateClusterConfig("cluster.json")
+setCredentials("credentials.json")
+
+# Create your cluster if it does not exist; this takes a few minutes
+cluster <- parallel::makeCluster("cluster.json") 
+
+# Register your parallel backend 
+registerDoAzureParallel(cluster) 
+
+# Check that the nodes are running 
+getDoParWorkers() 
+
 
 substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
@@ -154,10 +172,12 @@ loadSpecVars<-function(whichSpec){
   badcallPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
   
   #Model
+  if(length(spec)==1){
   CV<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
   TPRthresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
   modelType<<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
   modelMethod<<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+  }
   
   #Detection Processing Spread (algo)
   grpsize<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
@@ -321,8 +341,8 @@ parAlgo<-function(dataaa){
   }else{
   num_cores <- detectCores()-1
   }
-  cluz <- makeCluster(num_cores)
-  registerDoParallel(cluz)
+  cluz <- makeCluster("cluster.json")
+  registerDoAzureParallel(cluz)
   
   clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
   
@@ -888,8 +908,8 @@ runObliqueRandomForest<-function(Moddata,method){
     }else{
       num_cores <- detectCores()-1
     }
-    cluz <- makeCluster(num_cores)
-    registerDoParallel(cluz)
+    cluz <- makeCluster("cluster.json")
+    registerDoAzureParallel(cluz)
     
     clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
@@ -965,8 +985,8 @@ if(user=="ACS-3"){
 }else{
   num_cores <- detectCores()-1
 }
-cluz <- makeCluster(num_cores)
-registerDoParallel(cluz)
+cluz <- makeCluster("cluster.json")
+registerDoAzureParallel(cluz)
 
 clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 
@@ -1358,8 +1378,8 @@ for(m in 1:length(moors)){
   }else{
     num_cores <- detectCores()-1
   }
-  cluz <- makeCluster(num_cores)
-  registerDoParallel(cluz)
+  cluz <- makeCluster("cluster.json")
+  registerDoAzureParallel(cluz)
   
   clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
   
@@ -2188,7 +2208,6 @@ spec<-str_split(ControlTab[which(ControlTab[,2]=="spec"),3],",",simplify=TRUE)
 runGT<-ControlTab[which(ControlTab[,2]=="runGT"),3]
 if(runGT=="y"){
 runGTsections<-str_split(ControlTab[which(ControlTab[,2]=="runGTsections"),3],",",simplify=TRUE)
->>>>>>> 51bab82252ef1ac51a9f93881c14c44c539df014
 }else{
 runGTsections<-c("n","n","n")
 }
@@ -2199,6 +2218,13 @@ if(runNEW=="y"){
   NEWsf<-str_split(ControlTab[which(ControlTab[,2]=="NEWsf"),3],",",simplify=TRUE)  
   NEWpath<-str_split(ControlTab[which(ControlTab[,2]=="NEWpath"),3],",",simplify=TRUE)
   NEWsourceFormat<-str_split(ControlTab[which(ControlTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
+}
+
+if(length(spec)<1){
+  CV<- ControlTab[which(ControlTab[,2]=="combCV"),3]
+  TPRthresh<- ControlTab[which(ControlTab[,2]=="combTPRthresh"),3]
+  modelType<- ControlTab[which(ControlTab[,2]=="combmodelType"),3]
+  modelMethod<- ControlTab[which(ControlTab[,2]=="combmodelMethod"),3]
 }
 
 fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),3] )
@@ -2538,8 +2564,10 @@ if(runTestModel=="y"){
 GTset$year<-format(as.Date(GTset$RTfile),"%y")
 GTset$month<-format(as.Date(GTset$RTfile),"%m")
     
-modelDat<-GTset[,c(1,17:(ncol(GTset)-2))]
-modelDatFactors<-GTset[,c(8,84,85)]
+modelDat<-GTset[,c(1,18:(ncol(GTset)-2))]
+modelDatFactors<-GTset[,c(8,17,84,85)]
+modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
+
 otherDat<-GTset[,c(1:7,9:16)]
   
 modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x)))
@@ -2552,7 +2580,9 @@ otherDat<-otherDat[-removeVec,]
 
 modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
 
-modelDat<-cbind(modelDat,modelDatFactors)
+modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
+
+loadSpecVars(spec[1])
 
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modelDat)
@@ -2565,10 +2595,10 @@ f}
 #return dataset from random forest 
 
 ######################
-data3<-modelOutput[[1]]
+data3<-cbind(modelOutput[[1]],otherDat)
 CUTmean<-modelOutput[[2]]
 
-pos<-length(GTset)+3#define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+pos<-length(data3) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
 
 #put columns excluded from model back in ?
 
