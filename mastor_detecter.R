@@ -2546,17 +2546,6 @@ modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
 
 modelDat<-cbind(modelDat,modelDatFactors)
 
-GTset[,2:length(GTset)]<-apply(GTset[,2:length(GTset)],2,function(x) as.numeric(as.character(x)))
-GTset$detectionType<-as.factor(GTset$detectionType)
-colnames(GTset)[1]<-"soundfiles[n]"
-GTset$`soundfiles[n]`<-as.factor(GTset$`soundfiles[n]`)
-
-#remove rows with a known infinite value 
-GTset<-GTset[which(is.finite(GTset$V51)),]
-
-#fix any NAs using roughfix (inserts column medians)
-GTset<-na.roughfix(GTset)
-
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modelDat)
 }else if(modelType=='orf'){
