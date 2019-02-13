@@ -224,11 +224,11 @@ loadSpecVars<-function(whichSpec){
   badcallPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
   
   #Model
-  if(length(spec)==1){
-  CV<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="CV"),3])
-  TPRthresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="TPRthresh"),3])
-  modelType<<-ParamsTab[which(ParamsTab[,2]=="modelType"),3]
-  modelMethod<<-ParamsTab[which(ParamsTab[,2]=="modelMethod"),3]
+  if(length(whichSpec)==1){
+  CV<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="specCV"),3])
+  TPRthresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="specTPRthresh"),3])
+  modelType<<-ParamsTab[which(ParamsTab[,2]=="specmodelType"),3]
+  modelMethod<<-ParamsTab[which(ParamsTab[,2]=="specmodelMethod"),3]
   }
   
   #Detection Processing Spread (algo)
@@ -389,9 +389,15 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
 
 parAlgo<-function(dataaa){
   
-  #if(parallelType=="local"){
-  #clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
-  #}
+  if(user=="ACS-3"){
+    num_cores <- detectCores()
+  }else{
+    num_cores <- detectCores()-1
+  }
+  cluz <- parallel::makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
   
   if(s=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
@@ -399,30 +405,12 @@ parAlgo<-function(dataaa){
     }
     wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(s=="GS"){
-    
-    #outerChunk<-round(length(unique(dataaa[,2]))/10)+1
-    
-    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% { #,.options.azure = list(enableCloudCombine = FALSE) ,.options.azure = list(chunkSize=outerChunk)
-        GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
-    } 
-    wantedSelections2<-do.call('cbind', wantedSelections)
-       #use both cores in azure nodes 
-      #cores <- detectCores()
-      
-      #cl <- makeCluster(cores)
-      
-      #clusterExport(cl, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
-      
-      #registerDoParallel(cl)
-      
-      #wantedSelections2<-foreach(grouppp2=grouppp) %dopar% { #,.options.azure = list(enableCloudCombine = FALSE)
-
-      #return(wantedSelections2)
-    #}
-   # wantedSelections2<-do.call('cbind', wantedSelections)
-    
-  stopCluster(cluz)
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+      GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
+    }
+    wantedSelections<-do.call('cbind', wantedSelections)
   }
+  stopCluster(cluz)
   return(wantedSelections)
   
 }
@@ -969,16 +957,15 @@ runObliqueRandomForest<-function(Moddata,method){
     
     print(paste("creating oblique random forest models with CV",CV))
     
-    #if(user=="ACS-3"){
-    #  num_cores <- detectCores()
-    #}else{
-    #  num_cores <- detectCores()-1
-    #}
-    #registerDoAzureParallel(cluz)
-    
-    if(parallelType=="local"){
-    clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+    if(user=="ACS-3"){
+      num_cores <- detectCores()
+    }else{
+      num_cores <- detectCores()-1
     }
+    cluz <- parallel::makeCluster(num_cores)
+    registerDoParallel(cluz)
+    
+    clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     train<-splitdf(Moddata,weight = 2/3)
     trainModdataPred<-as.matrix(train[[1]][,c(8,9,11:ncol(train[[1]]))])
@@ -1043,20 +1030,19 @@ runRandomForest<-function(Moddata){
   
   Moddata<<-Moddata
     
-if(length(unique(Moddata$detectionType))==2){
+if(length(unique(Moddata$detectionType))>1){
 
   print(paste("creating random forest models with CV",CV))
 
-#if(user=="ACS-3"){
-#  num_cores <- detectCores()
-#}else{
-#  num_cores <- detectCores()-1
-#}
-#cluz <- doAzureParallel::makeCluster("cluster.json")
-#registerDoAzureParallel(cluz)
-  if(parallelType=="local"){
-  clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+  if(user=="ACS-3"){
+    num_cores <- detectCores()
+  }else{
+    num_cores <- detectCores()-1
   }
+  cluz <- parallel::makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
 
 stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
@@ -1440,17 +1426,17 @@ for(m in 1:length(moors)){
   }
   
   if(noPar==FALSE){
-    print(paste("      for mooring",MoorInfo[m,10]))
-  #if(user=="ACS-3"){
-  #  num_cores <- detectCores()
-  #}else{
-  #  num_cores <- detectCores()-1
-  #}
-  #cluz <- doAzureParallel::makeCluster("cluster.json")
-  #registerDoAzureParallel(cluz)
-  if(parallelType=="local"){
-  clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
-  }
+    print(paste("      for mooring",MoorInfo[m,10]))   
+    if(user=="ACS-3"){
+      num_cores <- detectCores()
+    }else{
+      num_cores <- detectCores()-1
+    }
+    cluz <- parallel::makeCluster(num_cores)
+    registerDoParallel(cluz)
+    
+    clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
+    
     
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
@@ -2625,6 +2611,15 @@ if(runTestModel=="y"){
 
 GTset$year<-format(as.Date(GTset$RTfile),"%y")
 GTset$month<-format(as.Date(GTset$RTfile),"%m")
+
+GTset$detectionType<-as.numeric(as.character(GTset$detectionType))
+
+for(s in 1:length(spec)){
+  GTsv<-GTset[which(GTset$Species==spec[s]),]
+  GTset<-GTset[-which(GTset$Species==spec[s]),]
+  GTsv$detectionType<-GTset$detectionType+(s-1)
+  GTset<-rbind(GTset,GTsv)
+}
     
 modelDat<-GTset[,c(1,18:(ncol(GTset)-2))]
 modelDatFactors<-GTset[,c(8,17,84,85)]
@@ -2645,6 +2640,8 @@ modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
 modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
 
 loadSpecVars(spec[1])
+
+stop()
 
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modelDat)
