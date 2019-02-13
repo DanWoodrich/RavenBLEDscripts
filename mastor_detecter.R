@@ -2170,6 +2170,13 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 
 
+if(user=="ACS-3"){
+##########sections to run
+runRavenGT<-"n"
+runProcessGT<-"n"
+runTestModel<-"y" #run model on GT data
+runNewData<-"n" #run on data that has not been ground truthed. 
+}
 ###############input parameters
 #detector control
 ControlTab<-read.csv(paste(drivepath,"CallParams/Detector_control.csv",sep=""))
@@ -2181,6 +2188,7 @@ spec<-str_split(ControlTab[which(ControlTab[,2]=="spec"),3],",",simplify=TRUE)
 runGT<-ControlTab[which(ControlTab[,2]=="runGT"),3]
 if(runGT=="y"){
 runGTsections<-str_split(ControlTab[which(ControlTab[,2]=="runGTsections"),3],",",simplify=TRUE)
+>>>>>>> 51bab82252ef1ac51a9f93881c14c44c539df014
 }else{
 runGTsections<-c("n","n","n")
 }
