@@ -41,18 +41,70 @@ library(obliqueRF)
 library(fpc)
 library(doAzureParallel)
 
-#generateCredentialsConfig("credentials.json")
-#generateClusterConfig("cluster.json")
+###############################
+#run this stuff so I can know whether to start azure parallel. Run it again later to populate cluster w variable. 
+#dumb conditional so I don't have to change path from machine to machine
+if(dir.exists("C:/Users/ACS-3")){
+  user<-"ACS-3"
+  drivepath<-"F:/"
+}else{
+  user<-"danby456"
+  drivepath<-"E:/"
+}
+
+startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
+BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
+ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
+outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
+outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
+
+###############input parameters
+#detector control
+ControlTab<-read.csv(paste(drivepath,"CallParams/Detector_control.csv",sep=""))
+ControlTab[,3]<-as.character(ControlTab[,3])
+#####################################
+
+parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
+
+if(parallelType=="azure"){
+  
+setwd(getwd()) #how the hell this line does anything I don't know. But it fixed a pathing error.
 setCredentials("credentials.json")
 
-# Create your cluster if it does not exist; this takes a few minutes
-cluster <- parallel::makeCluster("cluster.json") 
+cluz <- doAzureParallel::makeCluster("cluster.json")
+registerDoAzureParallel(cluz) 
 
+setAutoDeleteJob(FALSE)
+setHttpTraffic(TRUE)
+
+
+
+}else if(parallelType=="local"){
+  
+if(user=="ACS-3"){
+  num_cores <- detectCores()
+}else{
+  num_cores <- detectCores()-1
+}
+  
+cluz<-parallel::makeCluster(num_cores)
+registerDoParallel(cluz)
+
+}
+
+#generateCredentialsConfig("credentials.json")
+#generateClusterConfig("cluster.json")
+#setCredentials("credentials.json")
+
+# Create your cluster if it does not exist; this takes a few minutes
+#cluster <- doAzureParallel::makeCluster("cluster.json") 
+
+#stopCluster(cluster)
 # Register your parallel backend 
-registerDoAzureParallel(cluster) 
+#registerDoAzureParallel(cluster) 
 
 # Check that the nodes are running 
-getDoParWorkers() 
+#doAzureParallel::getDoParWorkers() 
 
 
 substrRight <- function(x, n){
@@ -336,15 +388,10 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
 
 
 parAlgo<-function(dataaa){
-  if(user=="ACS-3"){
-  num_cores <- detectCores()
-  }else{
-  num_cores <- detectCores()-1
-  }
-  cluz <- makeCluster("cluster.json")
-  registerDoAzureParallel(cluz)
   
-  clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
+  #if(parallelType=="local"){
+  #clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
+  #}
   
   if(s=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
@@ -352,13 +399,32 @@ parAlgo<-function(dataaa){
     }
     wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(s=="GS"){
-    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-    GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
-      }
-    wantedSelections<-do.call('cbind', wantedSelections)
-  }
+    
+    #outerChunk<-round(length(unique(dataaa[,2]))/10)+1
+    
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% { #,.options.azure = list(enableCloudCombine = FALSE) ,.options.azure = list(chunkSize=outerChunk)
+        GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
+    } 
+    wantedSelections2<-do.call('cbind', wantedSelections)
+       #use both cores in azure nodes 
+      #cores <- detectCores()
+      
+      #cl <- makeCluster(cores)
+      
+      #clusterExport(cl, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
+      
+      #registerDoParallel(cl)
+      
+      #wantedSelections2<-foreach(grouppp2=grouppp) %dopar% { #,.options.azure = list(enableCloudCombine = FALSE)
+
+      #return(wantedSelections2)
+    #}
+   # wantedSelections2<-do.call('cbind', wantedSelections)
+    
   stopCluster(cluz)
+  }
   return(wantedSelections)
+  
 }
 
 RW_algo<-function(resltsTabmat,f){
@@ -903,15 +969,16 @@ runObliqueRandomForest<-function(Moddata,method){
     
     print(paste("creating oblique random forest models with CV",CV))
     
-    if(user=="ACS-3"){
-      num_cores <- detectCores()
-    }else{
-      num_cores <- detectCores()-1
-    }
-    cluz <- makeCluster("cluster.json")
-    registerDoAzureParallel(cluz)
+    #if(user=="ACS-3"){
+    #  num_cores <- detectCores()
+    #}else{
+    #  num_cores <- detectCores()-1
+    #}
+    #registerDoAzureParallel(cluz)
     
+    if(parallelType=="local"){
     clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+    }
 stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     train<-splitdf(Moddata,weight = 2/3)
     trainModdataPred<-as.matrix(train[[1]][,c(8,9,11:ncol(train[[1]]))])
@@ -980,15 +1047,16 @@ if(length(unique(Moddata$detectionType))==2){
 
   print(paste("creating random forest models with CV",CV))
 
-if(user=="ACS-3"){
-  num_cores <- detectCores()
-}else{
-  num_cores <- detectCores()-1
-}
-cluz <- makeCluster("cluster.json")
-registerDoAzureParallel(cluz)
-
-clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+#if(user=="ACS-3"){
+#  num_cores <- detectCores()
+#}else{
+#  num_cores <- detectCores()-1
+#}
+#cluz <- doAzureParallel::makeCluster("cluster.json")
+#registerDoAzureParallel(cluz)
+  if(parallelType=="local"){
+  clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
+  }
 
 stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
@@ -1373,16 +1441,17 @@ for(m in 1:length(moors)){
   
   if(noPar==FALSE){
     print(paste("      for mooring",MoorInfo[m,10]))
-  if(user=="ACS-3"){
-    num_cores <- detectCores()
-  }else{
-    num_cores <- detectCores()-1
-  }
-  cluz <- makeCluster("cluster.json")
-  registerDoAzureParallel(cluz)
-  
+  #if(user=="ACS-3"){
+  #  num_cores <- detectCores()
+  #}else{
+  #  num_cores <- detectCores()-1
+  #}
+  #cluz <- doAzureParallel::makeCluster("cluster.json")
+  #registerDoAzureParallel(cluz)
+  if(parallelType=="local"){
   clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
-  
+  }
+    
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
@@ -2188,15 +2257,6 @@ ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
 outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
-
-
-if(user=="ACS-3"){
-##########sections to run
-runRavenGT<-"n"
-runProcessGT<-"n"
-runTestModel<-"y" #run model on GT data
-runNewData<-"n" #run on data that has not been ground truthed. 
-}
 ###############input parameters
 #detector control
 ControlTab<-read.csv(paste(drivepath,"CallParams/Detector_control.csv",sep=""))
@@ -2230,6 +2290,8 @@ if(length(spec)<1){
 fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),3] )
 fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize2ndIt"),3] )
 onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
+parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
+
 
 #assign runname and make run folder 
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")

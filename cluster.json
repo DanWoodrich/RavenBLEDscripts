@@ -1,23 +1,24 @@
 {
-  "name": "myPoolName",
-  "vmSize": "Standard_D2_v2",
+  "name": "newcluster2",
+  "vmSize": "Standard_D2_V2",
   "maxTasksPerNode": 2,
   "poolSize": {
     "dedicatedNodes": {
-      "min": 0,
-      "max": 0
+      "min": 5,
+      "max": 5
     },
     "lowPriorityNodes": {
       "min": 5,
-      "max": 10
+      "max": 5
     },
     "autoscaleFormula": "QUEUE"
   },
   "containerImage": "rocker/tidyverse:latest",
   "rPackages": {
-    "cran": [],
+    "cran": ["e1071","foreach","doParallel","randomForest","seewave","tuneR","plotrix","aod","ggplot2","usdm","flightcallr","ROCR","ModelMetrics","Rraven","seewave","beepr","stringr","stringi","signal","oce","imager","Cairo","obliqueRF","fpc","doAzureParallel"],
     "github": [],
     "bioconductor": []
   },
-  "commandLine": []
+  "commandLine": [],
+  "subnetId": ""
 }
