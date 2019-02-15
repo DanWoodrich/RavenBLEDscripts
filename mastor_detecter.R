@@ -99,7 +99,7 @@ registerDoParallel(cluz)
 # Create your cluster if it does not exist; this takes a few minutes
 #cluster <- doAzureParallel::makeCluster("cluster.json") 
 
-#stopCluster(cluster)
+#  parallel::stopCluster(cluster)
 # Register your parallel backend 
 #registerDoAzureParallel(cluster) 
 
@@ -410,7 +410,7 @@ parAlgo<-function(dataaa){
     }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
-  stopCluster(cluz)
+  parallel::stopCluster(cluz)
   return(wantedSelections)
   
 }
@@ -997,7 +997,7 @@ stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     
   }
 
-stopCluster(cluz)
+  parallel::stopCluster(cluz)
 
 }else{
     
@@ -1066,7 +1066,7 @@ stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   return(list(probstab[,2],giniTab,CUT))
 }
 
-stopCluster(cluz)
+  parallel::stopCluster(cluz)
 
 }else{
   
@@ -1372,9 +1372,9 @@ for(m in 1:length(moors)){
   
   if(MoorInfo[m,7]=="HG_datasets"){
     if(whiten=="y"){
-      specpath<<-paste(startcombpath,"/",spec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[m,9],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<<-paste(startcombpath,"/",spec,"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[m,9],"/No_whiten",sep="")
     }
     
     if(Decimate=="y"){
@@ -1443,7 +1443,7 @@ specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","c
   specRow<-unlist(specVar[z,])
   unlist(specDo(z,specRow,specpath))
 }
-stopCluster(cluz)
+  parallel::stopCluster(cluz)
 
 prevdir<-getwd()
 setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
@@ -2568,7 +2568,7 @@ GTset$sound.files<-as.factor(GTset$sound.files)
 dataMat<- data.matrix(GTset[,c(11,4:7)])
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,1)
+dataMat3<-spectral_features(dataMat,1)
 
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
