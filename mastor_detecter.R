@@ -77,21 +77,20 @@ registerDoAzureParallel(cluz)
 setAutoDeleteJob(FALSE)
 setHttpTraffic(TRUE)
 
-
-
-}else if(parallelType=="local"){
-  
-if(user=="ACS-3"){
-  num_cores <- detectCores()
-}else{
-  num_cores <- detectCores()-1
-}
-  
-cluz<-parallel::makeCluster(num_cores)
-registerDoParallel(cluz)
-
 }
 
+startLocalPar<-function(...){
+  if(user=="ACS-3"){
+    num_cores <- detectCores()
+  }else{
+    num_cores <- detectCores()-1
+  }
+  cluz <<- parallel::makeCluster(num_cores)
+  registerDoParallel(cluz)
+  
+  clusterExport(cluz, c(...))
+  
+}
 #generateCredentialsConfig("credentials.json")
 #generateClusterConfig("cluster.json")
 #setCredentials("credentials.json")
@@ -389,15 +388,9 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
 
 parAlgo<-function(dataaa){
   
-  if(user=="ACS-3"){
-    num_cores <- detectCores()
-  }else{
-    num_cores <- detectCores()-1
+  if(parallelType=="local"){
+  startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s")
   }
-  cluz <- parallel::makeCluster(num_cores)
-  registerDoParallel(cluz)
-  
-  clusterExport(cluz, c("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s"))
   
   if(s=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
@@ -410,7 +403,10 @@ parAlgo<-function(dataaa){
     }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
-  parallel::stopCluster(cluz)
+  
+  if(parallelType=="local"){
+    parallel::stopCluster(cluz)
+  }
   return(wantedSelections)
   
 }
@@ -957,16 +953,11 @@ runObliqueRandomForest<-function(Moddata,method){
     
     print(paste("creating oblique random forest models with CV",CV))
     
-    if(user=="ACS-3"){
-      num_cores <- detectCores()
-    }else{
-      num_cores <- detectCores()-1
+    if(parallelType=="local"){
+    startLocalPar("Moddata","CV","splitdf","TPRthresh")
     }
-    cluz <- parallel::makeCluster(num_cores)
-    registerDoParallel(cluz)
     
-    clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
-stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
+    stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     train<-splitdf(Moddata,weight = 2/3)
     trainModdataPred<-as.matrix(train[[1]][,c(8,9,11:ncol(train[[1]]))])
     testModdataPred<-as.matrix(train[[2]][,c(8,9,11:ncol(train[[1]]))])
@@ -995,9 +986,11 @@ stuff<-foreach(p=1:CV,.packages=c("obliqueRF","ROCR","stats")) %dopar% {
     placeHolder<-TRUE
     return(list(probstab[,2],placeHolder,CUT))
     
-  }
-
+    }
+    
+  if(parallelType=="local"){
   parallel::stopCluster(cluz)
+  }
 
 }else{
     
@@ -1034,17 +1027,11 @@ if(length(unique(Moddata$detectionType))>1){
 
   print(paste("creating random forest models with CV",CV))
 
-  if(user=="ACS-3"){
-    num_cores <- detectCores()
-  }else{
-    num_cores <- detectCores()-1
+  if(parallelType=="local"){
+  startLocalPar("Moddata","CV","splitdf","TPRthresh")
   }
-  cluz <- parallel::makeCluster(num_cores)
-  registerDoParallel(cluz)
   
-  clusterExport(cluz, c("Moddata","CV","splitdf","TPRthresh"))
-
-stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
+  stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
   pred<-stats::predict(data.rf,train[[2]],type="prob")
@@ -1065,8 +1052,9 @@ stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   }
   return(list(probstab[,2],giniTab,CUT))
 }
-
+  if(parallelType=="local"){
   parallel::stopCluster(cluz)
+  }
 
 }else{
   
@@ -1427,23 +1415,19 @@ for(m in 1:length(moors)){
   
   if(noPar==FALSE){
     print(paste("      for mooring",MoorInfo[m,10]))   
-    if(user=="ACS-3"){
-      num_cores <- detectCores()
-    }else{
-      num_cores <- detectCores()-1
+    
+    if(parallelType=="local"){
+    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
     }
-    cluz <- parallel::makeCluster(num_cores)
-    registerDoParallel(cluz)
-    
-    clusterExport(cluz, c("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg"))
-    
     
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
   unlist(specDo(z,specRow,specpath))
 }
+  if(parallelType=="local"){
   parallel::stopCluster(cluz)
+  }
 
 prevdir<-getwd()
 setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
