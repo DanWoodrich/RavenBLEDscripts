@@ -892,7 +892,7 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 
 process_model<-function(stuff2,Moddata2){
 
-  if(length(unique(Moddata$detectionType))==2){
+  if(length(unique(Moddata2$detectionType))>=2){
   
   if(modelType=="rf"){
   giniTab<-data.frame(stuff2[[1]][2])
@@ -1034,22 +1034,33 @@ if(length(unique(Moddata$detectionType))>1){
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  p=1
+  probstab<-list()
+  
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
   
-  ROCRpred<-prediction(pred[,2],train[[2]]$detectionType)
+  for(s in seq(0,length(spec),2)){
+  oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
+  
+  oneSpecDetType[which(oneSpecDetType>1|oneSpecDetType<1)]<-0
+                 
+  ROCRpred<-prediction(pred[,s+2],oneSpecDetType)
   prob.perf = performance(ROCRpred, "tpr","fpr")
   
   TPR<-NULL
   TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
   CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
   
-  probstab<-data.frame(Moddata$Selection)
-  probstab[,2]<-NA
+  probstab[[p]]<-data.frame(Moddata$Selection)
+  probstab[[p]][,2]<-NA
   giniTab<-as.numeric(data.rf$importance)
   for(n in 1:nrow(pred)){
-    probstab[which(probstab$Moddata.Selection==pred[n,3]),2]<-pred[n,2]
+    probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(spec)*2+1)]),2]<-pred[n,2+s]
   }
+  p=p+1
+  }
+  
   return(list(probstab[,2],giniTab,CUT))
 }
   if(parallelType=="local"){
@@ -1353,6 +1364,8 @@ spectral_features<- function(specdata,count){
   }
   
 for(m in 1:length(moors)){
+  
+  loadSpecVars(MoorInfo[m,9])
   
   specVar<<-NULL
   whiten2<<-NULL
@@ -1677,12 +1690,12 @@ process_data<-function(){
 #Combine and configure spread detectors. 
 
   #seperate by species
-resltsTab<-resltsTab[which(resltsTab$Species==s),]
+resltsTabTemp<-resltsTab[which(resltsTab$Species==s),]
 
 print(paste("Combining spread for"))
   
-for(e in unique(resltsTab$sound.files)){
-  resltsVar<-resltsTab[which(resltsTab$sound.files==e),]
+for(e in unique(resltsTabTemp$sound.files)){
+  resltsVar<-resltsTabTemp[which(resltsTabTemp$sound.files==e),]
   print(paste("    ",e))
   for(f in 1:length(unique(resltsVar$bottom.freq))){
     resltsVar[resltsVar$bottom.freq==sort(unique(resltsVar$bottom.freq))[f],14]<-f
@@ -2360,6 +2373,11 @@ DetecTab$detectionType<-0
 
 GTset=NULL
 
+GTtot=0
+GTtot2=NULL
+TPtot=NULL
+MoorCor=NULL
+
 for(s in spec){
 GT<-list()
 DetecTab2<-DetecTab[which(DetecTab$Species==s),]
@@ -2379,10 +2397,6 @@ for(f in 1:length(unique(DetecTab2$MooringName))){
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
-  GTtot=0
-  GTtot2=NULL
-  TPtot=NULL
-  MoorCor=NULL
 for(v in 1:length(unique(DetecTab2$MooringID))){
   print(paste("Comparing ground truth of",sort(unique(DetecTab2$MooringID))[v],"with final detector"))   
   MoorVar<-DetecTab2[which(DetecTab2$MooringID==sort(unique(DetecTab2$MooringID))[v]),]
@@ -2552,24 +2566,36 @@ GTset$sound.files<-as.factor(GTset$sound.files)
 dataMat<- data.matrix(GTset[,c(11,4:7)])
 print("extracting features from FFT of each putative call")
 
-dataMat3<-spectral_features(dataMat,1)
+dataMat<-spectral_features(dataMat,1)
 
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
 
+if(length(spec)==1){
 dir.create(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""))
 dir.create(paste(outputpathfiles,spec,"TPtottab/",sep=""))
 
 write.csv(GTset,paste(outputpathfiles,spec,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
 write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
 
+}else if(length(spec)>1){
+  dir.create(paste(outputpathfiles,"Processed_GT_data/",sep=""))
+  dir.create(paste(outputpathfiles,"TPtottab/",sep=""))
+  
+  write.csv(GTset,paste(outputpathfiles,"Processed_GT_data/",runname,"_processedGT.csv",sep=""),row.names = F)
+  write.csv(TPtottab,paste(outputpathfiles,"TPtottab/",runname,"_processedGT.csv",sep=""),row.names = F)
+  
+}
+
 GTset<-GTset[,c(1,4:ncol(GTset))]
 GTset<-data.frame(GTset)
 GTset$detectionType<-as.factor(GTset$detectionType)
 
 }else{
+  
+  if(length(spec)==1){
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   GTset<-read.csv(recentPath) #produces most recently modifed file 
@@ -2577,6 +2603,16 @@ GTset$detectionType<-as.factor(GTset$detectionType)
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
   TPtottab<-read.csv(recentPath) #produces most recently modifed file 
+  
+  }else if(length(spec)>1){
+    recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
+    recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+    GTset<-read.csv(recentPath) #produces most recently modifed file 
+    
+    recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+    recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
+    TPtottab<-read.csv(recentPath) #produces most recently modifed file 
+  }
   
   GTset<-GTset[,c(1,4:length(GTset))]
   GTset$detectionType<-as.factor(GTset$detectionType)
@@ -2596,14 +2632,9 @@ if(runTestModel=="y"){
 GTset$year<-format(as.Date(GTset$RTfile),"%y")
 GTset$month<-format(as.Date(GTset$RTfile),"%m")
 
-GTset$detectionType<-as.numeric(as.character(GTset$detectionType))
+GTset$detectionType<-as.numeric(as.character(GTset$detectionType),sep="")
 
-for(s in 1:length(spec)){
-  GTsv<-GTset[which(GTset$Species==spec[s]),]
-  GTset<-GTset[-which(GTset$Species==spec[s]),]
-  GTsv$detectionType<-GTset$detectionType+(s-1)
-  GTset<-rbind(GTset,GTsv)
-}
+GTset$detectionType<-as.factor(paste(GTset$Species,GTset$detectionType))
     
 modelDat<-GTset[,c(1,18:(ncol(GTset)-2))]
 modelDatFactors<-GTset[,c(8,17,84,85)]
@@ -2623,7 +2654,7 @@ modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
 
 modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
 
-loadSpecVars(spec[1])
+loadSpecVars(MoorInfo[1,9])
 
 stop()
 
