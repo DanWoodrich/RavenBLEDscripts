@@ -895,14 +895,14 @@ process_model<-function(stuff2,Moddata2){
   if(length(unique(Moddata2$detectionType))>=2){
   
   if(modelType=="rf"){
-  giniTab<-data.frame(stuff2[[1]][2])
+  giniTab<-data.frame(stuff2[[1]][[2]])
   for(i in 2:CV){
-    giniTab<-cbind(giniTab,stuff2[[i]][2])
+    giniTab<-cbind(giniTab,stuff2[[i]][[2]])
   }
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<-c(colnames(Moddata2[,1:ncol(Moddata2)]))
+  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(c(colnames(Moddata2[,2:ncol(Moddata2)]))!='detectionType')]
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -912,35 +912,50 @@ process_model<-function(stuff2,Moddata2){
   giniAv<-NULL
   }
   }
+  
+  probDeets<-NULL
+  CUTmean<-list()
+  
+  for(s in 1:length(spec)){
 
-  CUTvec<-stuff2[[1]][3]
-  for(i in 2:CV){
-    CUTvec<-c(CUTvec,stuff2[[i]][3])
+  CUTvec<-NULL
+      
+  for(i in 1:CV){
+    CUTvec<-c(CUTvec,stuff2[[i]][[3]][[s]])
   }
   
-  CUTmean<-mean(unlist(CUTvec))
+  CUTmean[[s]]<-mean(unlist(CUTvec))
   
   #build probability data frame 
-  probstab<-data.frame(Moddata2$Selection)
+  probstab<-NULL
   for(i in 1:CV){
-    probstab<-cbind(probstab,stuff2[[i]][1])
+    probstab<-cbind(probstab,stuff2[[i]][[1]][[s]][,2])
   }
 
   probmean<-NULL
   probstderr<-NULL
   n<-NULL
   for(x in 1:nrow(probstab)){
-    probmean[x]<-mean(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-    probstderr[x]<-std.error(as.numeric(probstab[x,2:length(probstab)]),na.rm=TRUE)
-    n[x]<-length(which(!is.na(probstab[x,2:length(probstab)])))
+    probmean[x]<-mean(as.numeric(probstab[x,2:ncol(probstab)]),na.rm=TRUE)
+    probstderr[x]<-std.error(as.numeric(probstab[x,2:ncol(probstab)]),na.rm=TRUE)
+    n[x]<-length(which(!is.na(probstab[x,2:ncol(probstab)])))
   }
   
   ##assuming $detection type is already in this data NOTE not 
-  Moddata2$probmean<-probmean
-  Moddata2$probstderr<-probstderr
-  Moddata2$n<-n
+  tempNames<-colnames(Moddata2)
+  Moddata2<-cbind(Moddata2,probmean)
+  colnames(Moddata2)<-c(tempNames,paste(spec[s],"prob"))
   
-  return(list(Moddata2,CUTmean))
+  tempNames<-colnames(probDeets)
+  probDeets<-cbind(probDeets,probmean)
+  probDeets<-cbind(probDeets,probstderr)
+  probDeets<-cbind(probDeets,n)
+    
+  colnames(probDeets)<-c(tempNames,paste(spec[s],"prob"),paste(spec[s],"stderr"),paste(spec[s],"n"))
+  }
+  
+  return(list(Moddata2,probDeets,CUTmean))
+  probDeets<<-NULL
 }
 
 runObliqueRandomForest<-function(Moddata,method){
@@ -1028,17 +1043,20 @@ if(length(unique(Moddata$detectionType))>1){
   print(paste("creating random forest models with CV",CV))
 
   if(parallelType=="local"){
-  startLocalPar("Moddata","CV","splitdf","TPRthresh")
+  startLocalPar("Moddata","CV","splitdf","TPRthresh","spec")
   }
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
-  p=1
-  probstab<-list()
-  
+
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
+  
+  p=1
+  probstab<-list()
+  CUT<-list()
+  giniTab<-as.numeric(data.rf$importance)
   
   for(s in seq(0,length(spec),2)){
   oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
@@ -1050,18 +1068,17 @@ if(length(unique(Moddata$detectionType))>1){
   
   TPR<-NULL
   TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- max(TPR[which(TPR$tpr>=TPRthresh),1])
+  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh),1]))
   
   probstab[[p]]<-data.frame(Moddata$Selection)
   probstab[[p]][,2]<-NA
-  giniTab<-as.numeric(data.rf$importance)
   for(n in 1:nrow(pred)){
     probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(spec)*2+1)]),2]<-pred[n,2+s]
   }
   p=p+1
   }
   
-  return(list(probstab[,2],giniTab,CUT))
+  return(list(probstab,giniTab,CUT))
 }
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
@@ -2636,7 +2653,7 @@ GTset$detectionType<-as.numeric(as.character(GTset$detectionType),sep="")
 
 GTset$detectionType<-as.factor(paste(GTset$Species,GTset$detectionType))
     
-modelDat<-GTset[,c(1,18:(ncol(GTset)-2))]
+modelDat<-GTset[,c(1,19:(ncol(GTset)-2))]
 modelDatFactors<-GTset[,c(8,17,84,85)]
 modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
 
@@ -2656,13 +2673,14 @@ modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
 
 loadSpecVars(MoorInfo[1,9])
 
-stop()
 
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modelDat)
 }else if(modelType=='orf'){
   modelOutput<-runObliqueRandomForest(modelDat,method=modelMethod)
 f}
+
+stop()
 
 #end model function. export dataset, cutmean
 
