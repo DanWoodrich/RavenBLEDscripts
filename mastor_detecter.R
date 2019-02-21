@@ -405,19 +405,21 @@ parAlgo<-function(dataaa){
   if(parallelType=="local"){
   startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s")
   }
-  
+  print("start algo")
   if(s=="RW"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      RW_algo(resltsTabmat=dataaa[,1:3],f=grouppp)
+      group<-dataaa[which(dataaa[,2]==grouppp),1:3]
+      RW_algo(resltsTabmat=group)
     }
     wantedSelections<-as.integer(do.call('c', wantedSelections))
   }else if(s=="GS"){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
-      GS_algo(resltsTabmat=dataaa[,c(1,2,4,5)],f=grouppp)
+      group<-dataaa[which(dataaa[,2]==grouppp),c(1,2,4,5)]
+      GS_algo(groupdat=group)
     }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
-  
+  print("end algo")
   if(parallelType=="local"){
     parallel::stopCluster(cluz)
   }
@@ -425,9 +427,9 @@ parAlgo<-function(dataaa){
   
 }
 
-RW_algo<-function(resltsTabmat,f){
+RW_algo<-function(resltsTabmat){
   wantedSelections<-c()
-  groupdat<- resltsTabmat[which(resltsTabmat[,2]==f),]
+  groupdat<- resltsTabmat
   grpvec<-groupdat[,1]
   colClasses = c("numeric","numeric","numeric","numeric","numeric")
   runsum<- read.csv(text="start, ones, zeros, length,skip", colClasses = colClasses)
@@ -496,7 +498,7 @@ RW_algo<-function(resltsTabmat,f){
     kill="y"
   }
   if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
-    groupdat2<- resltsTabmat[which(resltsTabmat[,2]==f),]
+    groupdat2<- resltsTabmat
     groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
     grpvec2<-groupdat2[,1]
     colClasses = c("numeric","numeric","numeric","numeric","numeric")
@@ -574,9 +576,8 @@ RW_algo<-function(resltsTabmat,f){
   return(wantedSelections)
 }
 
-GS_algo<-function(resltsTabmat,f){
+GS_algo<-function(groupdat){
   #for(f in unique(resltsTabmat[,2])){
-  groupdat<- resltsTabmat[which(resltsTabmat[,2]==f),]
   groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
   groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize-1)))
   
@@ -1126,7 +1127,7 @@ context_sim <-function(sdata){
           datVar[n+1,pos+1]<-maxBonus
         }
       }else{
-        datVar[n+1,pos+1]<-datVar[n,pos+1]+(badcallPenalty*datVar[n,pos+1]
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+(badcallPenalty) #*datVar[n,pos+1])
         if(datVar[n+1,pos+1]<maxPenalty){
           datVar[n+1,pos+1]<-maxPenalty
         }
@@ -1153,7 +1154,7 @@ context_sim <-function(sdata){
         datVar[n-1,pos+3]<-maxBonus
       }
     }else{
-      datVar[n-1,pos+3]<-datVar[n,pos+3]+(badcallPenalty*
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+(badcallPenalty)
       if(datVar[n-1,pos+3]<maxPenalty){
         datVar[n-1,pos+3]<-maxPenalty
       }
@@ -1813,12 +1814,13 @@ for(e in unique(resltsTabTemp$sound.files)){
     wantedSelections<-parAlgo(Matdata)
     
     Matdata<<-NULL
-
+  print("start process wanted selections")
     if(s=="RW"){
     resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% as.integer(wantedSelections)),]
     }else if(s=="GS"){
     wantedSelections<-t(wantedSelections)
     c=1
+    
     for(u in 1:nrow(wantedSelections)-1){
       wantedSelections[u,2]<-c
       if(wantedSelections[u+1,2]==999999999){
@@ -1828,10 +1830,24 @@ for(e in unique(resltsTabTemp$sound.files)){
     wantedSelections<-wantedSelections[which(wantedSelections[,1]!=999999999),]
     wantedSelections<-wantedSelections[which(!duplicated(wantedSelections[,1])),] #throw out duplicates, later assign boxes just using first position of highest in group and last end time in group
     resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% wantedSelections[,1]),]
-    
+    print("start create new groups values")
     #create new groups values
-    for(u in 1:nrow(resltsVar)){
-      resltsVar[u,15]<-wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsVar[u,]))),2] 
+    
+    resltsVar<<-resltsVar
+    wantedSelections<<-wantedSelections
+
+    if(parallelType=="local"){
+      startLocalPar("wantedSelections","resltsVar")
+    }
+    
+    vec<-foreach(u=1:nrow(resltsVar),.combine="c") %dopar% {
+      as.numeric(wantedSelections[which(wantedSelections[,1]==as.integer(rownames(resltsVar[u,]))),2] )
+    }
+
+    resltsVar[,15]<-vec
+    
+    if(parallelType=="local"){
+      parallel::stopCluster(cluz)
     }
     
     }
@@ -1839,6 +1855,7 @@ for(e in unique(resltsTabTemp$sound.files)){
     if(nrow(resltsVar)==0){
       write.table("FINAL There were no detections",paste(outputpath,runname,"/",e,"/FINAL_Summary_spread_",substr(resltsVar$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
     }else{
+      print("start create new table")
       colClasses = c("numeric", "character","numeric","numeric", "numeric","numeric","numeric","character","character","character")
       resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, MooringCode, sound.files", colClasses = colClasses)
       colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","MooringCode","sound.files")
@@ -1953,7 +1970,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         resltsTabFinal$FileOffsetBegin<-0
         resltsTabFinal$FileOffsetEnd<-0
         
-        print(paste("calculate file ID and begin time and end time relative to file for sound.file"))
+        print("calculate file ID and begin time and end time relative to file for sound.file")
           for(c in 1:nrow(resltsTabFinal)){
             index<-findInterval(resltsTabFinal[c,4], c(0,durTab$CumDur))
             resltsTabFinal$File[c]<-as.character(durTab[index,2])
