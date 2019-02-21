@@ -14,7 +14,7 @@
 
 
 
-library(e1071)  
+library(e1071)   
 library(foreach)
 library(doParallel)
 #library(caret)  
@@ -105,6 +105,20 @@ startLocalPar<-function(...){
 # Check that the nodes are running 
 #doAzureParallel::getDoParWorkers() 
 
+factorLevels<-function(dataToMat){
+  FactorTab<-lapply(dataToMat,levels)
+  return(FactorTab)
+}
+
+applyLevels<-function(matToData,datLevels){
+  for(i in 1:ncol(matToData)){
+    if(!is.null(unlist(datLevels[i]))){
+      matToData[,i]<-factor(matToData[,i],labels=as.character(unlist(datLevels[i])))
+    }
+    
+  }
+  return(matToData)
+}
 
 substrRight <- function(x, n){
   substr(x, nchar(x)-n+1, nchar(x))
@@ -913,7 +927,7 @@ process_model<-function(stuff2,Moddata2){
   }
   }
   
-  probDeets<-NULL
+  #probDeets<-NULL
   CUTmean<-list()
   
   for(s in 1:length(spec)){
@@ -943,18 +957,18 @@ process_model<-function(stuff2,Moddata2){
   
   ##assuming $detection type is already in this data NOTE not 
   tempNames<-colnames(Moddata2)
-  Moddata2<-cbind(Moddata2,probmean)
-  colnames(Moddata2)<-c(tempNames,paste(spec[s],"prob"))
+  Moddata2<-cbind(Moddata2,probmean,probstderr,n)
+  colnames(Moddata2)<-c(tempNames,paste(spec[s],"prob"),paste(spec[s],"stderr"),paste(spec[s],"n"))
   
-  tempNames<-colnames(probDeets)
-  probDeets<-cbind(probDeets,probmean)
-  probDeets<-cbind(probDeets,probstderr)
-  probDeets<-cbind(probDeets,n)
+  #tempNames<-colnames(probDeets)
+  #probDeets<-cbind(probDeets,probmean)
+  #probDeets<-cbind(probDeets,probstderr)
+  #probDeets<-cbind(probDeets,n)
     
-  colnames(probDeets)<-c(tempNames,paste(spec[s],"prob"),paste(spec[s],"stderr"),paste(spec[s],"n"))
+  #colnames(probDeets)<-c(tempNames,paste(spec[s],"prob"),paste(spec[s],"stderr"),paste(spec[s],"n"))
   }
   
-  return(list(Moddata2,probDeets,CUTmean))
+  return(list(Moddata2,CUTmean))
   probDeets<<-NULL
 }
 
@@ -1096,8 +1110,8 @@ if(length(unique(Moddata$detectionType))>1){
 context_sim <-function(sdata){
   datTab<-matrix(,ncol=pos+5,nrow=0)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
-  for(w in 1:length(unique(sdata[,1]))){
-    datVar<-sdata[which(sdata[,1]==unique(sdata[,1])[w]),]
+  for(w in 1:length(unique(sdata[,6]))){
+    datVar<-sdata[which(sdata[,6]==unique(sdata[,6])[w]),]
     datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
     datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
@@ -1106,13 +1120,13 @@ context_sim <-function(sdata){
         if(datVar[n+1,pos+1]>maxBonus){
           datVar[n+1,pos+1]<-maxBonus
         }
-      }else if(datVar[n,pos+2]>=(-maxPenalty+CUTmean)&datVar[n,pos+2]<greatcallThresh){
+      }else if(datVar[n,pos+2]>=(-maxPenalty+CUTmeanspec)&datVar[n,pos+2]<greatcallThresh){
         datVar[n+1,pos+1]<-datVar[n,pos+1]+(datVar[n,pos+2]*goodcallBonus)
         if(datVar[n+1,pos+1]>maxBonus){
           datVar[n+1,pos+1]<-maxBonus
         }
       }else{
-        datVar[n+1,pos+1]<-datVar[n,pos+1]+badcallPenalty
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+(badcallPenalty*datVar[n,pos+1]
         if(datVar[n+1,pos+1]<maxPenalty){
           datVar[n+1,pos+1]<-maxPenalty
         }
@@ -1139,7 +1153,7 @@ context_sim <-function(sdata){
         datVar[n-1,pos+3]<-maxBonus
       }
     }else{
-      datVar[n-1,pos+3]<-datVar[n,pos+3]+badcallPenalty
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+(badcallPenalty*
       if(datVar[n-1,pos+3]<maxPenalty){
         datVar[n-1,pos+3]<-maxPenalty
       }
@@ -1176,7 +1190,7 @@ after_model_write <-function(mdata,finaldatrun){
     }
     MoorVar1<-mdata[which(mdata[,1] %in% MoorInfo[which(MoorInfo[,10]==sort(unique(MoorInfo[,10]))[v]),1]),]
 
-    MoorVar1<-MoorVar1[which(MoorVar1[,pos+5]>CUTmean),]
+    MoorVar1<-MoorVar1[which(MoorVar1[,pos+5]>CUTmeanspec),]
     
     detTotal<-nrow(MoorVar1)
     
@@ -1245,7 +1259,7 @@ after_model_write <-function(mdata,finaldatrun){
       }
   }
   numTPtruth<-sum(TPtottab$GTtot)
-  mdata<-mdata[which(mdata[,pos+5]>CUTmean),]
+  mdata<-mdata[which(mdata[,pos+5]>CUTmeanspec),]
   
   if(finaldatrun==1){
   numTP<-sum(as.numeric(mdata[,7])-1)
@@ -1273,38 +1287,55 @@ after_model_write <-function(mdata,finaldatrun){
   write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
 }
 
-adaptive_compare<-function(Compdata,specfeatrun){
+adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
-  for(o in unique(Compdata[,1])){
-    print(paste("for mooring",MoorInfo[o,3]))
-    CompVar<-Compdata[which(Compdata[,1]==o),]
-    CompVar<-CompVar[order(CompVar[,3]),]
+  for(o in unique(Compdata[,6])){
+    print(paste("for mooring",o))
+    CompVar<-Compdata[which(Compdata[,6]==o),]
+    CompVar<-CompVar[order(CompVar[,2]),]
     n=0
     newrow<-matrix(0,ncol=pos)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
-      if(CompVar[q+1,3]<=(CompVar[q,3]+timediffself)){
+      if(CompVar[q+1,2]<=(CompVar[q,2]+timediffself)){
         if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
           newdat<-newdat[order(newdat[,pos-2]),]
-          IDvec<-c(IDvec,as.numeric(newdat[,2]))
+          IDvec<-c(IDvec,as.numeric(newdat[,1]))
           newrow<-rbind(newrow,newdat[2,])
         }else{
           newdat<-CompVar[c(q,q+1),]
-          IDvec<-c(IDvec,as.numeric(newdat[,2]))
-          s<-as.numeric(min(newdat[,3]))
-          e<-as.numeric(max(newdat[,4]))
-          l<-as.numeric(min(newdat[,5]))
-          h<-as.numeric(max(newdat[,6]))
-          dt<-max(as.numeric(as.character(newdat[,7])))
-          mt<-(s+e)/2
+          IDvec<-c(IDvec,as.numeric(newdat[,1]))
+          sel1<-newdat[1,1]
+          s<-as.numeric(min(newdat[,2]))
+          e<-as.numeric(max(newdat[,3]))
+          l<-as.numeric(min(newdat[,4]))
+          h<-as.numeric(max(newdat[,5]))
+          MID<-newdat[1,6]
+          Mname<-newdat[1,7]
+          Sf<-newdat[1,8]
+          File<-newdat[1,9]
+          FOB<-newdat[1,10]
+          FOE<-newdat[1,11]
+          RTf<-newdat[1,12]
+          RTb<-newdat[1,13]
+          RTe<-newdat[1,14]
+          species<-newdat[1,15]
+          sel2<-newdat[1,16]
           mf<-(h+l)/2
           fr<-(h-l)
-          row<-c(newdat[1,1],newdat[1,2],s,e,l,h,dt,mf,fr,mt)
-
-          row2<-unlist(spectral_features(row[c(1,3,4,5,6)],q))
+          row<-c(sel1,s,e,l,h,MID,Mname,Sf,File,FOB,FOE,RTf,RTb,RTe,species,sel2,mf,fr)
           
-          row<-c(row,row2[c(6:length(row2))],c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
+          Mcode<-newdat[1,pos-6]
+          dt<-max(newdat[,pos-5])
+          yr<-newdat[1,pos-4]
+          month<-newdat[1,pos-3]
+          
+          afterrow<-c(Mcode,dt,yr,month)
+          
+          row2<-unlist(spectral_features(row[c(6,2,3,4,5)]))
+          
+          row<-c(row,row2[c(6:length(row2))],afterrow,c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
           
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
@@ -1316,13 +1347,13 @@ adaptive_compare<-function(Compdata,specfeatrun){
 
       }
       if(newrow[1,1]!=0){
-        CompVar<-subset(CompVar,!(CompVar[,2] %in% IDvec))
+        CompVar<-subset(CompVar,!(CompVar[,1] %in% IDvec))
         CompVar<-rbind(CompVar,newrow)
-        CompVar<-CompVar[order(CompVar[,3]),]
+        CompVar<-CompVar[order(CompVar[,2]),]
         n=n+1
       }
     if(n>0){
-      Compdata<-Compdata[-which(Compdata[,1]==o),]
+      Compdata<-Compdata[-which(Compdata[,6]==o),]
       Compdata<-rbind(Compdata,CompVar)      
     }
 
@@ -1367,7 +1398,7 @@ durList<-list(durTab,durTab2)
   return(durList)
 }
 
-spectral_features<- function(specdata,count){
+spectral_features<- function(specdata){
   
   specdata<<-specdata
 
@@ -1375,24 +1406,24 @@ spectral_features<- function(specdata,count){
   specTab<<-NULL
   
   if(is.null(nrow(specdata))){
-  moors<-MoorInfo[which(MoorInfo[,1] %in% unique(specdata[1])),10]
+  moors<-MoorInfo[specdata[1],10]
   }else{
     moors<-unique(MoorInfo[,10])
   }
   
-for(m in 1:length(moors)){
+for(m in moors){
   
-  loadSpecVars(MoorInfo[m,9])
+  loadSpecVars(MoorInfo[which(MoorInfo[,10]==m),9])
   
   specVar<<-NULL
   whiten2<<-NULL
   specpath<<-NULL
   
-  if(MoorInfo[m,7]=="HG_datasets"){
+  if(MoorInfo[which(MoorInfo[,10]==m),7]=="HG_datasets"){
     if(whiten=="y"){
-      specpath<<-paste(startcombpath,"/",MoorInfo[m,9],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[which(MoorInfo[,10]==m),9],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<<-paste(startcombpath,"/",MoorInfo[m,9],"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[which(MoorInfo[,10]==m),9],"/No_whiten",sep="")
     }
     
     if(Decimate=="y"){
@@ -1406,7 +1437,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(MoorInfo[,10]==m),10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1433,7 +1464,7 @@ for(m in 1:length(moors)){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[m,10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(MoorInfo[,10]==m),10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1444,7 +1475,7 @@ for(m in 1:length(moors)){
   }
   
   if(noPar==FALSE){
-    print(paste("      for mooring",MoorInfo[m,10]))   
+    print(paste("      for mooring",MoorInfo[which(MoorInfo[,10]==m),10]))   
     
     if(parallelType=="local"){
     startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
@@ -1467,7 +1498,7 @@ setwd(prevdir)
 specVar<<-do.call('rbind', specVar2)
 
   }else if(noPar==TRUE){
-    z=count
+    z=1
     specRow<-unlist(specVar[1,])
     specVar<<-unlist(specDo(z,specRow,specpath))
     
@@ -2583,7 +2614,7 @@ GTset$sound.files<-as.factor(GTset$sound.files)
 dataMat<- data.matrix(GTset[,c(11,4:7)])
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat,1)
+dataMat<-spectral_features(dataMat)
 
 dataMat<-data.frame(dataMat)
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
@@ -2687,29 +2718,42 @@ stop()
 #return dataset from random forest 
 
 ######################
-data3<-cbind(modelOutput[[1]],otherDat)
+data3<-cbind(otherDat,modelOutput[[1]])
 CUTmean<-modelOutput[[2]]
 
-pos<-length(data3) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+for(s in 1:length(spec)){
+
+CUTmeanspec<-CUTmean[[s]]
+
+nospec<-ncol(data3)-(length(spec)*3)
+  
+data3<-data3[,c(1:nospec,(nospec+3*s-2),(nospec+3*s-1),(nospec+3*s))]  
+pos<-ncol(data3) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
 
 #put columns excluded from model back in ?
 
-if(any(is.na(data3$probmean))){
-  data3<-data3[-which(is.na(data3$probmean)),]
+#this could create conflicts with ROC curve
+if(any(is.na(data3[,pos-2]))){
+  data3<-data3[-which(is.na(data3[,pos-2])),]
 }
 
 #adaptively combine detections based on probability
+data3Labs<-factorLevels(data3)
 data3Mat<- data.matrix(data3)
-#if(spec=="RW"){
-data3Mat<-adaptive_compare(data3Mat,1) 
-#}else if(spec=="GS"){
-#}
+
+data3Mat<-adaptive_compare(data3) 
 
 #simulate context over time using probability scores 
 data3Mat<-context_sim(data3Mat)
 
-pp2<-as.vector(data3Mat[,pos-2])
-ll2<-as.numeric(as.character(data3Mat[,7]))-1
+data3<-data.frame(data3Mat)
+data3<-applyLevels(data3,data3Labs)
+dataSPEC<-data3[which(data3$Species==spec[s]),]
+
+dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
+
+pp2<-as.vector(dataSPEC[,pos-2])
+ll2<-dataSPEC$detectionType
 predd2<-prediction(pp2,ll2)
 perff2<-performance(predd2,"tpr","fpr")
 
@@ -2722,23 +2766,23 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(data3Mat[which(data3Mat[,7]==1),pos-2],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[which(dataSPEC$detectionType==1),pos-2],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmeanspec)
 
-plot(data3Mat[which(data3Mat[,7]==2),pos-2],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[which(dataSPEC$detectionType==2),pos-2],dataSPEC[which(dataSPEC$detectionType==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmeanspec)
 
-plot(data3Mat[,pos-2],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[,pos-2],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==2,'blue','red'),cex=0.25)
+abline(v=CUTmeanspec)
 
-plot(data3Mat[which(data3Mat[,7]==1),pos+5],data3Mat[which(data3Mat[,7]==1),pos-1], col = "red",cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[which(dataSPEC$detectionType==1),pos+5],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "red",cex=0.25)
+abline(v=CUTmeanspec)
 
-plot(data3Mat[which(data3Mat[,7]==2),pos+5],data3Mat[which(data3Mat[,7]==2),pos-1], col = "blue",cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[which(dataSPEC$detectionType==2),pos+5],dataSPEC[which(dataSPEC$detectionType==2),pos-1], col = "blue",cex=0.25)
+abline(v=CUTmeanspec)
 
-plot(data3Mat[,pos+5],data3Mat[,pos-1], col = ifelse(data3Mat[,7]==2,'blue','red'),cex=0.25)
-abline(v=CUTmean)
+plot(dataSPEC[,pos+5],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==2,'blue','red'),cex=0.25)
+abline(v=CUTmeanspec)
 
 #plot of probabilities after context sim:
 for(m in unique(data3Mat[,1])){
@@ -2752,6 +2796,8 @@ abline(h=0.5,lty=3)
 lines(data3Matmoors[,10],(data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
 lines(data3Matmoors[,10],(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
 lines(data3Matmoors[,10],((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
+}
+
 }
 
 #data3$detectionType<-as.factor(data3$detectionType)
