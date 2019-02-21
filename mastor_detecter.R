@@ -39,6 +39,7 @@ library(imager)
 library(Cairo)
 library(obliqueRF)
 library(fpc)
+library(rAzureBatch)
 library(doAzureParallel)
 
 ###############################
@@ -282,8 +283,6 @@ loadSpecVars<-function(whichSpec){
     GTsourceFormat<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE)
   }
   
-
-
   
   write.csv(ParamsTab,paste(outputpath,runname,"/",whichSpec,".csv",sep=""),row.names = FALSE)
   
@@ -2200,6 +2199,16 @@ combineDecRaven<-function(){
       }
       
       did2<-FALSE
+      
+      if(length(iterate_SF)>1&stopRun==TRUE){
+        sfpath<-filePathNoTemp
+        
+        sound_files <- dir(sfpath,pattern=".wav")
+        sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+        bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
+        did2<-TRUE
+        
+      }
       #go through again if more than certain # of files 
       if(length(iterate_SF)>1&stopRun!=TRUE){
         sfpath<-filePath
@@ -2392,7 +2401,7 @@ write.csv(MoorInfoMspec,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep="
 MoorInfo<-MoorInfoMspec
 resltsTab<-resltsTabF
 
-}else{
+}else if(runGT=="y"){
   
   if(length(spec)==1){
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "GT.csv"))
@@ -2658,7 +2667,7 @@ GTset<-GTset[,c(1,4:ncol(GTset))]
 GTset<-data.frame(GTset)
 GTset$detectionType<-as.factor(GTset$detectionType)
 
-}else{
+}else if(runGT=="y"){
   
   if(length(spec)==1){
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
