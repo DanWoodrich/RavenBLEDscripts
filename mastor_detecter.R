@@ -2558,13 +2558,13 @@ for(f in 1:length(unique(DetecTab2$MooringName))){
 
 #Define table for later excel file export.
 
-
+stop()
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
-for(v in 1:length(unique(DetecTab2$MooringID))){
-  print(paste("Comparing ground truth of",sort(unique(DetecTab2$MooringID))[v],"with final detector"))   
-  MoorVar<-DetecTab2[which(DetecTab2$MooringID==sort(unique(DetecTab2$MooringID))[v]),]
+for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
+  print(paste("Comparing ground truth of",sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v],"with final detector"))   
+  MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v]),]
   MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
   MoorVar<-MoorVar[order(MoorVar$meantime),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
@@ -2659,7 +2659,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
 
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
-  MoorCor<-c(MoorCor,sort(unique(DetecTab2$MooringID))[v])
+  MoorCor<-c(MoorCor,sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v])
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
   TPhitRate <- numTP/numTPtruth*100
@@ -2668,7 +2668,7 @@ for(v in 1:length(unique(DetecTab2$MooringID))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,sort(unique(DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -2828,7 +2828,6 @@ if(modelType=="rf"){
   modelOutput<-runObliqueRandomForest(modelDat,method=modelMethod)
 f}
 
-stop()
 
 #end model function. export dataset, cutmean
 
