@@ -2720,10 +2720,34 @@ GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
 GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
 GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 
-#make interference columns into factors
-
 GTset$Selection<-seq(1,nrow(GTset))
 
+#remove 0s that conflict with 1s to make sure model is not fed good calls as examples from other category. 
+print(nrow(GTset))
+GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
+GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
+GTset$remove<-0
+
+for(h in 1:nrow(GTset)){
+  if(GTset$detectionType[h]=="1"){
+    #do nothing
+  }else{
+    gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
+    if(nrow(gvec)>0){
+      for(g in 1:nrow(gvec)){
+        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h]))
+          GTset$remove[h]<-1
+          break
+        }
+    }
+  }
+}
+
+table(GTset$remove)
+stop()
+GTset<-GTset()
+
+print(nrow(GTset))
 #"vectorize" GTset frame. 
 
 GTset$sound.files<-as.factor(GTset$sound.files)
