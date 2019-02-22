@@ -258,11 +258,18 @@ loadSpecVars<-function(whichSpec){
     downsweepCompMod<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompMod"),3])
     downsweepCompAdjust<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
     timesepGS<<-NULL #placeholder so that I can export variable for parallel 
+    timesepBP<<-NULL
   }
   
   #GS algo
-  if(whichSpec=="GS"){
+  if(whichSpec=="GS"|whichSpec=="BP"){
+    if(whichSpec=="GS"){
     timesepGS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
+    timesepBP<<-NULL
+    }else if(whichSpec=="BP"){
+    timesepBP<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepBP"),3] )
+    timesepGS<<-NULL #placeholder so that I can export variable for parallel 
+    }
     downsweepCompMod<<-NULL #placeholder so that I can export variable for parallel 
     downsweepCompAdjust<<-NULL #placeholder so that I can export variable for parallel 
     
@@ -306,7 +313,7 @@ loadSpecVars<-function(whichSpec){
   
   if(whichSpec=="RW"){
     ravenView<<-"RW_Upcalls"
-  }else if(whichSpec=="GS"){
+  }else if(whichSpec=="GS"|whichSpec=="BP"){
     ravenView<<-"RW_GS"
   }
   
@@ -321,6 +328,11 @@ loadSpecVars<-function(whichSpec){
 }
 
 makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
+  changeBackBP<-"n"
+  if(curSpec=="BP"){
+    curSpec<-"GS"
+    changeBackBP<-"y"
+  }
   status<-sf=="full"
   type<-rep("partial",length(sf))
   type[which(status)]<-"all"
@@ -393,6 +405,10 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
       MoorsUniqueIDS[n]<-paste(moorings[n],"_files_All",sep="")
   }
   
+  if(changeBackBP=="y"){
+    curSpec<-"BP"
+  }
+  
   MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)))
   
   return(MoorsInfo)
@@ -402,7 +418,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
 parAlgo<-function(dataaa){
   
   if(parallelType=="local"){
-  startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","timesepGS","s")
+  startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","BP_algo","timesepGS","timesepBP","s")
   }
   print("start algo")
   if(s=="RW"){
@@ -415,6 +431,12 @@ parAlgo<-function(dataaa){
     wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
       group<-dataaa[which(dataaa[,2]==grouppp),c(1,2,4,5)]
       GS_algo(groupdat=group)
+    }
+    wantedSelections<-do.call('cbind', wantedSelections)
+  }else if(s=="BP"){
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+      group<-dataaa[which(dataaa[,2]==grouppp),c(1,2,4,5)]
+      BP_algo(groupdat=group)
     }
     wantedSelections<-do.call('cbind', wantedSelections)
   }
@@ -627,6 +649,56 @@ GS_algo<-function(groupdat){
  return(as.matrix(rbind(rownombres,rowID)))
   }
 # }
+}
+
+BP_algo<-function(groupdat){
+  
+  #for(f in unique(dataaa[,2])){
+  #groupdat<-dataaa[which(dataaa[,2]==f),c(1,2,4,5)]
+    
+  groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
+  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize-1)))
+  
+  for(g in 1:(nrow(groupdat)-(grpsize-1))){
+    groupdat[g,4+g]<-2
+    RT<-groupdat[g,3]
+    RM<-groupdat[g,1]
+    skipvec<-0
+    if(any(groupdat[g,5:ncol(groupdat)]==3)&g>1){
+      #do not compute run
+    }else if(g>=1){
+      for(h in g:(nrow(groupdat)-1)){
+        if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepBP)<0&(RT-groupdat[h+1,3]+timesepBP)>0)&(RM-groupdat[h+1,1])<(detskip+1)){
+          groupdat[h+1,4+g]<-3
+          RT<-groupdat[h+1,3]
+          skipvec<-c(skipvec,(RM-groupdat[h+1,1]))
+          RM<-groupdat[h+1,1]
+        }else{
+          groupdat[h+1,4+g]<-98
+        }
+        if(g>1){
+          if(any(groupdat[h+1,c(5:(3+g))]==groupdat[h+1,4+g])&(groupdat[h+1,4+g]!=98&groupdat[h+1,4+g]!=99&groupdat[h+1,4+g]!=0)){
+            groupdat[h+1,4+g]<-0
+            break
+          }
+        }
+      }
+    }
+  }
+  p=1
+  rownombres=NULL
+  rowID=NULL
+  for(k in 5:ncol(groupdat)){
+    if(length(which(groupdat[,k]==3|groupdat[,k]==4))>=grpsize-1){
+      rownombres<-c(rownombres,as.integer(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==2),k])),999999999)
+      rowID<-c(rowID,rep(p,each=length(names(groupdat[which(groupdat[,k]==3|groupdat[,k]==2),k]))),999999999)
+      p=p+1
+    }
+  }
+  if(!is.null(rowID)){
+    return(as.matrix(rbind(rownombres,rowID)))
+  }
+   #}
 }
 
 sox.write<-function(numPass,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB,durTab2){
@@ -1777,7 +1849,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         gGroup[z+1]<-f
       }
     }
-    }else if(s=="GS"){
+    }else if(s=="GS"|s=="BP"){
       
       #need to order chronologically. 
       resltsVar<-resltsVar[order(resltsVar$sound.files,resltsVar$start,resltsVar$top.freq),]
@@ -1816,7 +1888,7 @@ for(e in unique(resltsTabTemp$sound.files)){
   print("start process wanted selections")
     if(s=="RW"){
     resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% as.integer(wantedSelections)),]
-    }else if(s=="GS"){
+    }else if(s=="GS"|s=="BP"){
     wantedSelections<-t(wantedSelections)
     c=1
     
@@ -1880,7 +1952,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         p<-p+1
       }
         
-      }else if(s=="GS"){
+      }else if(s=="GS"|s=="BP"){
         p=1
         for(j in unique(resltsVar$group)){
           grp<-resltsVar[resltsVar$group==j,]
@@ -1905,11 +1977,15 @@ for(e in unique(resltsTabTemp$sound.files)){
           
           p<-p+1
         }
+        
+        if(s=="GS"){
           #remove fragments (100hz or under) that are resonably high up 
         resltsTabFinal<-resltsTabFinal[which(!(((resltsTabFinal[,7]-resltsTabFinal[,6])<=100)&(resltsTabFinal[,6]>=225))),] #&resltsTabFinal[,6]>=225)
         
         #remove fragments (100hz or under) also on the low end
         resltsTabFinal<-resltsTabFinal[which(!(((resltsTabFinal[,7]-resltsTabFinal[,6])<=100)&(resltsTabFinal[,7]<150)&(resltsTabFinal[,5]-resltsTabFinal[,4]<=0.5))),] #&resltsTabFinal[,6]>=225)
+        
+        }
         
         #change end time of call to start of next call if they overlap. 
         resltsTabFinal<-resltsTabFinal[order(resltsTabFinal[,4]),]
@@ -1953,15 +2029,24 @@ for(e in unique(resltsTabTemp$sound.files)){
           whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
         }
         
-        if(MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),7]=="HG_datasets"){
-          pathh<-paste(startcombpath,MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),9],sep="")
-        }else if(MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),7]=="Full_datasets"){
+        resltsTabFinal$Species<-s #needed to add this here to assess unique data 
+        curSpec<-s
+        if(s=="BP"){
+          curSpec<-"GS"
+        }
+        print(paste(resltsTabFinal[1,12],resltsTabFinal[1,8]))
+        print(paste(MoorInfo[,9],MoorInfo[,10]))
+        if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal[1,12],resltsTabFinal[1,8])),7]=="HG_datasets"){
+          pathh<-paste(startcombpath,curSpec,sep="")
+        }else if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal[1,12],resltsTabFinal[1,8])),7]=="Full_datasets"){
           pathh<-startcombpath   
         }
         
+        resltsTabFinal$Species<-NULL #add this back later to not mess up future indexes that rely on position. 
+        
         filePath<-paste(pathh,whiten2,sep="/")
         
-        durTab<-read.csv(paste(filePath,"/",MoorInfo[which(MoorInfo[,10]==resltsTabFinal[1,8]),10],"_SFiles_and_durations.csv",sep=""))
+        durTab<-read.csv(paste(filePath,"/",resltsTabFinal[1,8],"_SFiles_and_durations.csv",sep=""))
         
         #add information on original sound files and calculate time since file start
         resltsTabFinal$File<-""
@@ -2090,12 +2175,18 @@ combineDecRaven<-function(){
   decNeeded<-"n"
   for(m in 1:nrow(MoorInfo)){
     
+    curSpec<-paste(MoorInfo[m,9])
+    
+    if(curSpec=="BP"){
+      curSpec<-"GS"
+    }
+    
     durTab<-NULL
     durTab2<-NULL
     
     if(whiten=="y"){
       if(MoorInfo[m,7]=="HG_datasets"){
-        if(file.exists(paste(startcombpath,MoorInfo[m,9],"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+        if(file.exists(paste(startcombpath,curSpec,"/",whiten2,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
         }else{
           stop("First run without whitening, then use whitening filter in Raven and path to folder accordingly")
         }
@@ -2109,14 +2200,14 @@ combineDecRaven<-function(){
     
     if(whiten=="n"){
       if(MoorInfo[m,7]=="HG_datasets"){
-        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           decNeeded<-"n"
-        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
           decNeeded<-"y"
         }else if(Decimate=="n"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),sep="/")
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
           decNeeded<-"n"
         }
       }else if(MoorInfo[m,7]=="Full_datasets"){
@@ -2144,7 +2235,7 @@ combineDecRaven<-function(){
       if(decNeeded=="y"){
         oldPath<-sfpath
         if(MoorInfo[m,7]=="HG_datasets"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,9],"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           dir.create(sfpath)
         }else if(MoorInfo[m,7]=="Full_datasets"){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
@@ -2170,7 +2261,7 @@ combineDecRaven<-function(){
         }
         sound_filesfullpathB <- paste(sfpath,"/",sound_filesB,sep = "")
         if(MoorInfo[m,7]=="HG_datasets"){
-          pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
+          pathh<-paste(startcombpath,curSpec,sep="")
         }else if(MoorInfo[m,7]=="Full_datasets"){
           pathh<-startcombpath   
         }
@@ -2225,7 +2316,7 @@ combineDecRaven<-function(){
           }
           sound_filesfullpathB <- paste(sfpath,"/",sound_filesB,sep = "")
           if(MoorInfo[m,7]=="HG_datasets"){
-            pathh<-paste(startcombpath,MoorInfo[m,9],sep="")
+            pathh<-paste(startcombpath,curSpec,sep="")
           }else if(MoorInfo[m,7]=="Full_datasets"){
             pathh<-startcombpath   
           }
@@ -2274,7 +2365,7 @@ combineDecRaven<-function(){
         stop("you cannot populate and whiten. First populate, then whiten in raven, then use whiten argument to specify you have whitened data")
       }
       if(MoorInfo[m,7]=="HG_datasets"){
-        filePath<-paste(startcombpath,MoorInfo[m,9],"/",whiten2,sep="")
+        filePath<-paste(startcombpath,curSpec,"/",whiten2,sep="")
       }else if(MoorInfo[m,7]=="Full_datasets"){
         filePath<-paste(startcombpath,"/",whiten2,sep="")   
       }  
