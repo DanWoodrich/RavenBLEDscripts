@@ -1478,19 +1478,19 @@ spectral_features<- function(specdata){
   specTab<<-NULL
   
   if(is.null(nrow(specdata))){
-  moors<-MoorInfo[specdata[1],10]
+  moors<-paste(MoorInfo[specdata[1],9],MoorInfo[specdata[1],10])
   }else{
     moors<-paste(MoorInfo[,9],MoorInfo[,10])
   }
   
 for(m in moors){
   
-  curSpec<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9]
+  curSpec<<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9]
   
   loadSpecVars(curSpec)
   changeBackBP<-"n"
   if(curSpec=="BP"){
-    curSpec<-"GS"
+    curSpec<<-"GS"
     changeBackBP<-"y"
   }
   
@@ -1516,7 +1516,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% which(paste(MoorInfo[,9],MoorInfo[,10])==m)),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1543,7 +1543,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% which(paste(MoorInfo[,9],MoorInfo[,10])==m)),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1552,18 +1552,20 @@ for(m in moors){
     }
     
   }
-  
+  if(changeBackBP=="y"){
+  curSpec<<-"BP"
+  }
   if(noPar==FALSE){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
+    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","curSpec")
     }
     
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
-  unlist(specDo(z,specRow,specpath,changeBackBP))
+  unlist(specDo(z,specRow,specpath,curSpec))
 }
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
@@ -1579,7 +1581,7 @@ specVar<<-do.call('rbind', specVar2)
   }else if(noPar==TRUE){
     z=1
     specRow<-unlist(specVar[1,])
-    specVar<<-unlist(specDo(z,specRow,specpath,changeBackBP))
+    specVar<<-unlist(specDo(z,specRow,specpath,curSpec))
     
     prevdir<-getwd()
     setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
@@ -1593,7 +1595,7 @@ specTab<<-rbind(specTab,specVar)
   return(specTab)
 }
 
-specDo<-function(z,featList,specpathh,s){
+specDo<-function(z,featList,specpathh,curSpecc){
   
   #store reused calculations to avoid indexing 
   Start<-featList[2]
@@ -1606,7 +1608,7 @@ specDo<-function(z,featList,specpathh,s){
   Low<-featList[4]
   High<-featList[5]
   
-  foo <-readWave(paste(specpathh,"/",MoorInfo[which(as.numeric(as.factor(MoorInfo[,4]))==featList[1]),10],".wav",sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpathh,"/",MoorInfo[featList[1],10],".wav",sep=""),Start,End,units="seconds")
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -1693,6 +1695,7 @@ specDo<-function(z,featList,specpathh,s){
   # config time axis
   t = spec.gram$t
   
+  #can use curSpec here to direct to species/detectionID folders. 
   # plot spectrogram
   jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
   imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
@@ -2756,7 +2759,7 @@ GTset$RTe<-NULL
 GTset$remove<-NULL
 #"vectorize" GTset frame. 
 
-GTset$sound.files<-as.factor(GTset$sound.files)
+GTset$sound.files<-as.factor(paste(GTset$Species,GTset$sound.files))
 dataMat<- data.matrix(GTset[,c(11,4:7)])
 print("extracting features from FFT of each putative call")
 
