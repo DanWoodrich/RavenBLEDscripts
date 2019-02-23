@@ -1480,22 +1480,29 @@ spectral_features<- function(specdata){
   if(is.null(nrow(specdata))){
   moors<-MoorInfo[specdata[1],10]
   }else{
-    moors<-unique(MoorInfo[,10])
+    moors<-paste(MoorInfo[,9],MoorInfo[,10])
   }
   
 for(m in moors){
   
-  loadSpecVars(MoorInfo[which(MoorInfo[,10]==m),9])
+  curSpec<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9]
+  
+  loadSpecVars(curSpec)
+  changeBackBP<-"n"
+  if(curSpec=="BP"){
+    curSpec<-"GS"
+    changeBackBP<-"y"
+  }
   
   specVar<<-NULL
   whiten2<<-NULL
   specpath<<-NULL
   
-  if(MoorInfo[which(MoorInfo[,10]==m),7]=="HG_datasets"){
+  if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),7]=="HG_datasets"){
     if(whiten=="y"){
-      specpath<<-paste(startcombpath,"/",MoorInfo[which(MoorInfo[,10]==m),9],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",curSpec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<<-paste(startcombpath,"/",MoorInfo[which(MoorInfo[,10]==m),9],"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",curSpec,"/No_whiten",sep="")
     }
     
     if(Decimate=="y"){
@@ -1509,7 +1516,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(MoorInfo[,10]==m),10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1536,7 +1543,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(MoorInfo[,10]==m),10]))),]
+      specVar<<-specdata[which(specdata[,1] %in% as.numeric(as.factor(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1547,7 +1554,7 @@ for(m in moors){
   }
   
   if(noPar==FALSE){
-    print(paste("      for mooring",MoorInfo[which(MoorInfo[,10]==m),10]))   
+    print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
     startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
@@ -1556,7 +1563,7 @@ for(m in moors){
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
-  unlist(specDo(z,specRow,specpath))
+  unlist(specDo(z,specRow,specpath,changeBackBP))
 }
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
@@ -1572,7 +1579,7 @@ specVar<<-do.call('rbind', specVar2)
   }else if(noPar==TRUE){
     z=1
     specRow<-unlist(specVar[1,])
-    specVar<<-unlist(specDo(z,specRow,specpath))
+    specVar<<-unlist(specDo(z,specRow,specpath,changeBackBP))
     
     prevdir<-getwd()
     setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
@@ -1586,7 +1593,7 @@ specTab<<-rbind(specTab,specVar)
   return(specTab)
 }
 
-specDo<-function(z,featList,specpathh){
+specDo<-function(z,featList,specpathh,s){
   
   #store reused calculations to avoid indexing 
   Start<-featList[2]
@@ -2723,7 +2730,6 @@ GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 GTset$Selection<-seq(1,nrow(GTset))
 
 #remove 0s that conflict with 1s to make sure model is not fed good calls as examples from other category. 
-print(nrow(GTset))
 GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
 GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
 GTset$remove<-0
@@ -2743,11 +2749,11 @@ for(h in 1:nrow(GTset)){
   }
 }
 
-table(GTset$remove)
-stop()
-GTset<-GTset()
 
-print(nrow(GTset))
+GTset<-GTset[which(GTset$remove==0),]
+GTset$RTb<-NULL
+GTset$RTe<-NULL
+GTset$remove<-NULL
 #"vectorize" GTset frame. 
 
 GTset$sound.files<-as.factor(GTset$sound.files)
