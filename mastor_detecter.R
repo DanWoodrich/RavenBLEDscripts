@@ -2086,69 +2086,6 @@ for(e in unique(resltsTabTemp$sound.files)){
 return(allRSTF)
 }
 
-combineSpeciesDetections<-function(){
-  #now need to average detections between detectors. set 
-  DetecTab$meantime<-(DetecTab[,4]+DetecTab[,5])/2
-  #need to order chronologically
-  DetecTab<-DetecTab[order(DetecTab$meantime),]
-  DetecTab$meanfreq<-(DetecTab[,6]+DetecTab[,7])/2
-  DetecTab$UniqueID<-seq(1:nrow(DetecTab))
-  DetecTab$remove<-0
-  
-  DetecTab<-DetecTab[order(DetecTab$meantime),]
-  
-  #average between detectors
-  AvgDet<-DetecTab[0,]
-  DetecTab2<-DetecTab[0,]
-  for(w in unique(DetecTab$sound.files)){
-    print(paste("For sound.files",w))
-    CompareDet<-DetecTab[which(DetecTab$sound.files==w),]
-    if(detnum>1){
-      CDvar<-unique(CompareDet$DetectorCount)
-      for(x in 1:(length(CDvar)-1)){
-        i = CompareDet[which(CompareDet$DetectorCount==CDvar[x]),]
-        j = CompareDet[which(CompareDet$DetectorCount==CDvar[x+1]),]
-        print(paste("      Average detectors",i[1,9],"and",j[1,9]))
-        for(y in 1:nrow(i)){
-          jvec <- which(j$meantime<(i$meantime+2)&j$meantime>(i$meantime-2))
-          if(length(jvec)>0){
-            for(z in min(jvec):max(jvec)){
-              if(((((i[y,13]-j[z,13])<=timediff) & (i[y,13]>=j[z,13])) | (((j[z,13]-i[y,13])<=timediff) & (j[z,13]>=i[y,13]))) & ((((i[y,14]-j[z,14])<=freqdiff) & (i[y,14]>=j[z,14])) | (((j[z,14]-i[y,14])<=freqdiff) & (j[z,14]>=i[y,14])))){
-                CompareDet[which(i[y,15]==CompareDet$UniqueID),16]<-1
-                CompareDet[which(j[z,15]==CompareDet$UniqueID),16]<-1
-                meanS<-mean(c(i[y,4],j[z,4]))
-                meanE<-mean(c(i[y,5],j[z,5]))
-                meanL<-mean(c(i[y,6],j[z,6]))
-                meanH<-mean(c(i[y,7],j[z,7]))
-                
-                AvgDet2<-data.frame(99,as.character("Spectrogram 1"),1,meanS,meanE,meanL,meanH,j[1,8],as.character(paste(i[1,9],"+",j[1,9])),as.character(paste(i[1,10],"+",j[1,10])),(j[1,11]+i[1,11]),as.character(w),mean(c(meanS,meanE)),mean(c(meanL,meanH)),as.integer(99),0)
-                names(AvgDet2)<-colnames(AvgDet)
-                #make new dataframe be second detector ID so it will loop properly
-                
-                AvgDet<- rbind(AvgDet,AvgDet2)  
-                
-              }
-            }
-          }
-        }
-        CompareDet<-CompareDet[-which(CompareDet$remove==1),]
-        
-        CompareDet[which(CompareDet$DetectorCount==i[1,8]),8]<-j[1,8]
-        CompareDet[which(CompareDet$DetectorName==i[1,9] |CompareDet$DetectorName==j[1,9]),9]<-as.character(paste(i[1,9],"+",j[1,9]))
-        CompareDet[which(CompareDet$DetectorType==i[1,10] |CompareDet$DetectorType==j[1,10]),10]<-as.character(paste(i[1,10],"+",j[1,10]))
-        CompareDet[which(CompareDet$numDetector==i[1,11] |CompareDet$numDetector==j[1,11]),11]<-(j[1,11]+i[1,11])
-        
-        CompareDet<-rbind(CompareDet,AvgDet)
-        CompareDet<-CompareDet[order(CompareDet$meantime),]
-        
-        CompareDet$UniqueID<-seq(1:nrow(CompareDet))
-        AvgDet<-DetecTab[0,]
-      }
-    }
-    DetecTab2<-rbind(DetecTab2,CompareDet)
-  }
-}
-
 combineDecRaven<-function(){
   
   resltsTab<-NULL
