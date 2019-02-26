@@ -327,12 +327,8 @@ loadSpecVars<-function(whichSpec){
   ###############################
 }
 
-makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
-  changeBackBP<-"n"
-  if(curSpec=="BP"){
-    curSpec<-"GS"
-    changeBackBP<-"y"
-  }
+makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
+
   status<-sf=="full"
   type<-rep("partial",length(sf))
   type[which(status)]<-"all"
@@ -340,7 +336,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
   if(any(sf=="full")){
     for(n in which(sf=="full")){
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+        lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
         lookup<-paste(drivepath,path[n],moorings[n],sep="/")
       }
@@ -359,7 +355,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
       sf1<-c(as.character(str_split(sf[n],":",simplify=TRUE)[1]))
       sf2<-c(as.character(str_split(sf[n],":",simplify=TRUE)[2]))
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+        lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
         lookup<-paste(drivepath,path[n],moorings[n],sep="/")
       }
@@ -385,7 +381,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
   sf4<-list()
   for(n in 1:length(sf)){
     if(path[n]=="HG_datasets"){
-      lookup<-paste(drivepath,path[n],moorings[n],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+      lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
     }else if(path[n]=="Full_datasets"){
       lookup<-paste(drivepath,path[n],moorings[n],sep="/")
     }
@@ -405,11 +401,7 @@ makeMoorInfo<-function(moorings,sf,path,sourceFormat,curSpec){
       MoorsUniqueIDS[n]<-paste(moorings[n],"_files_All",sep="")
   }
   
-  if(changeBackBP=="y"){
-    curSpec<-"BP"
-  }
-  
-  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)))
+  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)),t(t(sfspec)))
   
   return(MoorsInfo)
 }
