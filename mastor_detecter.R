@@ -287,6 +287,7 @@ loadSpecVars<-function(whichSpec){
     GTmoorings<<- str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE)
     GTsf<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE)
     GTpath<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTpath"),3],",",simplify=TRUE)
+    GTpath2<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTpath2"),3],",",simplify=TRUE)
     GTsourceFormat<<-str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE)
   }
   
@@ -327,7 +328,7 @@ loadSpecVars<-function(whichSpec){
   ###############################
 }
 
-makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
+makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
 
   status<-sf=="full"
   type<-rep("partial",length(sf))
@@ -336,7 +337,7 @@ makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
   if(any(sf=="full")){
     for(n in which(sf=="full")){
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
+        lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
         lookup<-paste(drivepath,path[n],moorings[n],sep="/")
       }
@@ -355,7 +356,7 @@ makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
       sf1<-c(as.character(str_split(sf[n],":",simplify=TRUE)[1]))
       sf2<-c(as.character(str_split(sf[n],":",simplify=TRUE)[2]))
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
+        lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
         lookup<-paste(drivepath,path[n],moorings[n],sep="/")
       }
@@ -381,7 +382,7 @@ makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
   sf4<-list()
   for(n in 1:length(sf)){
     if(path[n]=="HG_datasets"){
-      lookup<-paste(drivepath,path[n],moorings[n],paste(sfspec[n],"_ONLY_yesUnion",sep=""),sep="/")
+      lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
     }else if(path[n]=="Full_datasets"){
       lookup<-paste(drivepath,path[n],moorings[n],sep="/")
     }
@@ -401,7 +402,7 @@ makeMoorInfo<-function(moorings,sf,sfspec,path,sourceFormat,curSpec){
       MoorsUniqueIDS[n]<-paste(moorings[n],"_files_All",sep="")
   }
   
-  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)),t(t(sfspec)))
+  MoorsInfo<-cbind(t(moorings),as.numeric(sf1),as.numeric(sf2),as.character(sf3),as.character(sf4),t(t(as.numeric(sf2)-as.numeric(sf1))),t(path),t(sourceFormat),t(t(rep(curSpec,length(sf)))),t(t(MoorsUniqueIDS)),t(pathspec))
   
   return(MoorsInfo)
 }
@@ -1477,14 +1478,7 @@ spectral_features<- function(specdata){
   
 for(m in moors){
   
-  curSpec<<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9]
-  
-  loadSpecVars(curSpec)
-  changeBackBP<-"n"
-  if(curSpec=="BP"){
-    curSpec<<-"GS"
-    changeBackBP<-"y"
-  }
+  loadSpecVars(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9])
   
   specVar<<-NULL
   whiten2<<-NULL
@@ -1492,9 +1486,9 @@ for(m in moors){
   
   if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),7]=="HG_datasets"){
     if(whiten=="y"){
-      specpath<<-paste(startcombpath,"/",curSpec,"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
     }else{
-      specpath<<-paste(startcombpath,"/",curSpec,"/No_whiten",sep="")
+      specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/No_whiten",sep="")
     }
     
     if(Decimate=="y"){
@@ -1544,20 +1538,18 @@ for(m in moors){
     }
     
   }
-  if(changeBackBP=="y"){
-  curSpec<<-"BP"
-  }
+  
   if(noPar==FALSE){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","curSpec")
+    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
     }
     
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
   specRow<-unlist(specVar[z,])
-  unlist(specDo(z,specRow,specpath,curSpec))
+  unlist(specDo(z,specRow,specpath))
 }
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
@@ -1573,7 +1565,7 @@ specVar<<-do.call('rbind', specVar2)
   }else if(noPar==TRUE){
     z=1
     specRow<-unlist(specVar[1,])
-    specVar<<-unlist(specDo(z,specRow,specpath,curSpec))
+    specVar<<-unlist(specDo(z,specRow,specpath))
     
     prevdir<-getwd()
     setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
@@ -1587,7 +1579,7 @@ specTab<<-rbind(specTab,specVar)
   return(specTab)
 }
 
-specDo<-function(z,featList,specpathh,curSpecc){
+specDo<-function(z,featList,specpathh){
   
   #store reused calculations to avoid indexing 
   Start<-featList[2]
@@ -2032,10 +2024,9 @@ for(e in unique(resltsTabTemp$sound.files)){
         }
         
         resltsTabFinal$Species<-s #needed to add this here to assess unique data 
-        curSpec<-s
-        if(s=="BP"){
-          curSpec<-"GS"
-        }
+
+        curSpec<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal$Species[1],resltsTabFinal[1,8])),11]
+        print(curSpec)
         print(paste(resltsTabFinal[1,12],resltsTabFinal[1,8]))
         print(paste(MoorInfo[,9],MoorInfo[,10]))
         if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal[1,12],resltsTabFinal[1,8])),7]=="HG_datasets"){
@@ -2177,11 +2168,7 @@ combineDecRaven<-function(){
   decNeeded<-"n"
   for(m in 1:nrow(MoorInfo)){
     
-    curSpec<-paste(MoorInfo[m,9])
-    
-    if(curSpec=="BP"){
-      curSpec<-"GS"
-    }
+    curSpec<-paste(MoorInfo[m,11])
     
     durTab<-NULL
     durTab2<-NULL
@@ -2202,14 +2189,14 @@ combineDecRaven<-function(){
     
     if(whiten=="n"){
       if(MoorInfo[m,7]=="HG_datasets"){
-        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           decNeeded<-"n"
-        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
           decNeeded<-"y"
         }else if(Decimate=="n"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),sep="/")
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
           decNeeded<-"n"
         }
       }else if(MoorInfo[m,7]=="Full_datasets"){
@@ -2237,7 +2224,7 @@ combineDecRaven<-function(){
       if(decNeeded=="y"){
         oldPath<-sfpath
         if(MoorInfo[m,7]=="HG_datasets"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_ONLY_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           dir.create(sfpath)
         }else if(MoorInfo[m,7]=="Full_datasets"){
           sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
@@ -2427,6 +2414,7 @@ if(runNEW=="y"){
   NEWmoorings<- str_split(ControlTab[which(ControlTab[,2]=="NEWmoorings"),3],",",simplify=TRUE)
   NEWsf<-str_split(ControlTab[which(ControlTab[,2]=="NEWsf"),3],",",simplify=TRUE)  
   NEWpath<-str_split(ControlTab[which(ControlTab[,2]=="NEWpath"),3],",",simplify=TRUE)
+  NEWpath2<-str_split(ControlTab[which(ControlTab[,2]=="NEWpath2"),3],",",simplify=TRUE)
   NEWsourceFormat<-str_split(ControlTab[which(ControlTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
 }
 
@@ -2474,7 +2462,7 @@ for(s in spec){
   
   #############################
   
-  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTsourceFormat,s)
+  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTpath2,GTsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
   
   resltsTabS<-combineDecRaven()
@@ -2969,7 +2957,7 @@ for(s in spec){
     
   #############################
     
-  MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWsourceFormat,s)
+  MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
     
   resltsTabS<-combineDecRaven()
