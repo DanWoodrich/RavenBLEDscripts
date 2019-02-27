@@ -1599,7 +1599,7 @@ specDo<-function(z,featList,specpathh){
   Low<-featList[4]
   High<-featList[5]
   
-  foo <-readWave(paste(specpathh,"/",MoorInfo[featList[1],10],".wav",sep=""),Start,End,units="seconds")
+  foo <-readWave(paste(specpathh,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10],".wav",sep=""),Start,End,units="seconds")
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
