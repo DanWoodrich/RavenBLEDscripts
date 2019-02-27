@@ -1483,7 +1483,7 @@ for(m in moors){
   specVar<<-NULL
   whiten2<<-NULL
   specpath<<-NULL
-  
+
   if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
@@ -1502,7 +1502,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% which(paste(MoorInfo[,9],MoorInfo[,10])==m)),]
+      specVar<<-specdata[which(specdata[,1]==as.numeric(factor(moors))[which(m==moors)]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1529,7 +1529,7 @@ for(m in moors){
       noPar<-TRUE
       
     }else{
-      specVar<<-specdata[which(specdata[,1] %in% which(paste(MoorInfo[,9],MoorInfo[,10])==m)),]
+      specVar<<-specdata[which(specdata[,1]==as.numeric(factor(moors))[which(m==moors)]),]
       rowcount<<-nrow(specVar)
       specVar<<-cbind(specVar,matrix(1,rowcount,63))
       noPar<-FALSE
@@ -1551,6 +1551,13 @@ specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","c
   specRow<-unlist(specVar[z,])
   unlist(specDo(z,specRow,specpath))
 }
+
+for(z in 1:nrow(specVar)){
+  specRow<-unlist(specVar[z,])
+  unlist(specDo(z,specRow,specpath))
+  print(z)
+}
+
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
   }
@@ -2475,9 +2482,9 @@ GT<-list()
 DetecTab2<-DetecTab[which(DetecTab$Species==s),]
 p=1
 for(f in 1:length(unique(DetecTab2$MooringName))){
-  DetecVar<-DetecTab2[which(DetecTab2$MooringName==sort(unique(DetecTab2$MooringName))[f]),]
-  for(g in 1:length(sort(unique(DetecVar$MooringID)))){
-    GT[[p]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",sort(unique(DetecVar$MooringID))[g],".txt",sep=""))
+  DetecVar<-DetecTab2[which(DetecTab2$MooringName==unique(DetecTab2$MooringName)[f]),]
+  for(g in 1:length(unique(DetecVar$MooringID))){
+    GT[[p]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",unique(DetecVar$MooringID)[g],".txt",sep=""))
     GT[[p]] <- GT[[p]][GT[[p]]$View=="Spectrogram 1",]
     p=p+1
   }
@@ -2489,8 +2496,8 @@ colClasses = c("character","character","character","character","character","nume
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
-  print(paste("Comparing ground truth of",sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v],"with final detector"))   
-  MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v]),]
+  print(paste("Comparing ground truth of",unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],"with final detector"))   
+  MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v]),]
   MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
   MoorVar<-MoorVar[order(MoorVar$meantime),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
@@ -2520,7 +2527,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
     if(length(gvec)>0){
     for(g in min(gvec):max(gvec)){
       if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
-        OutputCompare[p,]<-MoorVar[h,c(1:7,18,19)]
+        OutputCompare[p,]<-MoorVar[h,c(1:7,19,20)]
         OutputCompare$detectionType<-"TP"
         p=p+1
       }
@@ -2585,7 +2592,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
-  MoorCor<-c(MoorCor,sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v])
+  MoorCor<-c(MoorCor,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v])
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
   TPhitRate <- numTP/numTPtruth*100
@@ -2594,7 +2601,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,sort(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -2676,13 +2683,14 @@ GTset$RTe<-NULL
 GTset$remove<-NULL
 #"vectorize" GTset frame. 
 
-GTset$sound.files<-as.factor(paste(GTset$Species,GTset$sound.files))
-dataMat<- data.matrix(GTset[,c(11,4:7)])
+GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
+dataMat<- data.matrix(GTset[,c(23,4:7)])
 print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat)
 
 dataMat<-data.frame(dataMat)
+GTset$combID<-NULL
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
