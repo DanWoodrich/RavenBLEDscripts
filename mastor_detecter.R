@@ -1552,12 +1552,6 @@ specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","c
   unlist(specDo(z,specRow,specpath))
 }
 
-for(z in 1:nrow(specVar)){
-  specRow<-unlist(specVar[z,])
-  unlist(specDo(z,specRow,specpath))
-  print(z)
-}
-
   if(parallelType=="local"){
   parallel::stopCluster(cluz)
   }
