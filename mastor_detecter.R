@@ -1180,10 +1180,11 @@ if(length(unique(Moddata$detectionType))>1){
 context_sim <-function(sdata){
   datTab<-matrix(,ncol=pos+5,nrow=0)
   
-  mRT<-sdata[,13]+((sdata[,10]+sdata[,11])/2)
+  
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(paste(sdata[,6],sdata[,15])))){
     datVar<-sdata[which(paste(sdata[,6],sdata[,15])==unique(paste(sdata[,6],sdata[,15]))[w]),]
+    mRT<-datVar[,13]+((datVar[,10]+datVar[,11])/2)
     datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
     datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
@@ -2880,7 +2881,7 @@ for(m in unique(dataSPEC[,6])){
 data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
 pointsDate<-data3Matmoors$Begin.Time..s.
 #pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01")
-plot(x=pointsDate,y=data3Matmoors[,pos+5], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
+plot(x=pointsDate,y=data3Matmoors[,pos-2], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
 abline(h=CUTmean[s],col="red")
 abline(h=0.5,lty=3)
 #lines(lowess(data3Matmoors[,pos+5]))
