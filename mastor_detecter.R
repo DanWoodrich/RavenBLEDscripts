@@ -107,22 +107,19 @@ startLocalPar<-function(...){
 #doAzureParallel::getDoParWorkers() 
 
 factorLevels<-function(dataToMat){
-  FactorTab<-lapply(dataToMat,as.factor)
+  FactorTab<-lapply(dataToMat,as.numeric)
   datType<-lapply(dataToMat,typeof)
-  return(list(FactorTab,datType))
+  datLab<-lapply(dataToMat,as.character)
+  return(list(FactorTab,datType,datLab))
 }
 
 applyLevels<-function(matToData,datLevels){
-  for(n in 1:length(datLevels[[1]])){
-    if(datLevels[[2]][[n]]=="integer"){
-      datLevels[[1]][[n]]<-datLevels[[1]][[n]][which(matToData[,n] %in% datLevels[[1]][[n]])]
-    }
-  }
-  
+
+  keep<-which(datLevels[[1]][[1]] %in% matToData[,1])
+
   for(i in 1:length(datLevels[[1]])){
     if(datLevels[[2]][[i]]=="integer"){
-      print(i)
-      matToData[,i]<-factor(as.character(datLevels[[1]][[i]])
+      matToData[,i]<-datLevels[[3]][[i]][keep]
     }
     
   }
@@ -1182,9 +1179,11 @@ if(length(unique(Moddata$detectionType))>1){
 
 context_sim <-function(sdata){
   datTab<-matrix(,ncol=pos+5,nrow=0)
+  
+  mRT<-sdata[,13]+((sdata[,10]+sdata[,11])/2)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
-  for(w in 1:length(unique(paste(sdata[,6].sdata[,15])))){
-    datVar<-sdata[which(paste(sdata[,6].sdata[,15])==unique(paste(sdata[,6].sdata[,15]))[w]),]
+  for(w in 1:length(unique(paste(sdata[,6],sdata[,15])))){
+    datVar<-sdata[which(paste(sdata[,6],sdata[,15])==unique(paste(sdata[,6],sdata[,15]))[w]),]
     datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
     datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
@@ -1199,7 +1198,7 @@ context_sim <-function(sdata){
           datVar[n+1,pos+1]<-maxBonus
         }
       }else{
-        datVar[n+1,pos+1]<-datVar[n,pos+1]+(badcallPenalty) #*datVar[n,pos+1])
+        datVar[n+1,pos+1]<-datVar[n,pos+1]+((mRT[n+1]-mRT[n])*badcallPenalty) #*datVar[n,pos+1])
         if(datVar[n+1,pos+1]<maxPenalty){
           datVar[n+1,pos+1]<-maxPenalty
         }
@@ -1226,7 +1225,7 @@ context_sim <-function(sdata){
         datVar[n-1,pos+3]<-maxBonus
       }
     }else{
-      datVar[n-1,pos+3]<-datVar[n,pos+3]+(badcallPenalty)
+      datVar[n-1,pos+3]<-datVar[n,pos+3]+((mRT[n]-mRT[n-1])*badcallPenalty)
       if(datVar[n-1,pos+3]<maxPenalty){
         datVar[n-1,pos+3]<-maxPenalty
       }
@@ -2791,7 +2790,7 @@ f}
 #end model function. export dataset, cutmean
 
 #return dataset from random forest 
-
+stop()
 ######################
 data3<-cbind(otherDat,modelOutput[[1]])
 CUTmean<-modelOutput[[2]]
@@ -2818,11 +2817,16 @@ for(b in c(2,3,4,5,10,11)){
 
 }
 
+for(b in c(13,14)){
+  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
+}
+
 #change to factor
 data3[,15]<-as.factor(data3[,15])
 
 #adaptively combine detections based on probability
 data3Labs<-factorLevels(data3)
+
 data3Mat<- data.matrix(data3)
 
 data3Mat<-adaptive_compare(data3Mat) 
@@ -2836,7 +2840,7 @@ data3<-data.frame(data3Mat)
 data3<-applyLevels(data3,data3Labs)
 dataSPEC<-data3[which(data3$Species==spec[s]),]
 
-dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-(2*s-1)
+dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
 
 pp2<-as.vector(dataSPEC[,pos-2])
 ll2<-dataSPEC$detectionType
@@ -2872,17 +2876,19 @@ abline(v=CUTmeanspec)
 
 
 #plot of probabilities after context sim:
-for(m in unique(data3Mat[,1])){
-data3Matmoors<-data3Mat[which(data3Mat[,1]==m),]
-plot(data3Matmoors[,10],data3Matmoors[,pos-2], col=data3Matmoors[,7],main=moorlib[which(moorlib[,1]==m),2])
-abline(h=CUTmean,col="red")
+for(m in unique(dataSPEC[,6])){
+data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
+pointsDate<-data3Matmoors$Begin.Time..s.
+#pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01")
+plot(x=pointsDate,y=data3Matmoors[,pos+5], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
+abline(h=CUTmean[s],col="red")
 abline(h=0.5,lty=3)
 #lines(lowess(data3Matmoors[,pos+5]))
 #lines(lowess(data3Matmoors[,pos+4]))
 #lines(lowess(data3Matmoors[,pos+2]))
-lines(data3Matmoors[,10],(data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
-lines(data3Matmoors[,10],(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
-lines(data3Matmoors[,10],((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
+lines(pointsDate,(data3Matmoors[,pos+3]*6),col="blue") #backwards through data 
+lines(pointsDate,(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
+lines(pointsDate,((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
 
 }
