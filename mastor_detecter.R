@@ -107,14 +107,22 @@ startLocalPar<-function(...){
 #doAzureParallel::getDoParWorkers() 
 
 factorLevels<-function(dataToMat){
-  FactorTab<-lapply(dataToMat,levels)
-  return(FactorTab)
+  FactorTab<-lapply(dataToMat,as.factor)
+  datType<-lapply(dataToMat,typeof)
+  return(list(FactorTab,datType))
 }
 
 applyLevels<-function(matToData,datLevels){
-  for(i in 1:ncol(matToData)){
-    if(!is.null(unlist(datLevels[i]))){
-      matToData[,i]<-factor(matToData[,i],labels=as.character(unlist(datLevels[i])))
+  for(n in 1:length(datLevels[[1]])){
+    if(datLevels[[2]][[n]]=="integer"){
+      datLevels[[1]][[n]]<-datLevels[[1]][[n]][which(matToData[,n] %in% datLevels[[1]][[n]])]
+    }
+  }
+  
+  for(i in 1:length(datLevels[[1]])){
+    if(datLevels[[2]][[i]]=="integer"){
+      print(i)
+      matToData[,i]<-factor(as.character(datLevels[[1]][[i]])
     }
     
   }
@@ -1175,8 +1183,8 @@ if(length(unique(Moddata$detectionType))>1){
 context_sim <-function(sdata){
   datTab<-matrix(,ncol=pos+5,nrow=0)
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
-  for(w in 1:length(unique(sdata[,6]))){
-    datVar<-sdata[which(sdata[,6]==unique(sdata[,6])[w]),]
+  for(w in 1:length(unique(paste(sdata[,6].sdata[,15])))){
+    datVar<-sdata[which(paste(sdata[,6].sdata[,15])==unique(paste(sdata[,6].sdata[,15]))[w]),]
     datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
     datVar[,pos+2]<-datVar[,pos-2]
     for(n in 1:(nrow(datVar)-1)){
@@ -1354,9 +1362,9 @@ after_model_write <-function(mdata,finaldatrun){
 
 adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
-  for(o in unique(Compdata[,6])){
+  for(o in unique(paste(Compdata[,6],Compdata[,15]))){
     print(paste("for mooring",o))
-    CompVar<-Compdata[which(Compdata[,6]==o),]
+    CompVar<-Compdata[which(paste(Compdata[,6],Compdata[,15])==o),]
     CompVar<-CompVar[order(CompVar[,2]),]
     n=0
     newrow<-matrix(0,ncol=pos)
@@ -1418,7 +1426,7 @@ adaptive_compare<-function(Compdata){
         n=n+1
       }
     if(n>0){
-      Compdata<-Compdata[-which(Compdata[,6]==o),]
+      Compdata<-Compdata[-which(paste(Compdata[,6],Compdata[,15])==o),]
       Compdata<-rbind(Compdata,CompVar)      
     }
 
@@ -2804,20 +2812,31 @@ if(any(is.na(data3[,pos-2]))){
   data3<-data3[-which(is.na(data3[,pos-2])),]
 }
 
+#change data columns from factor to numeric that should be numeric:
+for(b in c(2,3,4,5,10,11)){
+ data3[,b]<-as.numeric(as.character(data3[,b])) 
+
+}
+
+#change to factor
+data3[,15]<-as.factor(data3[,15])
+
 #adaptively combine detections based on probability
 data3Labs<-factorLevels(data3)
 data3Mat<- data.matrix(data3)
 
-data3Mat<-adaptive_compare(data3) 
+data3Mat<-adaptive_compare(data3Mat) 
 
 #simulate context over time using probability scores 
 data3Mat<-context_sim(data3Mat)
+
+#remove missing rows:
 
 data3<-data.frame(data3Mat)
 data3<-applyLevels(data3,data3Labs)
 dataSPEC<-data3[which(data3$Species==spec[s]),]
 
-dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
+dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-(2*s-1)
 
 pp2<-as.vector(dataSPEC[,pos-2])
 ll2<-dataSPEC$detectionType
@@ -2826,30 +2845,31 @@ perff2<-performance(predd2,"tpr","fpr")
 
 #with permutations on probs
 plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-     lwd = 2, main = paste("Threshold avg"),colorize=T)
+     lwd = 2, main = paste("Threshold avg",spec[s]),colorize=T)
 abline(a=0, b= 1)
 auc.perf = performance(predd2, measure = "auc",plot=F)
 print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(dataSPEC[which(dataSPEC$detectionType==1),pos-2],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "red",cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==0),pos-2],dataSPEC[which(dataSPEC$detectionType==0),pos-1], col = "red",cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[which(dataSPEC$detectionType==2),pos-2],dataSPEC[which(dataSPEC$detectionType==2),pos-1], col = "blue",cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==1),pos-2],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "blue",cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[,pos-2],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==2,'blue','red'),cex=0.25)
+plot(dataSPEC[,pos-2],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==1,'blue','red'),cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[which(dataSPEC$detectionType==1),pos+5],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "red",cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==0),pos+5],dataSPEC[which(dataSPEC$detectionType==0),pos-1], col = "red",cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[which(dataSPEC$detectionType==2),pos+5],dataSPEC[which(dataSPEC$detectionType==2),pos-1], col = "blue",cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==1),pos+5],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "blue",cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[,pos+5],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==2,'blue','red'),cex=0.25)
+plot(dataSPEC[,pos+5],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==1,'blue','red'),cex=0.25)
 abline(v=CUTmeanspec)
+
 
 #plot of probabilities after context sim:
 for(m in unique(data3Mat[,1])){
@@ -2922,6 +2942,7 @@ for(s in spec){
   
 stop()
 }
+stop()
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
