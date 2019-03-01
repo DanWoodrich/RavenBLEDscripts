@@ -1361,26 +1361,28 @@ after_model_write <-function(mdata,finaldatrun){
 }
 
 adaptive_compare<-function(Compdata){
+  for(s in 1:length(spec)){
+  CompSPEC<-Compdata[which(Compdata[,15]==s),]
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
-  for(o in unique(paste(Compdata[,6],Compdata[,15]))){
-    print(paste("for mooring",o))
-    CompVar<-Compdata[which(paste(Compdata[,6],Compdata[,15])==o),]
+  for(o in unique(CompSPEC[,6])){
+    print(paste("for mooring",s,o))
+    CompVar<-CompSPEC[which(CompSPEC[,6]==o),]
     CompVar<-CompVar[order(CompVar[,2]),]
     n=0
-    newrow<-matrix(0,ncol=pos)
+    newrow<-matrix(0,ncol=nospec+length(spec))
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
       if(CompVar[q+1,2]<=(CompVar[q,2]+timediffself)){
-        if(CompVar[q+1,pos-2]+probdist<CompVar[q,pos-2]|CompVar[q+1,pos-2]-probdist>CompVar[q,pos-2]){#take only the best one
+        if(CompVar[q+1,nospec+s]+probdist<CompVar[q,nospec+s]|CompVar[q+1,nospec+s]-probdist>CompVar[q,nospec+s]){#take only the best one
           newdat<-CompVar[c(q,q+1),]
-          newdat<-newdat[order(newdat[,pos-2]),]
+          newdat<-newdat[order(newdat[,nospec+s]),]
           IDvec<-c(IDvec,as.numeric(newdat[,1]))
           newrow<-rbind(newrow,newdat[2,])
         }else{
           newdat<-CompVar[c(q,q+1),]
           IDvec<-c(IDvec,as.numeric(newdat[,1]))
           sel1<-newdat[1,1]
-          s<-as.numeric(min(newdat[,2]))
+          strt<-as.numeric(min(newdat[,2]))
           e<-as.numeric(max(newdat[,3]))
           l<-as.numeric(min(newdat[,4]))
           h<-as.numeric(max(newdat[,5]))
@@ -1397,18 +1399,25 @@ adaptive_compare<-function(Compdata){
           sel2<-newdat[1,16]
           mf<-(h+l)/2
           fr<-(h-l)
-          row<-c(sel1,s,e,l,h,MID,Mname,Sf,File,FOB,FOE,RTf,RTb,RTe,species,sel2,mf,fr)
+          row<-c(sel1,strt,e,l,h,MID,Mname,Sf,File,FOB,FOE,RTf,RTb,RTe,species,sel2,mf,fr)
           
-          Mcode<-newdat[1,pos-6]
-          dt<-max(newdat[,pos-5])
-          yr<-newdat[1,pos-4]
-          month<-newdat[1,pos-3]
+          Mcode<-newdat[1,nospec-3]
+          dt<-max(newdat[,nospec-2])
+          yr<-newdat[1,nospec-1]
+          month<-newdat[1,nospec]
           
           afterrow<-c(Mcode,dt,yr,month)
           
+          newSpec<-NULL
+          for(i in 1:length(spec)){
+          newSpec<-c(newSpec,mean(newdat[,nospec+i]))
+          }
+          
+          
+          
           row2<-unlist(spectral_features(row[c(6,2,3,4,5)]))
           
-          row<-c(row,row2[c(6:length(row2))],afterrow,c(mean(newdat[,pos-2]),mean(newdat[,pos-1]),mean(newdat[,pos])))
+          row<-c(row,row2[c(6:length(row2))],afterrow,newSpec)
           
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
@@ -1426,11 +1435,14 @@ adaptive_compare<-function(Compdata){
         n=n+1
       }
     if(n>0){
-      Compdata<-Compdata[-which(paste(Compdata[,6],Compdata[,15])==o),]
-      Compdata<-rbind(Compdata,CompVar)      
+      CompSPEC<-CompSPEC[-which(CompSPEC[,6]==o),]
+      CompSPEC<-rbind(CompSPEC,CompVar)      
     }
 
   }
+  }
+  Compdata<-Compdata[-which(Compdata[,15]==s),]
+  Compdata<-rbind(CompSPEC,Compdata)      
   }
  return(Compdata) 
 }
@@ -2793,24 +2805,22 @@ f}
 #return dataset from random forest 
 
 ######################
-
-dataFinal<-NULL
-
-for(s in 1:length(spec)){
-  
+  stop()
 data3<-cbind(otherDat,modelOutput[[1]])
-
-dataSPEC<-data3[which(data3$Species==spec[s]),]
 
 CUTmean<-modelOutput[[2]]
 
+nospec<-ncol(data3)-(length(spec)*3)
+
+for(s in 1:length(spec)){
+  
+dataSPEC<-data3[which(data3$Species==spec[s]),]
 CUTmeanspec<-CUTmean[[s]]
 
-nospec<-ncol(dataSPEC)-(length(spec)*3)
 
 probIndex<-nospec+(3*s-2)
 varIndex<-nospec+(3*s-1)
-
+  
 #get these out of the way so I can remove mostly useless std.err and n from dataframe
 plot(dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),varIndex], col = "red",cex=0.25)
 abline(v=CUTmeanspec)
@@ -2821,46 +2831,50 @@ abline(v=CUTmeanspec)
 plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(spec[s],1),'blue','red'),cex=0.25)
 abline(v=CUTmeanspec)
 
+}
 #pickup here or leave it for now. 
+newSpec<-NULL
+for(s in 1:length(spec)){
+  newSpec<-c(newSpec,(nospec+3*s-2))
+}
 
-otherspecs<-dataSPEC[,-c(2:nospec,(nospec+3*s-2),(nospec+3*s-1),(nospec+3*s))]
-dataSPEC<-dataSPEC[,c(1:nospec,(nospec+3*s-2))]  
-pos<-ncol(dataSPEC) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+data3<-data3[,c(1:nospec,newSpec)]  
 
 #put columns excluded from model back in ?
 
-#this could create conflicts with ROC curve
-if(any(is.na(dataSPEC[,pos-2]))){
-  dataSPEC<-dataSPEC[-which(is.na(dataSPEC[,pos-2])),]
-}
-
 #change data columns from factor to numeric that should be numeric:
 for(b in c(2,3,4,5,10,11)){
-  dataSPEC[,b]<-as.numeric(as.character(dataSPEC[,b])) 
+  data3[,b]<-as.numeric(as.character(data3[,b])) 
 
 }
 
 for(b in c(13,14)){
-  dataSPEC[,b]<-as.integer(as.numeric(as.POSIXlt(dataSPEC[,b])))
+  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
 }
 
 #change to factor
-dataSPEC[,15]<-as.factor(dataSPEC[,15])
+data3[,15]<-as.factor(data3[,15])
 
 #adaptively combine detections based on probability
-dataSPECLabs<-factorLevels(dataSPEC)
+data3Labs<-factorLevels(data3)
 
-dataSPECMat<- data.matrix(dataSPEC)
+data3Mat<- data.matrix(data3)
 
-dataSPECMat<-adaptive_compare(dataSPECMat) 
+data3Mat<-adaptive_compare(data3Mat) 
 
-#simulate context over time using probability scores 
-dataSPECMat<-context_sim(dataSPECMat)
+#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. 
+data3Mat<-context_sim(data3Mat)
 
 #remove missing rows:
 
 dataSPEC<-data.frame(dataSPECMat)
 dataSPEC<-applyLevels(dataSPEC,dataSPECLabs)
+
+for(s in 1:length(spec)){
+  
+dataSPEC<-data3[which(data3$Species==spec[s]),]
+CUTmeanspec<-CUTmean[[s]]
+
 
 dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
 
