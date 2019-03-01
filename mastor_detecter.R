@@ -2791,55 +2791,76 @@ f}
 #end model function. export dataset, cutmean
 
 #return dataset from random forest 
-stop()
+
 ######################
-data3<-cbind(otherDat,modelOutput[[1]])
-CUTmean<-modelOutput[[2]]
+
+dataFinal<-NULL
 
 for(s in 1:length(spec)){
+  
+data3<-cbind(otherDat,modelOutput[[1]])
+
+dataSPEC<-data3[which(data3$Species==spec[s]),]
+
+CUTmean<-modelOutput[[2]]
 
 CUTmeanspec<-CUTmean[[s]]
 
-nospec<-ncol(data3)-(length(spec)*3)
-  
-data3<-data3[,c(1:nospec,(nospec+3*s-2),(nospec+3*s-1),(nospec+3*s))]  
-pos<-ncol(data3) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
+nospec<-ncol(dataSPEC)-(length(spec)*3)
+
+probIndex<-nospec+(3*s-2)
+varIndex<-nospec+(3*s-1)
+
+#get these out of the way so I can remove mostly useless std.err and n from dataframe
+plot(dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),varIndex], col = "red",cex=0.25)
+abline(v=CUTmeanspec)
+
+plot(dataSPEC[which(dataSPEC$detectionType==paste(spec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(spec[s],1)),varIndex], col = "blue",cex=0.25)
+abline(v=CUTmeanspec)
+
+plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(spec[s],1),'blue','red'),cex=0.25)
+abline(v=CUTmeanspec)
+
+#pickup here or leave it for now. 
+
+otherspecs<-dataSPEC[,-c(2:nospec,(nospec+3*s-2),(nospec+3*s-1),(nospec+3*s))]
+dataSPEC<-dataSPEC[,c(1:nospec,(nospec+3*s-2))]  
+pos<-ncol(dataSPEC) #define this variable as length of data so don't have to redefine as add or subtract variables from spectral features. 
 
 #put columns excluded from model back in ?
 
 #this could create conflicts with ROC curve
-if(any(is.na(data3[,pos-2]))){
-  data3<-data3[-which(is.na(data3[,pos-2])),]
+if(any(is.na(dataSPEC[,pos-2]))){
+  dataSPEC<-dataSPEC[-which(is.na(dataSPEC[,pos-2])),]
 }
 
 #change data columns from factor to numeric that should be numeric:
 for(b in c(2,3,4,5,10,11)){
- data3[,b]<-as.numeric(as.character(data3[,b])) 
+  dataSPEC[,b]<-as.numeric(as.character(dataSPEC[,b])) 
 
 }
 
 for(b in c(13,14)){
-  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
+  dataSPEC[,b]<-as.integer(as.numeric(as.POSIXlt(dataSPEC[,b])))
 }
 
 #change to factor
-data3[,15]<-as.factor(data3[,15])
+dataSPEC[,15]<-as.factor(dataSPEC[,15])
 
 #adaptively combine detections based on probability
-data3Labs<-factorLevels(data3)
+dataSPECLabs<-factorLevels(dataSPEC)
 
-data3Mat<- data.matrix(data3)
+dataSPECMat<- data.matrix(dataSPEC)
 
-data3Mat<-adaptive_compare(data3Mat) 
+dataSPECMat<-adaptive_compare(dataSPECMat) 
 
 #simulate context over time using probability scores 
-data3Mat<-context_sim(data3Mat)
+dataSPECMat<-context_sim(dataSPECMat)
 
 #remove missing rows:
 
-data3<-data.frame(data3Mat)
-data3<-applyLevels(data3,data3Labs)
-dataSPEC<-data3[which(data3$Species==spec[s]),]
+dataSPEC<-data.frame(dataSPECMat)
+dataSPEC<-applyLevels(dataSPEC,dataSPECLabs)
 
 dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
 
@@ -2857,25 +2878,6 @@ print(auc.perf@y.values)
 
 AUCadj<-auc.perf@y.values
 
-plot(dataSPEC[which(dataSPEC$detectionType==0),pos-2],dataSPEC[which(dataSPEC$detectionType==0),pos-1], col = "red",cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[which(dataSPEC$detectionType==1),pos-2],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "blue",cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[,pos-2],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==1,'blue','red'),cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[which(dataSPEC$detectionType==0),pos+5],dataSPEC[which(dataSPEC$detectionType==0),pos-1], col = "red",cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[which(dataSPEC$detectionType==1),pos+5],dataSPEC[which(dataSPEC$detectionType==1),pos-1], col = "blue",cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[,pos+5],dataSPEC[,pos-1], col = ifelse(dataSPEC$detectionType==1,'blue','red'),cex=0.25)
-abline(v=CUTmeanspec)
-
-
 #plot of probabilities after context sim:
 for(m in unique(dataSPEC[,6])){
 data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
@@ -2891,6 +2893,15 @@ lines(pointsDate,(data3Matmoors[,pos+3]*6),col="blue") #backwards through data
 lines(pointsDate,(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
 lines(pointsDate,((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
+
+dataSPEC<-dataSPEC[,c(1:pos-2,length(dataSPEC))] #remove context sim 'special sauce"
+colnames(dataSPEC)[length(dataSPEC)]<-paste(spec[s],"context Mod")
+
+specNum<-ncol(otherspecs)-1
+
+
+
+dataSPEC<-cbind(dataSPEC,otherspecs[which(otherspecs[,1] %in% dataSPEC[,1]),2])
 
 }
 
