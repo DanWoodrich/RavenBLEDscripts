@@ -1266,7 +1266,7 @@ after_model_write <-function(mdata){
     MoorVar1$remove<-0
     for(s in 1:length(spec)){
       for(n in 1:nrow(MoorVar1)){
-        if(MoorVar1[n,nospec+s]<CUTmean[[s]])
+        if(MoorVar1[n,nospec+s+1]<CUTmean[[s]])
         MoorVar1$remove[n]<-MoorVar1$remove[n]+1
       }
     }
@@ -1286,21 +1286,64 @@ after_model_write <-function(mdata){
     RavenExport[,9]<-MoorVar1$File
     RavenExport[,10]<-MoorVar1$FileOffsetBegin
     for(s in 1:length(spec)){
-      RavenExport[,8+n]<-MoorVar1[,nospec+1]
+      RavenExport[,10+n]<-MoorVar1[,nospec+1]
     }
     
     rownames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)",paste(spec,"prob"))
     
-    if(modelType=="orf"){
-      name<-paste(modelType,modelMethod,sep=":")
-    }else if(modelType=="rf"){
-      name<-modelType
+    write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_All_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+  }
+  
+  MoorVar1<-NULL
+  for(v in 1:length(unique(MoorInfo[,10]))){
+  
+  #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
+    MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
+    
+    for(s in 1:length(spec)){
+      MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]<CUTmean[[s]]),]
+      
+      #save data frame 
+      RavenExport<-data.frame(seq(1,nospec+length(spec),by=1))
+      RavenExport[,2]<-"Spectrogram 1"
+      RavenExport[,3]<-1
+      RavenExport[,4]<-MoorVar1[,2]
+      RavenExport[,5]<-MoorVar1[,3]
+      RavenExport[,6]<-MoorVar1[,4]
+      RavenExport[,7]<-MoorVar1[,5]
+      RavenExport[,8]<-MoorVar1$detectionType
+      RavenExport[,9]<-MoorVar1$File
+      RavenExport[,10]<-MoorVar1$FileOffsetBegin
+      RavenExport[,11]<-MoorVar1[,nospec+1]
+      
+      
+      rownames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)",paste(spec[s],"prob"))
+      
+      write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_",spec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      
+      #get together variables to write to detectorRunLog
+      if(modelType=="orf"){
+        name<-paste(modelType,modelMethod,sep=":")
+      }else if(modelType=="rf"){
+        name<-modelType
+      }
+      
+      #calculate stats: 
+      detTotal<-nrow(MoorVar1)
+      
+      #check to see if TPtottab entry exists (if so, compare it and calculate performance. If not, treat as new data and do not calculate performance) 
+      if(any(paste(spec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
+        numTP<-sum(as.numeric(MoorVar1$detectionType))+(-2*s+1)
+        numTPtruth<-TPtottab[which(paste(spec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
+        
+      }
     }
+    
+
     
     detTotal<-nrow(MoorVar1)
     
     if(finaldatrun==1){
-    numTP<-sum(as.numeric(MoorVar1[,7])-1)
     numTPtruth<-TPtottab[which(stri_detect_fixed(substr(libb[as.numeric(sort(unique(mdata[,1]))[v]),2],1,11),TPtottab$MoorCor)),2]
     #use real TP values for GT data. 
     numFP<-detTotal-numTP
@@ -2837,7 +2880,6 @@ f}
 #return dataset from random forest 
 
 ######################
-  stop()
 data3<-cbind(otherDat,modelOutput[[1]])
 
 CUTmean<-modelOutput[[2]]
