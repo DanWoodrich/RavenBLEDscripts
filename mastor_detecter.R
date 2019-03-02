@@ -1178,92 +1178,124 @@ if(length(unique(Moddata$detectionType))>1){
 }
 
 context_sim <-function(sdata){
-  datTab<-matrix(,ncol=pos+5,nrow=0)
-  
-  
+  datTab<-matrix(,ncol=7,nrow=0)
+  datTab2<-NULL
+  for(s in 1:length(spec)){
+  colnames(datTab)<-paste(spec[s],c("mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
-  for(w in 1:length(unique(paste(sdata[,6],sdata[,15])))){
-    datVar<-sdata[which(paste(sdata[,6],sdata[,15])==unique(paste(sdata[,6],sdata[,15]))[w]),]
+  for(w in 1:length(unique(sdataSPEC[,6]))){
+    datVar<-sdata[which(sdata[,6]==unique(sdata[,6])[w]),]
     mRT<-datVar[,13]+((datVar[,10]+datVar[,11])/2)
+    datVar<-cbind(mRT,datVar[,nospec+s])
     datVar<-cbind(datVar,matrix(0,nrow=nrow(datVar),ncol=5))
-    datVar[,pos+2]<-datVar[,pos-2]
+    datVar[,4]<-datVar[,2]
     for(n in 1:(nrow(datVar)-1)){
-      if(datVar[n,pos+2]>=greatcallThresh){
-        datVar[n+1,pos+1]<-maxBonus
-        if(datVar[n+1,pos+1]>maxBonus){
-          datVar[n+1,pos+1]<-maxBonus
+      if(datVar[n,4]>=greatcallThresh){
+        datVar[n+1,3]<-maxBonus
+        if(datVar[n+1,3]>maxBonus){
+          datVar[n+1,3]<-maxBonus
         }
-      }else if(datVar[n,pos+2]>=(-maxPenalty+CUTmeanspec)&datVar[n,pos+2]<greatcallThresh){
-        datVar[n+1,pos+1]<-datVar[n,pos+1]+(datVar[n,pos+2]*goodcallBonus)
-        if(datVar[n+1,pos+1]>maxBonus){
-          datVar[n+1,pos+1]<-maxBonus
+      }else if(datVar[n,4]>=(-maxPenalty+CUTmeanspec)&datVar[n,4]<greatcallThresh){
+        datVar[n+1,3]<-datVar[n,3]+(datVar[n,4]*goodcallBonus)
+        if(datVar[n+1,3]>maxBonus){
+          datVar[n+1,3]<-maxBonus
         }
       }else{
-        datVar[n+1,pos+1]<-datVar[n,pos+1]+((mRT[n+1]-mRT[n])*badcallPenalty) #*datVar[n,pos+1])
-        if(datVar[n+1,pos+1]<maxPenalty){
-          datVar[n+1,pos+1]<-maxPenalty
+        datVar[n+1,3]<-datVar[n,3]+((mRT[n+1]-mRT[n])*badcallPenalty) #*datVar[n,3])
+        if(datVar[n+1,3]<maxPenalty){
+          datVar[n+1,3]<-maxPenalty
         }
       }
-      if(datVar[n,pos+2]+datVar[n,pos+1]>0 & datVar[n,pos+2]+datVar[n,pos+1]<1){
-        datVar[n,pos+2]<-datVar[n,pos+2]+datVar[n,pos+1]
-      }else if(datVar[n,pos+2]+datVar[n,pos+1]<0){
-        datVar[n,pos+2]<-0
-      }else if(datVar[n,pos+2]+datVar[n,pos+1]>1){
-        datVar[n,pos+2]<-1
+      if(datVar[n,4]+datVar[n,3]>0 & datVar[n,4]+datVar[n,3]<1){
+        datVar[n,4]<-datVar[n,4]+datVar[n,3]
+      }else if(datVar[n,4]+datVar[n,3]<0){
+        datVar[n,4]<-0
+      }else if(datVar[n,4]+datVar[n,3]>1){
+        datVar[n,4]<-1
       }
     }
   #same but backwards through data 
-  datVar[,pos+4]<-datVar[,pos-2]
+  datVar[,6]<-datVar[,2]
   for(n in (nrow(datVar)-1):2){
-    if(datVar[n,pos+4]>=greatcallThresh){
-      datVar[n-1,pos+3]<-maxBonus
-      if(datVar[n-1,pos+3]>maxBonus){
-        datVar[n-1,pos+3]<-maxBonus
+    if(datVar[n,6]>=greatcallThresh){
+      datVar[n-1,5]<-maxBonus
+      if(datVar[n-1,5]>maxBonus){
+        datVar[n-1,5]<-maxBonus
       }
-    }else if(datVar[n,pos+4]>(-maxPenalty)&datVar[n,pos+4]<greatcallThresh){
-      datVar[n-1,pos+3]<-datVar[n,pos+3]+(datVar[n,pos+4]*goodcallBonus)
-      if(datVar[n-1,pos+3]>maxBonus){
-        datVar[n-1,pos+3]<-maxBonus
+    }else if(datVar[n,6]>(-maxPenalty)&datVar[n,6]<greatcallThresh){
+      datVar[n-1,5]<-datVar[n,5]+(datVar[n,6]*goodcallBonus)
+      if(datVar[n-1,5]>maxBonus){
+        datVar[n-1,5]<-maxBonus
       }
     }else{
-      datVar[n-1,pos+3]<-datVar[n,pos+3]+((mRT[n]-mRT[n-1])*badcallPenalty)
-      if(datVar[n-1,pos+3]<maxPenalty){
-        datVar[n-1,pos+3]<-maxPenalty
+      datVar[n-1,5]<-datVar[n,5]+((mRT[n]-mRT[n-1])*badcallPenalty)
+      if(datVar[n-1,5]<maxPenalty){
+        datVar[n-1,5]<-maxPenalty
       }
     }
-    if(datVar[n,pos+4]+datVar[n,pos+3]>0 & datVar[n,pos+4]+datVar[n,pos+3]<1){
-      datVar[n,pos+4]<-datVar[n,pos+4]+datVar[n,pos+3]
-    }else if(datVar[n,pos+4]+datVar[n,pos+3]<0){
-      datVar[n,pos+4]<-0
-    }else if(datVar[n,pos+4]+datVar[n,pos+3]>1){
-      datVar[n,pos+4]<-1
+    if(datVar[n,6]+datVar[n,5]>0 & datVar[n,6]+datVar[n,5]<1){
+      datVar[n,6]<-datVar[n,6]+datVar[n,5]
+    }else if(datVar[n,6]+datVar[n,5]<0){
+      datVar[n,6]<-0
+    }else if(datVar[n,6]+datVar[n,5]>1){
+      datVar[n,6]<-1
     }
   }
   
-  datVar[,pos+5]<-pmax(datVar[,pos+2],datVar[,pos+4]) #max
-  #datVar$probmean<-pmax(datVar[n,pos+2],datVar[n,pos+3]) #max
-  #datVar$probmean<-pmin(datVar[n,pos+2],datVar[n,pos+3]) #min
+  datVar[,7]<-pmax(datVar[,4],datVar[,6]) #max
+  #datVar$probmean<-pmax(datVar[n,4],datVar[n,pos+3]) #max
+  #datVar$probmean<-pmin(datVar[n,4],datVar[n,pos+3]) #min
   
   datTab<-rbind(datTab,datVar)
   }
-  return(datTab)
+  datTab2<-cbind(datTab2,datTab)
+  datTab<-matrix(,ncol=7,nrow=0)
+  }
+  return(datTab2)
 }
 
-after_model_write <-function(mdata,finaldatrun){
+#should do table for all species/mooring, and for each species/mooring
+after_model_write <-function(mdata){
+  #all species/mooring 
   MoorVar1<-NULL
   for(v in 1:length(unique(MoorInfo[,10]))){
-    if(finaldatrun==1){
-      if(modelType=="orf"){
-      name<-paste(modelType,modelMethod,sep=":")
-      }else if(modelType=="rf"){
-      name<-modelType
-      }
-    }else{
-      name<-"full"
-    }
-    MoorVar1<-mdata[which(mdata[,1] %in% MoorInfo[which(MoorInfo[,10]==sort(unique(MoorInfo[,10]))[v]),1]),]
 
-    MoorVar1<-MoorVar1[which(MoorVar1[,pos+5]>CUTmeanspec),]
+    MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
+    #only cut out detections where all species are below the threshold. 
+    
+    MoorVar1$remove<-0
+    for(s in 1:length(spec)){
+      for(n in 1:nrow(MoorVar1)){
+        if(MoorVar1[n,nospec+s]<CUTmean[[s]])
+        MoorVar1$remove[n]<-MoorVar1$remove[n]+1
+      }
+    }
+    
+    MoorVar1<-MoorVar1[which(MoorVar1$remove!=length(spec)),]
+    MoorVar1$remove<-NULL
+    
+    #dont think we need to report stats for these (total # of sucessful classifications). Pretty meaningless when you pool all of them together. Just print the table
+    RavenExport<-data.frame(seq(1,nospec+length(spec),by=1))
+    RavenExport[,2]<-"Spectrogram 1"
+    RavenExport[,3]<-1
+    RavenExport[,4]<-MoorVar1[,2]
+    RavenExport[,5]<-MoorVar1[,3]
+    RavenExport[,6]<-MoorVar1[,4]
+    RavenExport[,7]<-MoorVar1[,5]
+    RavenExport[,8]<-MoorVar1$detectionType
+    RavenExport[,9]<-MoorVar1$File
+    RavenExport[,10]<-MoorVar1$FileOffsetBegin
+    for(s in 1:length(spec)){
+      RavenExport[,8+n]<-MoorVar1[,nospec+1]
+    }
+    
+    rownames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)",paste(spec,"prob"))
+    
+    if(modelType=="orf"){
+      name<-paste(modelType,modelMethod,sep=":")
+    }else if(modelType=="rf"){
+      name<-modelType
+    }
     
     detTotal<-nrow(MoorVar1)
     
@@ -1362,11 +1394,11 @@ after_model_write <-function(mdata,finaldatrun){
 
 adaptive_compare<-function(Compdata){
   for(s in 1:length(spec)){
-  CompSPEC<-Compdata[which(Compdata[,15]==s),]
+  CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
-  for(o in unique(CompSPEC[,6])){
+  for(o in unique(CompdataSPEC[,6])){
     print(paste("for mooring",s,o))
-    CompVar<-CompSPEC[which(CompSPEC[,6]==o),]
+    CompVar<-CompdataSPEC[which(CompdataSPEC[,6]==o),]
     CompVar<-CompVar[order(CompVar[,2]),]
     n=0
     newrow<-matrix(0,ncol=nospec+length(spec))
@@ -1435,14 +1467,14 @@ adaptive_compare<-function(Compdata){
         n=n+1
       }
     if(n>0){
-      CompSPEC<-CompSPEC[-which(CompSPEC[,6]==o),]
-      CompSPEC<-rbind(CompSPEC,CompVar)      
+      CompdataSPEC<-CompdataSPEC[-which(CompdataSPEC[,6]==o),]
+      CompdataSPEC<-rbind(CompdataSPEC,CompVar)      
     }
 
   }
   }
   Compdata<-Compdata[-which(Compdata[,15]==s),]
-  Compdata<-rbind(CompSPEC,Compdata)      
+  Compdata<-rbind(Compdata,CompdataSPEC)
   }
  return(Compdata) 
 }
@@ -2862,14 +2894,15 @@ data3Mat<- data.matrix(data3)
 
 data3Mat<-adaptive_compare(data3Mat) 
 
-#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. 
-data3Mat<-context_sim(data3Mat)
+#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
+CS_output<-context_sim(data3Mat)
 
 #remove missing rows:
 
-dataSPEC<-data.frame(dataSPECMat)
-dataSPEC<-applyLevels(dataSPEC,dataSPECLabs)
+data3<-data.frame(data3Mat)
+data3<-applyLevels(data3,data3Labs)
 
+#graphs
 for(s in 1:length(spec)){
   
 dataSPEC<-data3[which(data3$Species==spec[s]),]
@@ -2908,15 +2941,6 @@ lines(pointsDate,(data3Matmoors[,pos+1]*6),col="orange") #forwards through data
 lines(pointsDate,((pmax(data3Matmoors[,pos+1],data3Matmoors[,pos+3])*6)),col="green")
 }
 
-dataSPEC<-dataSPEC[,c(1:pos-2,length(dataSPEC))] #remove context sim 'special sauce"
-colnames(dataSPEC)[length(dataSPEC)]<-paste(spec[s],"context Mod")
-
-specNum<-ncol(otherspecs)-1
-
-
-
-dataSPEC<-cbind(dataSPEC,otherspecs[which(otherspecs[,1] %in% dataSPEC[,1]),2])
-
 }
 
 #data3$detectionType<-as.factor(data3$detectionType)
@@ -2924,7 +2948,7 @@ dataSPEC<-cbind(dataSPEC,otherspecs[which(otherspecs[,1] %in% dataSPEC[,1]),2])
 #cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
 
 #write data to drive
-after_model_write(data3Mat,moorlib,1) #need to change to vector 
+after_model_write(data3) #need to change to vector 
 
 beep(10)
 
