@@ -1142,7 +1142,7 @@ if(length(unique(Moddata$detectionType))>1){
   CUT<-list()
   giniTab<-as.numeric(data.rf$importance)
   
-  for(s in seq(0,length(spec),2)){
+  for(s in (2*(1:length(spec))-2)){
   oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
   
   oneSpecDetType[which(oneSpecDetType>1|oneSpecDetType<1)]<-0
@@ -1258,16 +1258,16 @@ context_sim <-function(sdata){
 #should do table for all species/mooring, and for each species/mooring
 after_model_write <-function(mdata){
   #all species/mooring 
-  MoorVar1<-NULL
-  for(v in 1:length(unique(MoorInfo[,10]))){
 
+  for(v in 1:length(unique(MoorInfo[,10]))){
+    print(paste("first loop",v))
     MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
     #only cut out detections where all species are below the threshold. 
     
     MoorVar1$remove<-0
     for(s in 1:length(spec)){
       for(n in 1:nrow(MoorVar1)){
-        if(MoorVar1[n,nospec+s+1]<CUTmean[[s]])
+        if(MoorVar1[n,nospec+s]<CUTmean[[s]])
         MoorVar1$remove[n]<-MoorVar1$remove[n]+1
       }
     }
@@ -1275,6 +1275,7 @@ after_model_write <-function(mdata){
     MoorVar1<-MoorVar1[which(MoorVar1$remove!=length(spec)),]
     MoorVar1$remove<-NULL
     
+    MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
     #dont think we need to report stats for these (total # of sucessful classifications). Pretty meaningless when you pool all of them together. Just print the table
     RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
     RavenExport[,2]<-"Spectrogram 1"
@@ -1294,16 +1295,16 @@ after_model_write <-function(mdata){
     
     write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_All_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }
-  
-  MoorVar1<-NULL
+
   for(v in 1:length(unique(MoorInfo[,10]))){
-  
-  #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
-    MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
+    print(paste("2nd loop",v))
     
+  #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
     for(s in 1:length(spec)){
-      MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]<CUTmean[[s]]),]
+      MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
+      MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
       
+      MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
       #save data frame 
       RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
       RavenExport[,2]<-"Spectrogram 1"
@@ -1347,7 +1348,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
 
-        detecEval[1,]<-c(spec[1],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(spec[s],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1367,7 +1368,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(spec[1],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -1377,13 +1378,14 @@ after_model_write <-function(mdata){
     
   }
   for(s in 1:length(spec)){
+  print(paste("3rd loop",s))
     
-  MoorVar1<-mdata[which(mdata$Species == spec[s]),]
-  MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]<CUTmean[[s]]),]
+    
+  MoorVar1<-mdata[which(mdata[,nospec+s]>=CUTmean[[s]]),]
   
   detTotal<-nrow(MoorVar1)
   
-  if(all(paste(spec[s],unique(MoorVar1$MooringID)) %in% TPtottab$MoorCor)){
+  if(all(paste(spec[[s]],unique(MoorVar1$MooringID)) %in% TPtottab$MoorCor)){
     numTP<-sum(MoorVar1$detectionType==paste(spec[s],"1"))
     numTPtruth<-sum(TPtottab[which(paste(spec[s],unique(MoorVar1$MooringID))==TPtottab$MoorCor),2])
     numFP<-detTotal-numTP
@@ -1397,7 +1399,7 @@ after_model_write <-function(mdata){
     detecEval<-detecEval[0,]
     detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     
-    detecEval[1,]<-c(spec[1],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec[s],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1406,6 +1408,7 @@ after_model_write <-function(mdata){
   
   }else{
     print("Cannot summarize total by species: TPtottab incomplete")
+  }
   }
 }
 
@@ -2966,11 +2969,12 @@ lines(pointsDate,(CS_outputDate[,(s*7)+1]),col="green")
 #data3$detectionType<-as.factor(data3$detectionType)
 #see freq breakdown of calls 
 #cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
-stop()
 #write data to drive
 after_model_write(data3) #need to change to vector 
 
 beep(10)
+
+stop()
 
 }
 
