@@ -1416,6 +1416,7 @@ after_model_write <-function(mdata){
 }
 
 adaptive_compare<-function(Compdata){
+  Compdata<-cbind(Compdata,as.numeric(as.factor(paste(Compdata[,15],Compdata[,6]))))
   for(s in 1:length(spec)){
   CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
@@ -1424,7 +1425,7 @@ adaptive_compare<-function(Compdata){
     CompVar<-CompdataSPEC[which(CompdataSPEC[,6]==o),]
     CompVar<-CompVar[order(CompVar[,2]),]
     n=0
-    newrow<-matrix(0,ncol=nospec+length(spec))
+    newrow<-matrix(0,ncol=nospec+length(spec)+1)
     IDvec<-NULL
     for(q in 1:(nrow(CompVar)-1)){
       if(CompVar[q+1,2]<=(CompVar[q,2]+timediffself)){
@@ -1468,11 +1469,11 @@ adaptive_compare<-function(Compdata){
           newSpec<-c(newSpec,mean(newdat[,nospec+i]))
           }
           
+          print(paste("adaptive compare index:",newdat[1,nospec+length(spec)+1]))
+            
+          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)])))
           
-          
-          row2<-unlist(spectral_features(row[c(6,2,3,4,5)]))
-          
-          row<-c(row,row2[c(6:length(row2))],afterrow,newSpec)
+          row<-c(row,row2[c(6:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
           
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
@@ -1499,7 +1500,7 @@ adaptive_compare<-function(Compdata){
   Compdata<-Compdata[-which(Compdata[,15]==s),]
   Compdata<-rbind(Compdata,CompdataSPEC)
   }
- return(Compdata) 
+ return(Compdata[,1:(length(Compdata)-1)]) 
 }
 
   
@@ -1546,7 +1547,8 @@ spectral_features<- function(specdata){
   specTab<<-NULL
   
   if(is.null(nrow(specdata))){
-  moors<-paste(MoorInfo[specdata[1],9],MoorInfo[specdata[1],10])
+  index<-which(specdata[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10]))))
+  moors<-paste(MoorInfo[index,9],MoorInfo[index,10])
   }else{
     moors<-paste(MoorInfo[,9],MoorInfo[,10])
   }
@@ -1554,6 +1556,8 @@ spectral_features<- function(specdata){
 for(m in moors){
   
   loadSpecVars(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),9])
+  print(paste("spectral features index:",which(paste(MoorInfo[,9],MoorInfo[,10])==m)))
+  print(paste("spectral features MoorID:",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))
   
   specVar<<-NULL
   whiten2<<-NULL
@@ -1641,6 +1645,10 @@ specVar<<-do.call('rbind', specVar2)
   }else if(noPar==TRUE){
     z=1
     specRow<-unlist(specVar[1,])
+    print(paste("specdo lookup",specRow[1]))
+    print(paste("specdo index:",which(specRow[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10]))))))
+    print(paste("specdo MoorID:",MoorInfo[which(specRow[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10]))
+    
     specVar<<-unlist(specDo(z,specRow,specpath))
     
     prevdir<-getwd()
