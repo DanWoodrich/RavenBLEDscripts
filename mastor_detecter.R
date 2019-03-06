@@ -986,7 +986,7 @@ process_model<-function(stuff2,Moddata2){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(c(colnames(Moddata2[,2:ncol(Moddata2)]))!='detectionType')]
+  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType','meanfreq','freqrange','V40'))]
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -1132,7 +1132,7 @@ if(length(unique(Moddata$detectionType))>1){
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
   train<-splitdf(Moddata,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -meanfreq -freqrange,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -meanfreq -freqrange -V40,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
@@ -1740,7 +1740,7 @@ specDo<-function(z,featList,specpathh){
   featList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
   featList[38]<-Dfrange #dfrange
   featList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  featList[40]  <- lastFeature(fs,foo.meanspec)
+  featList[40]  <- freqstat.normalize(lastFeature(fs,foo.meanspec),Low,High)
   
   
   #FEATURES FROM IMAGE 
@@ -2742,8 +2742,9 @@ GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
 GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
 GTset$remove<-0
 
+#remove conflicts so don't feed model that positives of a sound are + for a negative category (it makes sense trust me)
 for(h in 1:nrow(GTset)){
-  if(GTset$detectionType[h]=="1"){
+  if(GTset$detectionType[h]=="0"){
     #do nothing
   }else{
     gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
@@ -2759,6 +2760,7 @@ for(h in 1:nrow(GTset)){
 
 
 GTset<-GTset[which(GTset$remove==0),]
+
 GTset$RTb<-NULL
 GTset$RTe<-NULL
 GTset$remove<-NULL
