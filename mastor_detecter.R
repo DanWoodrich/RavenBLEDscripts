@@ -224,13 +224,22 @@ loadSpecVars<-function(whichSpec){
   
   #Species specific 
   #Signal manipulation
+  if(whichRun=="GT"){
   Decimate<<-ParamsTab[which(ParamsTab[,2]=="Decimate"),3] 
   decimationFactor<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="decimationFactor"),3] )
   whiten<<-ParamsTab[which(ParamsTab[,2]=="whiten"),3]
   FO<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
   LMS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
   Filtype<<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
-  
+  }else if(whichRun=="NEW"){
+    Decimate<<-ControlTab[which(ControlTab[,2]=="Decimate"),3] 
+    decimationFactor<<-as.numeric(ControlTab[which(ControlTab[,2]=="decimationFactor"),3] )
+    whiten<<-ControlTab[which(ControlTab[,2]=="whiten"),3]
+    FO<<-as.numeric(ControlTab[which(ControlTab[,2]=="FO"),3] )
+    LMS<<-as.numeric(ControlTab[which(ControlTab[,2]=="LMS"),3])
+    Filtype<<-ControlTab[which(ControlTab[,2]=="Filtype"),3] 
+    
+  }
   #Raven Detectors
   spStart<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
   spEnd<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spEnd"),3])
@@ -241,14 +250,6 @@ loadSpecVars<-function(whichSpec){
   goodcallBonus<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="goodcallBonus"),3]) 
   maxPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="maxPenalty"),3] )
   badcallPenalty<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="badcallPenalty"),3] )
-  
-  #Model
-  if(length(whichSpec)==1){
-  CV<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="specCV"),3])
-  TPRthresh<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="specTPRthresh"),3])
-  modelType<<-ParamsTab[which(ParamsTab[,2]=="specmodelType"),3]
-  modelMethod<<-ParamsTab[which(ParamsTab[,2]=="specmodelMethod"),3]
-  }
   
   #Detection Processing Spread (algo)
   grpsize<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="grpsize"),3] )
@@ -444,6 +445,35 @@ parAlgo<-function(dataaa){
   }
   return(wantedSelections)
   
+}
+
+dataArrangeModel<-function(dataForModel){
+  dataForModel$year<-format(as.Date(dataForModel$RTfile),"%y")
+  dataForModel$month<-format(as.Date(dataForModel$RTfile),"%m")
+  
+  dataForModel$detectionType<-as.numeric(as.character(dataForModel$detectionType),sep="")
+  
+  dataForModel$detectionType<-as.factor(paste(dataForModel$Species,dataForModel$detectionType))
+  
+  modelDat<-dataForModel[,c(1,19:(ncol(dataForModel)-2))]
+  modelDatFactors<-dataForModel[,c(8,17,84,85)]
+  modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
+  
+  otherDat<-dataForModel[,c(1:7,9:16)]
+  
+  modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x)))
+  removeMat<-apply(modelDat,2,function(x) !is.finite(x))
+  removeVec<-which(apply(removeMat,1,function(x) any(x)))
+  
+  modelDat<-modelDat[-removeVec,]
+  modelDatFactors<-modelDatFactors[-removeVec,]
+  otherDat<-otherDat[-removeVec,]
+  
+  modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
+  
+  modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
+  
+  return(list(modelDat,otherDat))
 }
 
 RW_algo<-function(resltsTabmat){
@@ -1103,7 +1133,7 @@ runObliqueRandomForest<-function(Moddata,method){
 
 runRavenDetector<-function(m,filePath,combname,resltsTab){
   for(r in detectorssprshort){
-    print(paste("Running detector for",MoorInfo[m,10]))
+    print(paste("Running detector for",MoorInfo[m,9],MoorInfo[m,10]))
     resltVar <- raven_batch_detec(raven.path = ravenpath, sound.files = combname, path = filePath ,detector = "Band Limited Energy Detector",dpreset=r,vpreset=ravenView)
     resltVar$MooringID<-MoorInfo[m,10]
     resltVar$MooringName<-MoorInfo[m,1]
@@ -1143,6 +1173,7 @@ if(length(unique(Moddata$detectionType))>1){
   giniTab<-as.numeric(data.rf$importance)
   
   for(s in (2*(1:length(spec))-2)){
+    
   oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
   
   oneSpecDetType[which(oneSpecDetType>1|oneSpecDetType<1)]<-0
@@ -1152,7 +1183,7 @@ if(length(unique(Moddata$detectionType))>1){
   
   TPR<-NULL
   TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh),1]))
+  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh[which(s %in% (2*(1:length(spec))-2))]),1]))
   
   probstab[[p]]<-data.frame(Moddata$Selection)
   probstab[[p]][,2]<-NA
@@ -1181,6 +1212,7 @@ context_sim <-function(sdata){
   datTab<-matrix(,ncol=8,nrow=0)
   datTab2<-NULL
   for(s in 1:length(spec)){
+  loadSpecVars(s)
   colnames(datTab)<-paste(spec[s],c("Selection","mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,6]))){
@@ -1418,6 +1450,7 @@ after_model_write <-function(mdata){
 adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(s in 1:length(spec)){
+  loadSpecVars(s)
   CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(o in unique(CompdataSPEC[,6])){
     print(paste("for mooring",s,o))
@@ -2452,6 +2485,12 @@ fileCombinesize2ndIt<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesi
 onlyPopulate<-ControlTab[which(ControlTab[,2]=="onlyPopulate"),3] 
 parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
 
+#model
+CV<- ControlTab[which(ControlTab[,2]=="CV"),3]
+TPRthresh<- str_split(ControlTab[which(ControlTab[,2]=="TPRthresh"),3],",",simplify=TRUE)  
+modelType<- ControlTab[which(ControlTab[,2]=="modelType"),3]
+modelMethod<- ControlTab[which(ControlTab[,2]=="modelMethod"),3]
+
 
 #assign runname and make run folder 
 runname<-paste(runname,gsub("\\D","",Sys.time()),sep="_")
@@ -2472,9 +2511,11 @@ if(runGT=="y"){
   runTestModel<-'n'
 }
 
+whichRun<-"GT"
+
 ##################start script#################
 if(runRavenGT=="y"){
-
+  
 resltsTabF <- NULL
 MoorInfoMspec<-NULL
 for(s in spec){
@@ -2536,12 +2577,13 @@ DetecTab<-NULL
 for(s in spec){
   
   loadSpecVars(s)
-
+  
   DetecTab<-rbind(DetecTab,process_data())
   #resltsTab<-NULL
 
 }
 
+stop()
 #depending on how RF handles multiple species classification- add step here that isolates boxes with overlap between species and allows them to be treated differently
 
 DetecTab$detectionType<-0
@@ -2744,27 +2786,60 @@ GTset$remove<-0
 
 #remove conflicts so don't feed model that positives of a sound are + for a negative category (it makes sense trust me)
 for(h in 1:nrow(GTset)){
-  if(GTset$detectionType[h]=="0"){
+  if(GTset$detectionType[h]==1){
     #do nothing
   }else{
     gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
     if(nrow(gvec)>0){
       for(g in 1:nrow(gvec)){
-        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h]))
+        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])){
           GTset$remove[h]<-1
+        }
           break
         }
     }
   }
 }
 
-
 GTset<-GTset[which(GTset$remove==0),]
+
+GTset$remove<-NULL
+#combine boxes with high overlap (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
+GTset$combine<-0
+p=1
+for(h in 1:nrow(GTset)){
+  if(GTset$detectionType[h]==0){
+    #do nothing
+  }else{
+    gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
+    if(nrow(gvec)>0){
+      for(g in 1:nrow(gvec)){
+        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])){
+          if(gvec$combine[g]!=0){
+          GTset$combine[h]<-gvec$combine[g]
+          }else{
+            GTset$combine[h]<-p
+          }
+        }
+      }
+    }
+  }
+  if(GTset$combine[h]==0){
+    p=p+1
+  }
+}
+
+for(h in 1:max(GTset$combine)){
+  
+}
+
 
 GTset$RTb<-NULL
 GTset$RTe<-NULL
 GTset$remove<-NULL
 #"vectorize" GTset frame. 
+
+
 
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(GTset[,c(23,4:7)])
@@ -2833,39 +2908,13 @@ GTset$detectionType<-as.factor(GTset$detectionType)
 #################
 
 if(runTestModel=="y"){
-
-GTset$year<-format(as.Date(GTset$RTfile),"%y")
-GTset$month<-format(as.Date(GTset$RTfile),"%m")
-
-GTset$detectionType<-as.numeric(as.character(GTset$detectionType),sep="")
-
-GTset$detectionType<-as.factor(paste(GTset$Species,GTset$detectionType))
-    
-modelDat<-GTset[,c(1,19:(ncol(GTset)-2))]
-modelDatFactors<-GTset[,c(8,17,84,85)]
-modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
-
-otherDat<-GTset[,c(1:7,9:16)]
   
-modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x)))
-removeMat<-apply(modelDat,2,function(x) !is.finite(x))
-removeVec<-which(apply(removeMat,1,function(x) any(x)))
-
-modelDat<-modelDat[-removeVec,]
-modelDatFactors<-modelDatFactors[-removeVec,]
-otherDat<-otherDat[-removeVec,]
-
-modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
-
-modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
-
-loadSpecVars(MoorInfo[1,9])
-
+modData<-dataArrangeModel(GTset)
 
 if(modelType=="rf"){
-  modelOutput<-runRandomForest(modelDat)
+  modelOutput<-runRandomForest(modData[[1]])
 }else if(modelType=='orf'){
-  modelOutput<-runObliqueRandomForest(modelDat,method=modelMethod)
+  modelOutput<-runObliqueRandomForest(dataForModel,method=modelMethod)
 f}
 
 
@@ -2874,7 +2923,7 @@ f}
 #return dataset from random forest 
 
 ######################
-data3<-cbind(otherDat,modelOutput[[1]])
+data3<-cbind(modData[[2]],modelOutput[[1]])
 
 CUTmean<-modelOutput[[2]]
 
@@ -3004,6 +3053,8 @@ stop()
 ################################################
 
 if(runNEW=="y"){
+  
+whichRun<-"NEW"
 
 resltsTabF <- NULL
 MoorInfoMspec<-NULL
@@ -3040,6 +3091,25 @@ for(s in spec){
   
 stop()
 }
+
+DetecTab$meanfreq<- (DetecTab$`Low Freq (Hz)`+DetecTab$`High Freq (Hz)`)/2
+DetecTab$freqrange<- (DetecTab$`High Freq (Hz)`-DetecTab$`Low Freq (Hz)`)
+DetecTab$meantime<- (DetecTab$`Begin Time (s)`+DetecTab$`End Time (s)`)/2
+
+DetecTab$combID<-as.factor(paste(DetecTab$Species,DetecTab$MooringID))
+dataMat<- data.matrix(DetecTab[,c(23,4:7)])
+print("extracting features from FFT of each putative call")
+
+dataMat<-spectral_features(dataMat)
+
+dataMat<-data.frame(dataMat)
+GTset$combID<-NULL
+GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
+
+GTset<-apply(GTset,2,function(x) unlist(x))
+
+modData<-dataArrangeModel(DetecTab)
+
 stop()
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
