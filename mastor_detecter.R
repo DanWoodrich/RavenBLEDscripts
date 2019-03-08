@@ -2583,7 +2583,6 @@ for(s in spec){
 
 }
 
-stop()
 #depending on how RF handles multiple species classification- add step here that isolates boxes with overlap between species and allows them to be treated differently
 
 DetecTab$detectionType<-0
@@ -2784,7 +2783,7 @@ GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
 GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
 GTset$remove<-0
 
-#remove conflicts so don't feed model that positives of a sound are + for a negative category (it makes sense trust me)
+#remove conflicts so don't feed model that positives of a sound are + for a negative category 
 for(h in 1:nrow(GTset)){
   if(GTset$detectionType[h]==1){
     #do nothing
@@ -2792,7 +2791,7 @@ for(h in 1:nrow(GTset)){
     gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
     if(nrow(gvec)>0){
       for(g in 1:nrow(gvec)){
-        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])){
+        if((gvec$RTb[g]>=GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<=GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])|(gvec$RTe[g]<=GTset$RTe[h]&gvec$RTb[g]>=GTset$RTb[h])|(gvec$RTe[g]>=GTset$RTe[h]&gvec$RTb[g]<=GTset$RTb[h])){
           GTset$remove[h]<-1
         }
           break
@@ -2804,34 +2803,65 @@ for(h in 1:nrow(GTset)){
 GTset<-GTset[which(GTset$remove==0),]
 
 GTset$remove<-NULL
-#combine boxes with high overlap (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
+
+#combine boxes with overlap and true detection (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
 GTset$combine<-0
 p=1
-for(h in 1:nrow(GTset)){
-  if(GTset$detectionType[h]==0){
-    #do nothing
-  }else{
-    gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
-    if(nrow(gvec)>0){
-      for(g in 1:nrow(gvec)){
-        if((gvec$RTb[g]>GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])){
-          if(gvec$combine[g]!=0){
-          GTset$combine[h]<-gvec$combine[g]
-          }else{
-            GTset$combine[h]<-p
-          }
-        }
+
+for(h in 1:length(unique(GTset$MooringID))){
+  
+  GTsetPos<-GTset[which(GTset$detectionType==1&GTset$MooringID==unique(GTset$MooringID)[h]),]
+  GTsetPos<-GTsetPos[order(GTsetPos$`Begin Time (s)`),]
+  
+  #merge all overlapping 1s. 
+  RollEnd<-GTsetPos$`End Time (s)`[1]
+  for(i in 1:(nrow(GTsetPos)-1)){
+    if(GTsetPos$`Begin Time (s)`[i+1]<RollEnd){
+      GTsetPos$combine[i]<-p
+      GTsetPos$combine[i+1]<-p
+      if(RollEnd<GTsetPos$`End Time (s)`[i+1]){
+        RollEnd<-GTsetPos$`End Time (s)`[i+1]
       }
+    }else{
+      p=p+1
+      RollEnd<-GTsetPos$`End Time (s)`[i+1]
     }
   }
-  if(GTset$combine[h]==0){
-    p=p+1
-  }
+  
+  GTset<-GTset[-which(GTset$detectionType==1&GTset$MooringID==unique(GTset$MooringID)[h]),]
+  GTset<-rbind(GTset,GTsetPos)
 }
 
-for(h in 1:max(GTset$combine)){
+#combine boxes with overlap and no detection
+p=max(GTset$combine)
+
+for(h in 1:length(unique(GTset$MooringID))){
   
+  GTsetPos<-GTset[which(GTset$detectionType==0&GTset$MooringID==unique(GTset$MooringID)[h]),]
+  GTsetPos<-GTsetPos[order(GTsetPos$`Begin Time (s)`),]
+  
+  #merge all overlapping 1s. 
+  RollEnd<-GTsetPos$`End Time (s)`[1]
+  for(i in 1:(nrow(GTsetPos)-1)){
+    if(GTsetPos$`Begin Time (s)`[i+1]<RollEnd){
+      GTsetPos$combine[i]<-p
+      GTsetPos$combine[i+1]<-p
+      if(RollEnd<GTsetPos$`End Time (s)`[i+1]){
+        RollEnd<-GTsetPos$`End Time (s)`[i+1]
+      }
+    }else{
+      p=p+1
+      RollEnd<-GTsetPos$`End Time (s)`[i+1]
+    }
+  }
+  
+  GTset<-GTset[-which(GTset$detectionType==0&GTset$MooringID==unique(GTset$MooringID)[h]),]
+  GTset<-rbind(GTset,GTsetPos)
+
 }
+
+#combine boxes 
+
 
 
 GTset$RTb<-NULL
