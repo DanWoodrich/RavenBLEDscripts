@@ -1212,7 +1212,7 @@ context_sim <-function(sdata){
   datTab<-matrix(,ncol=8,nrow=0)
   datTab2<-NULL
   for(s in 1:length(spec)){
-  loadSpecVars(s)
+  loadSpecVars(spec[s])
   colnames(datTab)<-paste(spec[s],c("Selection","mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,6]))){
@@ -1420,7 +1420,6 @@ after_model_write <-function(mdata){
   
   detTotal<-nrow(MoorVar1)
   
-  if(all(paste(spec[[s]],unique(MoorVar1$MooringID)) %in% TPtottab$MoorCor)){
     numTP<-sum(MoorVar1$detectionType==paste(spec[[s]],"1"))
     numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(spec[[s]],unique(MoorVar1$MooringID))),2])
     numFP<-detTotal-numTP
@@ -1441,16 +1440,13 @@ after_model_write <-function(mdata){
     detecEvalFinal<-rbind(detecEval2,detecEval)
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
   
-  }else{
-    print("Cannot summarize total by species: TPtottab incomplete")
-  }
   }
 }
 
 adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(s in 1:length(spec)){
-  loadSpecVars(s)
+  loadSpecVars(spec[s])
   CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(o in unique(CompdataSPEC[,6])){
     print(paste("for mooring",s,o))
@@ -2437,7 +2433,7 @@ combineDecRaven<-function(){
 #dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
-  drivepath<-"F:/"
+  drivepath<-"H:/"
 }else{
   user<-"danby456"
   drivepath<-"E:/"
@@ -2882,9 +2878,9 @@ for(g in unique(GTset$combine)[which(unique(GTset$combine)!=0)]){
 
 GTset$combine<-NULL
 #add frequency stats to GTset 
+GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
 GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
-GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 
 GTset$Selection<-seq(1,nrow(GTset))
 
