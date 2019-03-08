@@ -2889,6 +2889,11 @@ GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 GTset$Selection<-seq(1,nrow(GTset))
 
 
+#if multiclass: throw out double positives from the ground truth. Comment out line if choose to go with binary. 
+
+GTset<-GTset[-grep(",",GTset$Species),]
+
+
 #"vectorize" GTset frame. 
 
 
