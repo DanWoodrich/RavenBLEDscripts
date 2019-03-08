@@ -2771,13 +2771,6 @@ GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<
 #######1 mooring test######
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#add frequency stats to GTset 
-GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
-GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
-GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
-
-GTset$Selection<-seq(1,nrow(GTset))
-
 #remove 0s that conflict with 1s to make sure model is not fed good calls as examples from other category. 
 GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
 GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
@@ -2832,6 +2825,10 @@ for(h in 1:length(unique(GTset$MooringID))){
   GTset<-rbind(GTset,GTsetPos)
 }
 
+GTset$RTb<-NULL
+GTset$RTe<-NULL
+GTset$remove<-NULL
+
 #combine boxes with overlap and no detection
 p=max(GTset$combine)
 
@@ -2861,12 +2858,37 @@ for(h in 1:length(unique(GTset$MooringID))){
 }
 
 #combine boxes 
+GTset$meantime<-NULL
+
+for(g in unique(GTset$combine)[which(unique(GTset$combine)!=0)]){
+  
+  GTsetGroup<-GTset[which(GTset$combine==g),]
+  
+  newS<-min(GTsetGroup$`Begin Time (s)`)
+  newE<-max(GTsetGroup$`End Time (s)`)
+  newSo<-min(GTsetGroup$FileOffsetBegin)
+  newEo<-max(GTsetGroup$FileOffsetEnd)
+  newL<-min(GTsetGroup$`Low Freq (Hz)`)
+  newH<-max(GTsetGroup$`High Freq (Hz)`)
+  dt<-GTsetGroup$detectionType[1]#internally consistent
+  newSpec<-paste(unique(GTsetGroup$Species),collapse=",")
+  
+  newRow<-data.frame(GTsetGroup[1,c(1:3)],newS,newE,newL,newH,GTsetGroup[1,c(8:12)],newSo,newEo,GTsetGroup[1,c(15:17)],newSpec,dt,0)
+  
+  names(newRow)<-names(GTset)
+  GTset<-GTset[-which(GTset$combine==g),]
+  GTset<-rbind(GTset,newRow)
+}
+
+GTset$combine<-NULL
+#add frequency stats to GTset 
+GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
+GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
+GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
+
+GTset$Selection<-seq(1,nrow(GTset))
 
 
-
-GTset$RTb<-NULL
-GTset$RTe<-NULL
-GTset$remove<-NULL
 #"vectorize" GTset frame. 
 
 
