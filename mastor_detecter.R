@@ -54,6 +54,7 @@ if(dir.exists("C:/Users/ACS-3")){
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
+gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
 ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
@@ -61,7 +62,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 ###############input parameters
 #detector control
-ControlTab<-read.csv(paste(drivepath,"CallParams/Detector_control.csv",sep=""))
+ControlTab<-read.csv(paste(gitPath,"Data/CallParams/Detector_control.csv",sep=""))
 ControlTab[,3]<-as.character(ControlTab[,3])
 #####################################
 
@@ -219,7 +220,7 @@ loadSpecVars<-function(whichSpec){
   #save species variables in global environment
   
   #species specific
-  ParamsTab<-read.csv(paste(drivepath,"CallParams/",whichSpec,".csv",sep=""))
+  ParamsTab<-read.csv(paste(gitPath,"Data/CallParams/",whichSpec,".csv",sep=""))
   ParamsTab[,3]<-as.character(ParamsTab[,3])
   
   #Species specific 
@@ -1212,7 +1213,7 @@ context_sim <-function(sdata){
   datTab<-matrix(,ncol=8,nrow=0)
   datTab2<-NULL
   for(s in 1:length(spec)){
-  loadSpecVars(spec[s])
+  loadSpecVars(s)
   colnames(datTab)<-paste(spec[s],c("Selection","mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,6]))){
@@ -1420,6 +1421,7 @@ after_model_write <-function(mdata){
   
   detTotal<-nrow(MoorVar1)
   
+  if(all(paste(spec[[s]],unique(MoorVar1$MooringID)) %in% TPtottab$MoorCor)){
     numTP<-sum(MoorVar1$detectionType==paste(spec[[s]],"1"))
     numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(spec[[s]],unique(MoorVar1$MooringID))),2])
     numFP<-detTotal-numTP
@@ -1440,13 +1442,16 @@ after_model_write <-function(mdata){
     detecEvalFinal<-rbind(detecEval2,detecEval)
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
   
+  }else{
+    print("Cannot summarize total by species: TPtottab incomplete")
+  }
   }
 }
 
 adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(s in 1:length(spec)){
-  loadSpecVars(spec[s])
+  loadSpecVars(s)
   CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(o in unique(CompdataSPEC[,6])){
     print(paste("for mooring",s,o))
@@ -1920,6 +1925,10 @@ process_data<-function(){
   #seperate by species
 resltsTabTemp<-resltsTab[which(resltsTab$Species==s),]
 
+if(useMasterGT=="y" & addToMaster=="y"){
+  resltsTabTemp<-resltsTabTemp[-which(paste(resltsTabTemp$Species,resltsTabTemp$MooringID) %in% moorsCompleted),]
+}
+
 print(paste("Combining spread for"))
   
 for(e in unique(resltsTabTemp$sound.files)){
@@ -2334,7 +2343,7 @@ combineDecRaven<-function(){
       if(length(iterate_SF)>1&stopRun==TRUE){
         sfpath<-filePathNoTemp
         
-        sound_files <- dir(sfpath,pattern=".wav")
+        sound_files <- dir(sfpath,pattern=".wav")[grep(MoorInfo[m,10],dir(sfpath,pattern=".wav"))]
         sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
         bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
         did2<-TRUE
@@ -2433,13 +2442,14 @@ combineDecRaven<-function(){
 #dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
-  drivepath<-"H:/"
+  drivepath<-"F:/"
 }else{
   user<-"danby456"
   drivepath<-"E:/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
+gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
 ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
@@ -2447,7 +2457,7 @@ outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
 
 ###############input parameters
 #detector control
-ControlTab<-read.csv(paste(drivepath,"CallParams/Detector_control.csv",sep=""))
+ControlTab<-read.csv(paste(gitPath,"Data/CallParams/Detector_control.csv",sep=""))
 ControlTab[,3]<-as.character(ControlTab[,3])
 
 #General
@@ -2566,9 +2576,23 @@ resltsTab<-resltsTabF
 
 }
 
+if(useMasterGT=="y"){
+  if(addToMaster=="y"){
+    MoorInfoMaster<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+    moorsCompleted<-paste(MoorInfoMaster[,9],MoorInfoMaster[,10])
+    if(any(!(paste(resltsTabTemp$Species,resltsTabTemp$MooringID) %in% moorsCompleted))){
+      runProcessGT<-"n"
+    }
+  }else{
+    runProcessGT<-"n"
+  }
+}
+
 if(runProcessGT=="y"){
 
+  
 #Combine and configure spread detectors. 
+  
 DetecTab<-NULL
 for(s in spec){
   
@@ -2599,7 +2623,7 @@ p=1
 for(f in 1:length(unique(DetecTab2$MooringName))){
   DetecVar<-DetecTab2[which(DetecTab2$MooringName==unique(DetecTab2$MooringName)[f]),]
   for(g in 1:length(unique(DetecVar$MooringID))){
-    GT[[p]] <- read.delim(paste(drivepath,"/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",unique(DetecVar$MooringID)[g],".txt",sep=""))
+    GT[[p]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",unique(DetecVar$MooringID)[g],".txt",sep=""))
     GT[[p]] <- GT[[p]][GT[[p]]$View=="Spectrogram 1",]
     p=p+1
   }
@@ -2878,9 +2902,9 @@ for(g in unique(GTset$combine)[which(unique(GTset$combine)!=0)]){
 
 GTset$combine<-NULL
 #add frequency stats to GTset 
-GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
 GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
+GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
 
 GTset$Selection<-seq(1,nrow(GTset))
 
@@ -2928,6 +2952,20 @@ GTset$detectionType<-as.factor(GTset$detectionType)
 
 }else if(runGT=="y"){
   
+  if(useMasterGT=="y"){
+    if(addToMaster=="n"){
+      GTset<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
+      TPtottab<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
+      MoorInfo<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+    }else if(addToMaster="y"){
+      GTset<-rbind(GTset,read.csv(paste(gitPath,"Data/GroundTruth.csv",sep="")))
+      TPtottab<-rbind(TPtottab,read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")))
+      MoorInfo<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
+    }
+    
+  }else if(useMasterGT=="n"){
+    
+  
   if(length(spec)==1){
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
   recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -2945,6 +2983,8 @@ GTset$detectionType<-as.factor(GTset$detectionType)
     recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
     recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
     TPtottab<-read.csv(recentPath) #produces most recently modifed file 
+  }
+  
   }
   
   GTset<-GTset[,c(1,4:length(GTset))]

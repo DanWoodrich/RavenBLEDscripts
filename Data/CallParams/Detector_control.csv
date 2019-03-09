@@ -1,0 +1,27 @@
+Category,Parameter,Value,Description
+General,runname,All data test,name for run. Will have time/date tacked on to make unique
+General,spec,"BP,GS,RW",
+General,onlyPopulate,n,If you only want to prepare soundfiles for raven whitening and don't want to run the raven detectors. 
+General,runGT,y,"""y"" or ""n"". If ignored defualts to no"
+General,runGTsections,"y,y,y","length 3 vector of ""y"" or ""n"" (ie n,n,y). Determines which sections of GT to run (Raven detector, process data, test model). If runGT!= y ignore this"
+General,useMasterGT,y,use processed GT data that is on github
+General,addToMaster,y,"Add to github data if your unprocessed GT contains different mooringID. Will only update local GT, need to manually update github GT"
+General,runNEW,n,"""y"" or ""n"". If ignored defualts to no"
+Signal manipulation,fileCombinesize,280,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
+Signal manipulation,fileCombinesize2ndIt,12,how many files will be combined on 2nd iteration. Used to make detector more efficient. Will affect final file size which typically I've kept under 6 gigs. 
+Model,CV,45,Number of times to cross validate RF model
+Model,TPRthresh,"0.9,0.9,0.9",Desired threshold for True positive rate on model. (% of TP will return). Vector corresponding respectively to each species 'spec'
+Model,modelType,rf,which machine learning model you want to classify with 
+Model,modelMethod,svm,"Used for ORF,…,ignored for others"
+New Data,NEWmoorings,BS15_AU_02b,Same formatting as GT. Ignore if only running GT
+New Data,NEWsf,full,Same formatting as GT. Ignore if only running GT
+New Data,NEWpath,HG_datasets,Same formatting as GT. Ignore if only running GT
+New Data,NEWpath2,RW_GS,Same formatting as GT. Ignore if only running GT
+New Data,NEWsourceFormat,open,Same formatting as GT. Ignore if only running GT
+Signal manipulation,Decimate,y,Script will look if data is decimated and automatically decimate if y. OVERRIDES detector params when running through new data 
+Signal manipulation,decimationFactor,8,Decimation factor. Performed iteratively by prime factors. Should be a factor of sampling rate to avoid decimal sampling rate. OVERRIDES detector params when running through new data 
+Signal manipulation,whiten,n,"If y, script will assume data is whitened. Need to manually whiten data with raven and use naming conventions to path correctly. OVERRIDES detector params when running through new data "
+Signal manipulation,FO,100,Filter order for ALE (whitening) filter. OVERRIDES detector params when running through new data 
+Signal manipulation,LMS,0.1,LMS step size for ALE (whitening) filter. OVERRIDES detector params when running through new data 
+Signal manipulation,Filtype,Bband,Type of filter being used to whiten signal. Fband filters out narrowband Bband filters out broadband. OVERRIDES detector params when running through new data 
+computing,parallelType,local,"""local"" or ""azure"" "
