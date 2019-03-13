@@ -10,7 +10,7 @@ General,runNEW,n,"""y"" or ""n"". If ignored defualts to no"
 Signal manipulation,fileCombinesize,280,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
 Signal manipulation,fileCombinesize2ndIt,12,how many files will be combined on 2nd iteration. Used to make detector more efficient. Will affect final file size which typically I've kept under 6 gigs. 
 Model,CV,45,Number of times to cross validate RF model
-Model,TPRthresh,"0.9,0.9,0.9",Desired threshold for True positive rate on model. (% of TP will return). Vector corresponding respectively to each species 'spec'
+Model,TPRthresh,"0.98,0.98,0.98",Desired threshold for True positive rate on model. (% of TP will return). Vector corresponding respectively to each species 'spec'
 Model,modelType,rf,which machine learning model you want to classify with 
 Model,modelMethod,svm,"Used for ORF,…,ignored for others"
 Model,numFeatures,63,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "

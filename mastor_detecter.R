@@ -58,7 +58,7 @@ if(dir.exists("C:/Users/ACS-3")){
 }else if(dir.exists("C:/Users/Daniel.Woodrich")){
   user<-"Daniel.Woodrich"
   drivepath<-"E:/"
-  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
+  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/RavenBLEDscripts/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
@@ -123,7 +123,7 @@ factorLevels<-function(dataToMat){
 
 applyLevels<-function(matToData,datLevels){
 
-  keep<-which(datLevels[[1]][[1]][-which(duplicated(datLevels[[1]][[1]]))] %in% matToData[,1])
+  keep<-which(datLevels[[1]][[1]] %in% matToData[,1])
 
   for(i in 1:length(datLevels[[1]])){
     if(datLevels[[2]][[i]]=="integer"){
@@ -1417,7 +1417,7 @@ after_model_write <-function(mdata){
       RavenExport[,8]<-MoorVar1$detectionType
       RavenExport[,9]<-MoorVar1$File
       RavenExport[,10]<-MoorVar1$FileOffsetBegin
-      RavenExport[,11]<-MoorVar1[,nospec+1]
+      RavenExport[,11]<-MoorVar1[,nospec+s]
       
       
       colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(spec[s],"prob"))
@@ -1441,15 +1441,15 @@ after_model_write <-function(mdata){
         numFP<-detTotal-numTP
         numFN<-numTPtruth-numTP
         
-        TPhitRate <- numTP/numTPtruth*100
-        TPR <- numTP/(numTP+numFN)
+        TPR <- numTP/(numTP+numFP)
+        FPR <- numFP/numTP*100
         TPdivFP<- numTP/numFP
         
         detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
 
-        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1461,15 +1461,15 @@ after_model_write <-function(mdata){
         numFP<-"uk"
         numFN<-"uk"
         
-        TPhitRate <- "uk"
         TPR <- "uk"
+        FPR <- "uk"
         TPdivFP<-"uk"
         
         detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -1486,30 +1486,28 @@ after_model_write <-function(mdata){
   
   detTotal<-nrow(MoorVar1)
   
-  if(all(paste(spec[[s]],unique(MoorVar1$MooringID)) %in% TPtottab$MoorCor)){
+  MoorVar1 <-MoorVar1[which(paste(spec[[s]],MoorVar1$MooringID) %in% TPtottab$MoorCor),]
+    
     numTP<-sum(MoorVar1$detectionType==paste(spec[[s]],"1"))
     numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(spec[[s]],unique(MoorVar1$MooringID))),2])
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
     
-    TPhitRate <- numTP/numTPtruth*100
-    TPR <- numTP/(numTP+numFN)
+    TPR <- numTP/(numTP+numFP)
+    FPR <- numFP/numTP*100
     TPdivFP<- numTP/numFP
     
     detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
     detecEval<-detecEval[0,]
     detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     
-    detecEval[1,]<-c(spec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
     detecEvalFinal<-rbind(detecEval2,detecEval)
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
   
-  }else{
-    print("Cannot summarize total by species: TPtottab incomplete")
-  }
   }
 }
 
@@ -1574,7 +1572,7 @@ adaptive_compare<-function(Compdata){
           #print(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt))
           row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt)))
           
-          row<-c(row,row2[c(6:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
+          row<-c(row,row2[c(8:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
           
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
@@ -2657,7 +2655,7 @@ if(dir.exists("C:/Users/ACS-3")){
 }else if(dir.exists("C:/Users/Daniel.Woodrich")){
   user<-"Daniel.Woodrich"
   drivepath<-"E:/"
-  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
+  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/RavenBLEDscripts/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
@@ -2840,7 +2838,7 @@ for(f in 1:length(unique(DetecTab2$MooringName))){
 #Define table for later excel file export.
 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
   print(paste("Comparing ground truth of",unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],"with final detector"))   
@@ -2943,13 +2941,13 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
   MoorCor<-c(MoorCor,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v])
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
-  TPhitRate <- numTP/numTPtruth*100
-  TPR <- numTP/(numTP+numFN)
+  TPR <- numTP/(numTP+numFP)
+  FPR <- numFP/numTP*100
   TPdivFP<- numTP/numFP
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -2968,13 +2966,13 @@ numTPtruth<- GTtot
 detTotal<-numTP+numFP
 
 
-TPhitRate <- numTP/numTPtruth*100
-TPR <- numTP/(numTP+numFN)
+TPR <- numTP/(numTP+numFP)
+FPR <- numFP/numTP*100
 TPdivFP<- numTP/numFP
 
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
-detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
@@ -3055,8 +3053,6 @@ inputGT()
 #################
 
 if(runTestModel=="y"){
-  
-  stop()
   
 modData<-dataArrangeModel(GTset)
 
@@ -3271,7 +3267,7 @@ nospec<-ncol(data3)-(length(spec)*3)
 stop()
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPhitRate, TPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 #commented out 
 
@@ -3439,17 +3435,17 @@ for(v in 1:length(unique(findataMat[,1]))){
   numFP<-detTotal-numTP
   numFN<-numTPtruth-numTP
   
-  TPhitRate <- numTP/numTPtruth*100
-  TPR <- numTP/(numTP+numFN)
+  TPR <- numTP/(numTP+numFP)
+  FPR <- numFP/numTP*100
   TPdivFP<- numTP/numFP
   
   #save stats and parameters to excel file
   detecEvalFinal<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
   detecEval<-detecEvalFinal[0,]
   if(dettype=="spread"|dettype=="combined"){
-    detecEval[1,]<-c(spec,paste("full",moorlib[which(moorlib[,1]==sort(unique(findataMat[,1]))[v]),2]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(spec,paste("full",moorlib[which(moorlib[,1]==sort(unique(findataMat[,1]))[v]),2]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   }else{
-    detecEval[1,]<-c(spec,paste("full",moorlib[which(moorlib[,1]==sort(unique(findataMat[,1]))[v]),2]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,detTotal,numTP,numFP,numFN,TPhitRate,TPR,TPdivFP,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
+    detecEval[1,]<-c(spec,paste("full",moorlib[which(moorlib[,1]==sort(unique(findataMat[,1]))[v]),2]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),dettype,runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")   
   }
   
   detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
