@@ -3,9 +3,9 @@ General,runname,All data test,name for run. Will have time/date tacked on to mak
 General,spec,"BP,GS,RW",
 General,onlyPopulate,n,If you only want to prepare soundfiles for raven whitening and don't want to run the raven detectors. 
 General,runGT,y,"""y"" or ""n"". If ignored defualts to no"
-General,runGTsections,"y,y,y","length 3 vector of ""y"" or ""n"" (ie n,n,y). Determines which sections of GT to run (Raven detector, process data, test model). If runGT!= y ignore this"
-General,useMasterGT,y,use processed GT data that is on github
-General,addToMaster,y,"Add to github data if your unprocessed GT contains different mooringID. Will only update local GT, need to manually update github GT"
+General,runGTsections,"n,n,y","length 3 vector of ""y"" or ""n"" (ie n,n,y). Determines which sections of GT to run (Raven detector, process data, test model). If runGT!= y ignore this"
+General,useMasterGT,n,use processed GT data that is on github
+General,addToMaster,n,"Add to github data if your unprocessed GT contains different mooringID. Will only update local GT, need to manually update github GT. If ""n"", defaults to most recent GT table on local drive"
 General,runNEW,n,"""y"" or ""n"". If ignored defualts to no"
 Signal manipulation,fileCombinesize,280,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
 Signal manipulation,fileCombinesize2ndIt,12,how many files will be combined on 2nd iteration. Used to make detector more efficient. Will affect final file size which typically I've kept under 6 gigs. 
@@ -13,6 +13,7 @@ Model,CV,45,Number of times to cross validate RF model
 Model,TPRthresh,"0.9,0.9,0.9",Desired threshold for True positive rate on model. (% of TP will return). Vector corresponding respectively to each species 'spec'
 Model,modelType,rf,which machine learning model you want to classify with 
 Model,modelMethod,svm,"Used for ORF,…,ignored for others"
+Model,numFeatures,63,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "
 New Data,NEWmoorings,BS15_AU_02b,Same formatting as GT. Ignore if only running GT
 New Data,NEWsf,full,Same formatting as GT. Ignore if only running GT
 New Data,NEWpath,HG_datasets,Same formatting as GT. Ignore if only running GT

@@ -116,7 +116,7 @@ factorLevels<-function(dataToMat){
 
 applyLevels<-function(matToData,datLevels){
 
-  keep<-which(datLevels[[1]][[1]] %in% matToData[,1])
+  keep<-which(datLevels[[1]][[1]][-which(duplicated(datLevels[[1]][[1]]))] %in% matToData[,1])
 
   for(i in 1:length(datLevels[[1]])){
     if(datLevels[[2]][[i]]=="integer"){
@@ -216,6 +216,49 @@ decimateData<-function(m,oldPath,sfpath){
       
 }
 
+
+inputGT<-function(){
+  if(useMasterGT=="y"){
+    if(addToMaster=="n"){
+      GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
+      TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
+      MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+    }else if(addToMaster=="y"){
+      GTset<<-rbind(GTset,read.csv(paste(gitPath,"Data/GroundTruth.csv",sep="")))
+      TPtottab<<-rbind(TPtottab,read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")))
+      MoorInfo<<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
+    }
+    
+  }else if(useMasterGT=="n"){
+    
+    
+    if(length(spec)==1){
+      recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      GTset<<-read.csv(recentPath) #produces most recently modifed file 
+      
+      recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      TPtottab<<-read.csv(recentPath) #produces most recently modifed file 
+      
+    }else if(length(spec)>1){
+      recentTab<<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      GTset<<-read.csv(recentPath) #produces most recently modifed file 
+      
+      recentTab<<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      TPtottab<<-read.csv(recentPath) #produces most recently modifed file 
+    }
+    
+  }
+  
+  GTset<<-GTset[,c(1,4:length(GTset))]
+  GTset$detectionType<<-as.factor(GTset$detectionType)
+  
+}
+
+
 loadSpecVars<-function(whichSpec){
   #save species variables in global environment
   
@@ -232,6 +275,7 @@ loadSpecVars<-function(whichSpec){
   FO<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="FO"),3] )
   LMS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="LMS"),3])
   Filtype<<-ParamsTab[which(ParamsTab[,2]=="Filtype"),3] 
+  
   }else if(whichRun=="NEW"){
     Decimate<<-ControlTab[which(ControlTab[,2]=="Decimate"),3] 
     decimationFactor<<-as.numeric(ControlTab[which(ControlTab[,2]=="decimationFactor"),3] )
@@ -239,7 +283,7 @@ loadSpecVars<-function(whichSpec){
     FO<<-as.numeric(ControlTab[which(ControlTab[,2]=="FO"),3] )
     LMS<<-as.numeric(ControlTab[which(ControlTab[,2]=="LMS"),3])
     Filtype<<-ControlTab[which(ControlTab[,2]=="Filtype"),3] 
-    
+
   }
   #Raven Detectors
   spStart<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="spStart"),3])
@@ -456,8 +500,8 @@ dataArrangeModel<-function(dataForModel){
   
   dataForModel$detectionType<-as.factor(paste(dataForModel$Species,dataForModel$detectionType))
   
-  modelDat<-dataForModel[,c(1,19:(ncol(dataForModel)-2))]
-  modelDatFactors<-dataForModel[,c(8,17,84,85)]
+  modelDat<-dataForModel[,c(1,18:19,21:(ncol(dataForModel)-2))]
+  modelDatFactors<-dataForModel[,c(8,17,ncol(dataForModel)-1,ncol(dataForModel))]
   modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
   
   otherDat<-dataForModel[,c(1:7,9:16)]
@@ -1017,7 +1061,7 @@ process_model<-function(stuff2,Moddata2){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType','meanfreq','freqrange','V40'))]
+  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType'))]
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -1149,30 +1193,39 @@ runRavenDetector<-function(m,filePath,combname,resltsTab){
   return(resltsTab)
 }
 
-runRandomForest<-function(Moddata){
+runRandomForest<-function(Moddata,GTdataset){
   
   Moddata<<-Moddata
-    
-if(length(unique(Moddata$detectionType))>1){
-
+  
+  GTdataset<<-GTdataset
+  
   print(paste("creating random forest models with CV",CV))
 
   if(parallelType=="local"){
-  startLocalPar("Moddata","CV","splitdf","TPRthresh","spec")
+  startLocalPar("Moddata","CV","splitdf","TPRthresh","spec","whichRun")
   }
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
-  train<-splitdf(Moddata,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -meanfreq -freqrange -V40,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
+  train<-splitdf(Moddata,weight = 2/3)
+  data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+
+  #if(length(unique(Moddata$detectionType))>1){
+  #train[[2]]<-splitdf()
+  
   pred<-stats::predict(data.rf,train[[2]],type="prob")
   pred<-cbind(pred,train[[2]]$Selection)
+  
+  if(whichRun=="NEW"){
+  predreal<-stats::predict(data.rf,Moddata,type="prob")
+  predreal<-cbind(pred,Moddata$Selection)
+  }
   
   p=1
   probstab<-list()
   CUT<-list()
   giniTab<-as.numeric(data.rf$importance)
-  
+    
   for(s in (2*(1:length(spec))-2)){
     
   oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
@@ -1188,9 +1241,18 @@ if(length(unique(Moddata$detectionType))>1){
   
   probstab[[p]]<-data.frame(Moddata$Selection)
   probstab[[p]][,2]<-NA
+  
+  if(whichRun=="GT"){
   for(n in 1:nrow(pred)){
     probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(spec)*2+1)]),2]<-pred[n,2+s]
   }
+  }else if(whichRun=="NEW"){
+    for(n in 1:nrow(pred)){
+      probstab[[p]][which(probstab[[p]]$Moddata.Selection==predreal[n,(length(spec)*2+1)]),2]<-predreal[n,2+s]
+    }
+  }
+  
+  
   p=p+1
   }
   
@@ -1200,10 +1262,6 @@ if(length(unique(Moddata$detectionType))>1){
   parallel::stopCluster(cluz)
   }
 
-}else{
-  
-  #do other one (need up update full mooring on this)
-}
   stuff<-process_model(stuff,Moddata)
   return(stuff)
   Moddata<<-NULL
@@ -1213,7 +1271,7 @@ context_sim <-function(sdata){
   datTab<-matrix(,ncol=8,nrow=0)
   datTab2<-NULL
   for(s in 1:length(spec)){
-  loadSpecVars(s)
+  loadSpecVars(spec[s])
   colnames(datTab)<-paste(spec[s],c("Selection","mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,6]))){
@@ -1451,7 +1509,7 @@ after_model_write <-function(mdata){
 adaptive_compare<-function(Compdata){
   for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
   for(s in 1:length(spec)){
-  loadSpecVars(s)
+  loadSpecVars(spec[s])
   CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
   for(o in unique(CompdataSPEC[,6])){
     print(paste("for mooring",s,o))
@@ -1506,7 +1564,8 @@ adaptive_compare<-function(Compdata){
           print(paste("adaptive compare lookup:",which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10]))))))
           print(paste("adaptive compare MoorID:",MoorInfo[which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10]))
             
-          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)])))
+          #print(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt))
+          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt)))
           
           row<-c(row,row2[c(6:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
           
@@ -1611,14 +1670,14 @@ for(m in moors){
     
     if(is.null(nrow(specdata))){
       rowcount<<-1
-      specVar<<-c(specdata,matrix(1,rowcount,63))
-      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make 
+      specVar<<-c(specdata,matrix(1,rowcount,numFeatures))
+      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+7)) #make 
       noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1]==as.numeric(factor(moors))[which(m==moors)]),]
       rowcount<<-nrow(specVar)
-      specVar<<-cbind(specVar,matrix(1,rowcount,63))
+      specVar<<-cbind(specVar,matrix(1,rowcount,numFeatures))
       noPar<-FALSE
     
     }
@@ -1638,14 +1697,14 @@ for(m in moors){
       
     if(is.null(nrow(specdata))){
       rowcount<<-1
-      specVar<<-c(specdata,matrix(1,rowcount,63))
-      specVar<<-rbind(specVar,matrix(1,rowcount,63+5)) #make
+      specVar<<-c(specdata,matrix(1,rowcount,numFeatures))
+      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+7)) #make
       noPar<-TRUE
       
     }else{
       specVar<<-specdata[which(specdata[,1]==as.numeric(factor(moors))[which(m==moors)]),]
       rowcount<<-nrow(specVar)
-      specVar<<-cbind(specVar,matrix(1,rowcount,63))
+      specVar<<-cbind(specVar,matrix(1,rowcount,numFeatures))
       noPar<-FALSE
       
       
@@ -1662,8 +1721,10 @@ for(m in moors){
     
 #print("extracting spectral parameters")
 specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","cluster")) %dopar% {
+  #for(z in 1:rowcount){
   specRow<-unlist(specVar[z,])
   unlist(specDo(z,specRow,specpath))
+  #}
 }
 
   if(parallelType=="local"){
@@ -1686,10 +1747,7 @@ specVar<<-do.call('rbind', specVar2)
     
     specVar<<-unlist(specDo(z,specRow,specpath))
     
-    prevdir<-getwd()
-    setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
-    unlink('*.jpg')
-    setwd(prevdir)
+
 }
 specTab<<-rbind(specTab,specVar)
 }
@@ -1738,46 +1796,53 @@ specDo<-function(z,featList,specpathh){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  featList[6] = rugo(foo@left / max(foo@left)) #rugosity
-  featList[7] = crest(foo,wl=128)$C #crest factor
+  featList[8] = rugo(foo@left / max(foo@left)) #rugosity
+  featList[9] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  featList[8] = th(foo.env) #temporal entropy
-  featList[9] = sh(foo.spec) #shannon entropy
-  featList[10] = roughness(foo.meanspec[,2]) #spectrum roughness
-  featList[11] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  featList[12] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  featList[13] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  featList[14] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  featList[15] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  featList[16] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  featList[17] = foo.specprop$sd[1] #specprop sd
-  featList[18] = foo.specprop$sem[1] #specprop sem
-  featList[19] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  featList[20] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  featList[21] = foo.specprop$Q25[1] # specprop q25
-  featList[22] = foo.specprop$Q75[1] #specprop q75
-  featList[23] = foo.specprop$IQR[1] #specprop IQR
-  featList[24] = foo.specprop$cent[1] #specrop cent
-  featList[25] = foo.specprop$skewness[1] #specprop skewness
-  featList[26] = foo.specprop$kurtosis[1] #specprop kurtosis
-  featList[27] = foo.specprop$sfm[1] #specprop sfm
-  featList[28] = foo.specprop$sh[1] #specprop sh
-  featList[29] = foo.specprop$prec[1] #specprop prec
-  featList[30] = M(foo,wl=128) #amp env median
-  featList[31] = H(foo,wl=128) #total entropy
-  #featList[32]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
+  featList[10] = th(foo.env) #temporal entropy
+  featList[11] = sh(foo.spec) #shannon entropy
+  featList[12] = roughness(foo.meanspec[,2]) #spectrum roughness
+  featList[13] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  featList[14] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  featList[15] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  featList[16] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  featList[17] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  featList[18] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  featList[19] = foo.specprop$sd[1] #specprop sd
+  featList[20] = foo.specprop$sem[1] #specprop sem
+  featList[21] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  featList[22] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  featList[23] = foo.specprop$Q25[1] # specprop q25
+  featList[24] = foo.specprop$Q75[1] #specprop q75
+  featList[25] = foo.specprop$IQR[1] #specprop IQR
+  featList[26] = foo.specprop$cent[1] #specrop cent
+  featList[27] = foo.specprop$skewness[1] #specprop skewness
+  featList[28] = foo.specprop$kurtosis[1] #specprop kurtosis
+  featList[29] = foo.specprop$sfm[1] #specprop sfm
+  featList[30] = foo.specprop$sh[1] #specprop sh
+  featList[31] = foo.specprop$prec[1] #specprop prec
+  featList[32] = M(foo,wl=128) #amp env median
+  featList[33] = H(foo,wl=128) #total entropy
+  #featList[34]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  featList[33]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  featList[34]<-freqstat.normalize(Startdom,Low,High) #startdom
-  featList[35]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  featList[36]<-freqstat.normalize(Mindom,Low,High) #mindom
-  featList[37]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  featList[38]<-Dfrange #dfrange
-  featList[39]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  featList[40]  <- freqstat.normalize(lastFeature(fs,foo.meanspec),Low,High)
+  featList[35]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  featList[36]<-freqstat.normalize(Startdom,Low,High) #startdom
+  featList[37]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  featList[38]<-freqstat.normalize(Mindom,Low,High) #mindom
+  featList[39]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  featList[40]<-Dfrange #dfrange
+  featList[41]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  featList[42]  <- freqstat.normalize(lastFeature(fs,foo.meanspec),Low,High)
   
   
   #FEATURES FROM IMAGE 
+  
+  dir.create(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],sep=""))
+  dir.create(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],sep=""))
+  
+  im_file_name<-paste(sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),1], perl=T), " "))[c(FALSE, TRUE)]),
+                      "_B",format(as.POSIXlt(featList[6],origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"E",format(as.POSIXlt(featList[6]+End-Start,origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"L",as.character(Low),"H",as.character(High),".jpg",sep="")
+  if(!file.exists(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
   
   # create spectrogram
   spec.gram = specgram(x = snd,
@@ -1800,11 +1865,15 @@ specDo<-function(z,featList,specpathh){
   
   #can use curSpec here to direct to species/detectionID folders. 
   # plot spectrogram
-  jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
-  imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
-  dev.off()
   
-  image1<-load.image(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""))
+    jpeg(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
+    imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    dev.off()
+  }else{
+   #do nothing 
+  }
+
+  image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
@@ -1818,7 +1887,6 @@ specDo<-function(z,featList,specpathh){
   #plot(image1,axes=FALSE,asp="varying")
   #dev.off()
   
- 
    #calculate area chunks x and y 
   chunks<-5
   areaX<- vector("list", length = chunks)
@@ -1879,42 +1947,164 @@ specDo<-function(z,featList,specpathh){
   vpEven<-c(vpEven,sum(diff(image1[456,1:480]) == 1) + sum(diff(image1[456,1:480]) == -1))
   
   #add new variables
-  featList[41]<-which.max(areaX) #areaXmaxP
-  featList[42]<-max(areaX) #areaXmax
-  featList[43]<-max(areaX)/sum(areaX) #areaXdom
-  featList[44]<-std.error(areaX) #areaXstd
+  featList[43]<-which.max(areaX) #areaXmaxP
+  featList[44]<-max(areaX) #areaXmax
+  featList[45]<-max(areaX)/sum(areaX) #areaXdom
+  featList[46]<-std.error(areaX) #areaXstd
   
-  featList[45]<-which.max(areaY) #areaYmaxP
-  featList[46]<-max(areaY) #areaYmax
-  featList[47]<-max(areaY)/sum(areaY)#areaYdom
-  featList[48]<-std.error(areaY)#areaYstd
+  featList[47]<-which.max(areaY) #areaYmaxP
+  featList[48]<-max(areaY) #areaYmax
+  featList[49]<-max(areaY)/sum(areaY)#areaYdom
+  featList[50]<-std.error(areaY)#areaYstd
   
-  #featList[49]<-std.error(areaW) #Areaspread
-  featList[50]<-max(areaW)#AreaTop
-  featList[51]<-max(areaW)/(sum(areaW))#AreaTopDom
-  featList[52]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
-  featList[53]<-length(areaW)#NumShapes
-  
-  featList[54]<-Bestline[4]#bestSlopeHough
-  featList[55]<-Bestline[5]#bestBHough
-  featList[56]<-nrow(Bestlines)#numGoodlines
-  featList[57]<-median(Bestlines[,4])#medSlope
-  featList[58]<-median(Bestlines[,5])#medB
+  #featList[51]<-std.error(areaW) #Areaspread
+  featList[52]<-max(areaW)#AreaTop
+  featList[53]<-max(areaW)/(sum(areaW))#AreaTopDom
+  featList[54]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
+  featList[55]<-length(areaW)#NumShapes
 
-  featList[59]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
-  featList[60]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+  featList[56]<-Bestline[4]#bestSlopeHough
+  featList[57]<-Bestline[5]#bestBHough
+  featList[58]<-nrow(Bestlines)#numGoodlines
+  featList[59]<-median(Bestlines[,4])#medSlope
+  featList[60]<-median(Bestlines[,5])#medB
+
+  featList[61]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+  featList[62]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
-  featList[61]<-mean(hpEven)#switchesX
-  featList[62]<-std.error(hpEven)#switchesXreg
-  featList[63]<-max(hpEven)#switchesXmax
-  featList[64]<-min(hpEven)#switchesXmin
+  featList[63]<-mean(hpEven)#switchesX
+  featList[64]<-std.error(hpEven)#switchesXreg
+  featList[65]<-max(hpEven)#switchesXmax
+  featList[66]<-min(hpEven)#switchesXmin
   
-  featList[65]<-mean(vpEven)#switchesY
-  featList[66]<-std.error(vpEven)#switchesYreg
-  featList[67]<-max(vpEven)#switchesYmax
-  featList[68]<-min(vpEven)#switchesYmin
+  featList[67]<-mean(vpEven)#switchesY
+  featList[68]<-std.error(vpEven)#switchesYreg
+  featList[69]<-max(vpEven)#switchesYmax
+  featList[70]<-min(vpEven)#switchesYmin
   
   return(featList)
+}
+
+dataConflicts<-function(cData){
+  
+#remove 0s that conflict with 1s to make sure model is not fed good calls as examples from other category. 
+cData$RTb<-cData$RTFb+cData$FileOffsetBegin
+cData$RTe<-cData$RTFb+cData$FileOffsetEnd
+cData$remove<-0
+
+#remove conflicts so don't feed model that positives of a sound are + for a negative category 
+for(h in 1:nrow(cData)){
+  if(cData$detectionType[h]==1){
+    #do nothing
+  }else{
+    gvec <- cData[which(cData$detectionType==1&cData$File==cData$File[h]&cData$Species!=cData$Species[h]),]
+    if(nrow(gvec)>0){
+      for(g in 1:nrow(gvec)){
+        if((gvec$RTb[g]>=cData$RTb[h]&gvec$RTb[g]<cData$RTe[h])|(gvec$RTe[g]<=cData$RTe[h]&gvec$RTe[g]>cData$RTb[h])|(gvec$RTe[g]<=cData$RTe[h]&gvec$RTb[g]>=cData$RTb[h])|(gvec$RTe[g]>=cData$RTe[h]&gvec$RTb[g]<=cData$RTb[h])){
+          cData$remove[h]<-1
+        }
+        break
+      }
+    }
+  }
+}
+
+cData<-cData[which(cData$remove==0),]
+
+cData$remove<-NULL
+
+#combine boxes with overlap and true detection (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
+cData$combine<-0
+p=1
+
+for(h in 1:length(unique(cData$MooringID))){
+  
+  cDataPos<-cData[which(cData$detectionType==1&cData$MooringID==unique(cData$MooringID)[h]),]
+  cDataPos<-cDataPos[order(cDataPos$`Begin Time (s)`),]
+  
+  #merge all overlapping 1s. 
+  RollEnd<-cDataPos$`End Time (s)`[1]
+  for(i in 1:(nrow(cDataPos)-1)){
+    if(cDataPos$`Begin Time (s)`[i+1]<RollEnd){
+      cDataPos$combine[i]<-p
+      cDataPos$combine[i+1]<-p
+      if(RollEnd<cDataPos$`End Time (s)`[i+1]){
+        RollEnd<-cDataPos$`End Time (s)`[i+1]
+      }
+    }else{
+      p=p+1
+      RollEnd<-cDataPos$`End Time (s)`[i+1]
+    }
+  }
+  
+  cData<-cData[-which(cData$detectionType==1&cData$MooringID==unique(cData$MooringID)[h]),]
+  cData<-rbind(cData,cDataPos)
+}
+
+cData$RTb<-NULL
+cData$RTe<-NULL
+cData$remove<-NULL
+
+#combine boxes with overlap and no detection
+p=max(cData$combine)
+
+for(h in 1:length(unique(cData$MooringID))){
+  
+  cDataPos<-cData[which(cData$detectionType==0&cData$MooringID==unique(cData$MooringID)[h]),]
+  cDataPos<-cDataPos[order(cDataPos$`Begin Time (s)`),]
+  
+  #merge all overlapping 1s. 
+  RollEnd<-cDataPos$`End Time (s)`[1]
+  for(i in 1:(nrow(cDataPos)-1)){
+    if(cDataPos$`Begin Time (s)`[i+1]<RollEnd){
+      cDataPos$combine[i]<-p
+      cDataPos$combine[i+1]<-p
+      if(RollEnd<cDataPos$`End Time (s)`[i+1]){
+        RollEnd<-cDataPos$`End Time (s)`[i+1]
+      }
+    }else{
+      p=p+1
+      RollEnd<-cDataPos$`End Time (s)`[i+1]
+    }
+  }
+  
+  cData<-cData[-which(cData$detectionType==0&cData$MooringID==unique(cData$MooringID)[h]),]
+  cData<-rbind(cData,cDataPos)
+  
+}
+
+#combine boxes 
+cData$meantime<-NULL
+
+for(g in unique(cData$combine)[which(unique(cData$combine)!=0)]){
+  
+  cDataGroup<-cData[which(cData$combine==g),]
+  
+  newS<-min(cDataGroup$`Begin Time (s)`)
+  newE<-max(cDataGroup$`End Time (s)`)
+  newSo<-min(cDataGroup$FileOffsetBegin)
+  newEo<-max(cDataGroup$FileOffsetEnd)
+  newL<-min(cDataGroup$`Low Freq (Hz)`)
+  newH<-max(cDataGroup$`High Freq (Hz)`)
+  dt<-cDataGroup$detectionType[1]#internally consistent
+  newSpec<-paste(unique(cDataGroup$Species),collapse=",")
+  
+  newRow<-data.frame(cDataGroup[1,c(1:3)],newS,newE,newL,newH,cDataGroup[1,c(8:12)],newSo,newEo,cDataGroup[1,c(15:17)],newSpec,dt,0)
+  
+  names(newRow)<-names(cData)
+  cData<-cData[-which(cData$combine==g),]
+  cData<-rbind(cData,newRow)
+}
+
+cData$combine<-NULL
+#add frequency stats to cData 
+cData$meanfreq<- (cData$`Low Freq (Hz)`+cData$`High Freq (Hz)`)/2
+cData$freqrange<- (cData$`High Freq (Hz)`-cData$`Low Freq (Hz)`)
+cData$meantime<- (cData$`Begin Time (s)`+cData$`End Time (s)`)/2
+
+cData$Selection<-seq(1,nrow(cData))
+
+return(cData)
 }
 
 process_data<-function(){
@@ -2466,8 +2656,11 @@ spec<-str_split(ControlTab[which(ControlTab[,2]=="spec"),3],",",simplify=TRUE)
 runGT<-ControlTab[which(ControlTab[,2]=="runGT"),3]
 if(runGT=="y"){
 runGTsections<-str_split(ControlTab[which(ControlTab[,2]=="runGTsections"),3],",",simplify=TRUE)
+addToMaster<<-ControlTab[which(ControlTab[,2]=="addToMaster"),3] 
+useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
 }else{
 runGTsections<-c("n","n","n")
+addToMaster<-"n"
 }
 runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 #NEW
@@ -2477,13 +2670,6 @@ if(runNEW=="y"){
   NEWpath<-str_split(ControlTab[which(ControlTab[,2]=="NEWpath"),3],",",simplify=TRUE)
   NEWpath2<-str_split(ControlTab[which(ControlTab[,2]=="NEWpath2"),3],",",simplify=TRUE)
   NEWsourceFormat<-str_split(ControlTab[which(ControlTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE)
-}
-
-if(length(spec)<1){
-  CV<- ControlTab[which(ControlTab[,2]=="combCV"),3]
-  TPRthresh<- ControlTab[which(ControlTab[,2]=="combTPRthresh"),3]
-  modelType<- ControlTab[which(ControlTab[,2]=="combmodelType"),3]
-  modelMethod<- ControlTab[which(ControlTab[,2]=="combmodelMethod"),3]
 }
 
 fileCombinesize<-as.numeric(ControlTab[which(ControlTab[,2]=="fileCombinesize"),3] )
@@ -2496,6 +2682,7 @@ CV<- ControlTab[which(ControlTab[,2]=="CV"),3]
 TPRthresh<- str_split(ControlTab[which(ControlTab[,2]=="TPRthresh"),3],",",simplify=TRUE)  
 modelType<- ControlTab[which(ControlTab[,2]=="modelType"),3]
 modelMethod<- ControlTab[which(ControlTab[,2]=="modelMethod"),3]
+numFeatures<- as.numeric(ControlTab[which(ControlTab[,2]=="numFeatures"),3])
 
 
 #assign runname and make run folder 
@@ -2791,122 +2978,7 @@ GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<
 #######1 mooring test######
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-#remove 0s that conflict with 1s to make sure model is not fed good calls as examples from other category. 
-GTset$RTb<-GTset$RTFb+GTset$FileOffsetBegin
-GTset$RTe<-GTset$RTFb+GTset$FileOffsetEnd
-GTset$remove<-0
-
-#remove conflicts so don't feed model that positives of a sound are + for a negative category 
-for(h in 1:nrow(GTset)){
-  if(GTset$detectionType[h]==1){
-    #do nothing
-  }else{
-    gvec <- GTset[which(GTset$detectionType==1&GTset$File==GTset$File[h]&GTset$Species!=GTset$Species[h]),]
-    if(nrow(gvec)>0){
-      for(g in 1:nrow(gvec)){
-        if((gvec$RTb[g]>=GTset$RTb[h]&gvec$RTb[g]<GTset$RTe[h])|(gvec$RTe[g]<=GTset$RTe[h]&gvec$RTe[g]>GTset$RTb[h])|(gvec$RTe[g]<=GTset$RTe[h]&gvec$RTb[g]>=GTset$RTb[h])|(gvec$RTe[g]>=GTset$RTe[h]&gvec$RTb[g]<=GTset$RTb[h])){
-          GTset$remove[h]<-1
-        }
-          break
-        }
-    }
-  }
-}
-
-GTset<-GTset[which(GTset$remove==0),]
-
-GTset$remove<-NULL
-
-#combine boxes with overlap and true detection (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
-GTset$combine<-0
-p=1
-
-for(h in 1:length(unique(GTset$MooringID))){
-  
-  GTsetPos<-GTset[which(GTset$detectionType==1&GTset$MooringID==unique(GTset$MooringID)[h]),]
-  GTsetPos<-GTsetPos[order(GTsetPos$`Begin Time (s)`),]
-  
-  #merge all overlapping 1s. 
-  RollEnd<-GTsetPos$`End Time (s)`[1]
-  for(i in 1:(nrow(GTsetPos)-1)){
-    if(GTsetPos$`Begin Time (s)`[i+1]<RollEnd){
-      GTsetPos$combine[i]<-p
-      GTsetPos$combine[i+1]<-p
-      if(RollEnd<GTsetPos$`End Time (s)`[i+1]){
-        RollEnd<-GTsetPos$`End Time (s)`[i+1]
-      }
-    }else{
-      p=p+1
-      RollEnd<-GTsetPos$`End Time (s)`[i+1]
-    }
-  }
-  
-  GTset<-GTset[-which(GTset$detectionType==1&GTset$MooringID==unique(GTset$MooringID)[h]),]
-  GTset<-rbind(GTset,GTsetPos)
-}
-
-GTset$RTb<-NULL
-GTset$RTe<-NULL
-GTset$remove<-NULL
-
-#combine boxes with overlap and no detection
-p=max(GTset$combine)
-
-for(h in 1:length(unique(GTset$MooringID))){
-  
-  GTsetPos<-GTset[which(GTset$detectionType==0&GTset$MooringID==unique(GTset$MooringID)[h]),]
-  GTsetPos<-GTsetPos[order(GTsetPos$`Begin Time (s)`),]
-  
-  #merge all overlapping 1s. 
-  RollEnd<-GTsetPos$`End Time (s)`[1]
-  for(i in 1:(nrow(GTsetPos)-1)){
-    if(GTsetPos$`Begin Time (s)`[i+1]<RollEnd){
-      GTsetPos$combine[i]<-p
-      GTsetPos$combine[i+1]<-p
-      if(RollEnd<GTsetPos$`End Time (s)`[i+1]){
-        RollEnd<-GTsetPos$`End Time (s)`[i+1]
-      }
-    }else{
-      p=p+1
-      RollEnd<-GTsetPos$`End Time (s)`[i+1]
-    }
-  }
-  
-  GTset<-GTset[-which(GTset$detectionType==0&GTset$MooringID==unique(GTset$MooringID)[h]),]
-  GTset<-rbind(GTset,GTsetPos)
-
-}
-
-#combine boxes 
-GTset$meantime<-NULL
-
-for(g in unique(GTset$combine)[which(unique(GTset$combine)!=0)]){
-  
-  GTsetGroup<-GTset[which(GTset$combine==g),]
-  
-  newS<-min(GTsetGroup$`Begin Time (s)`)
-  newE<-max(GTsetGroup$`End Time (s)`)
-  newSo<-min(GTsetGroup$FileOffsetBegin)
-  newEo<-max(GTsetGroup$FileOffsetEnd)
-  newL<-min(GTsetGroup$`Low Freq (Hz)`)
-  newH<-max(GTsetGroup$`High Freq (Hz)`)
-  dt<-GTsetGroup$detectionType[1]#internally consistent
-  newSpec<-paste(unique(GTsetGroup$Species),collapse=",")
-  
-  newRow<-data.frame(GTsetGroup[1,c(1:3)],newS,newE,newL,newH,GTsetGroup[1,c(8:12)],newSo,newEo,GTsetGroup[1,c(15:17)],newSpec,dt,0)
-  
-  names(newRow)<-names(GTset)
-  GTset<-GTset[-which(GTset$combine==g),]
-  GTset<-rbind(GTset,newRow)
-}
-
-GTset$combine<-NULL
-#add frequency stats to GTset 
-GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
-GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
-GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
-
-GTset$Selection<-seq(1,nrow(GTset))
+GTset<-dataConflicts(GTset)
 
 
 #if multiclass: throw out double positives from the ground truth. Comment out line if choose to go with binary. 
@@ -2916,15 +2988,13 @@ GTset<-GTset[-grep(",",GTset$Species),]
 
 #"vectorize" GTset frame. 
 
-
-
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
-dataMat<- data.matrix(GTset[,c(23,4:7)])
+dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat)
 
-dataMat<-data.frame(dataMat)
+dataMat<-data.frame(dataMat[,c(1:5,8:ncol(dataMat))])
 GTset$combID<-NULL
 GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
 
@@ -2952,43 +3022,7 @@ GTset$detectionType<-as.factor(GTset$detectionType)
 
 }else if(runGT=="y"){
   
-  if(useMasterGT=="y"){
-    if(addToMaster=="n"){
-      GTset<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
-      TPtottab<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
-      MoorInfo<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
-    }else if(addToMaster="y"){
-      GTset<-rbind(GTset,read.csv(paste(gitPath,"Data/GroundTruth.csv",sep="")))
-      TPtottab<-rbind(TPtottab,read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")))
-      MoorInfo<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
-    }
-    
-  }else if(useMasterGT=="n"){
-    
-  
-  if(length(spec)==1){
-  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
-  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-  GTset<-read.csv(recentPath) #produces most recently modifed file 
-
-  recentTab<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
-  recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-  TPtottab<-read.csv(recentPath) #produces most recently modifed file 
-  
-  }else if(length(spec)>1){
-    recentTab<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
-    recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-    GTset<-read.csv(recentPath) #produces most recently modifed file 
-    
-    recentTab<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
-    recentPath<-rownames(recentTab)[which.max(recentTab$mtime)]
-    TPtottab<-read.csv(recentPath) #produces most recently modifed file 
-  }
-  
-  }
-  
-  GTset<-GTset[,c(1,4:length(GTset))]
-  GTset$detectionType<-as.factor(GTset$detectionType)
+inputGT()
   
 }
 
@@ -3004,7 +3038,7 @@ if(runTestModel=="y"){
 modData<-dataArrangeModel(GTset)
 
 if(modelType=="rf"){
-  modelOutput<-runRandomForest(modData[[1]])
+  modelOutput<-runRandomForest(modData[[1]],modData[[1]])
 }else if(modelType=='orf'){
   modelOutput<-runObliqueRandomForest(dataForModel,method=modelMethod)
 f}
@@ -3111,7 +3145,7 @@ for(m in unique(dataSPEC[,6])){
 data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
 CS_outputDate<-CS_output[which(CS_output[,1] %in% as.numeric(data3Matmoors[,1])),]
 #pointsDate<-data3Matmoors$Begin.Time..s.
-pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01")
+pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01",tz="UTC")
 plot(x=pointsDate,y=data3Matmoors[,nospec+1], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
 abline(h=CUTmean[s],col="red")
 abline(h=0.5,lty=3)
@@ -3181,26 +3215,35 @@ for(s in spec){
   
   #print table that has buffer to allow for easily playing shorter GS
   
-stop()
 }
 
-DetecTab$meanfreq<- (DetecTab$`Low Freq (Hz)`+DetecTab$`High Freq (Hz)`)/2
-DetecTab$freqrange<- (DetecTab$`High Freq (Hz)`-DetecTab$`Low Freq (Hz)`)
-DetecTab$meantime<- (DetecTab$`Begin Time (s)`+DetecTab$`End Time (s)`)/2
+DetecTab<-dataConflicts(DetecTab)
 
 DetecTab$combID<-as.factor(paste(DetecTab$Species,DetecTab$MooringID))
-dataMat<- data.matrix(DetecTab[,c(23,4:7)])
+dataNEW<- data.matrix(cbind(DetecTab[,c(23,4:7)],as.numeric(DetecTab$RTFb+DetecTab$FileOffsetBegin),as.numeric(DetecTab$detectionType)))
 print("extracting features from FFT of each putative call")
 
-dataMat<-spectral_features(dataMat)
+dataNEW<-spectral_features(dataNEW)
 
-dataMat<-data.frame(dataMat)
-GTset$combID<-NULL
-GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
+dataNEW<-data.frame(dataNEW)
+dataNEW$combID<-NULL
+dataNEW<-cbind(dataNEW,dataNEW[,c(6:ncol(dataNEW[,c(1:5,8:ncol(dataNEW))]))])
 
-GTset<-apply(GTset,2,function(x) unlist(x))
+dataNEW<-apply(dataNEW,2,function(x) unlist(x))
 
 modData<-dataArrangeModel(DetecTab)
+
+inputGT()
+
+GTset<-dataArrangeModel(GTset)
+
+modelOutput<-runRandomForest(modData[[1]],GTset)
+
+data3<-cbind(modData[[2]],modelOutput[[1]])
+
+CUTmean<-modelOutput[[2]]
+
+nospec<-ncol(data3)-(length(spec)*3)
 
 stop()
 #Define table for later excel file export. 
