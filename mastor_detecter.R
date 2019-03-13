@@ -48,9 +48,12 @@ library(fpc)
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
   drivepath<-"F:/"
-}else{
+}else if(dir.exists("C:/Users/danby456")){
   user<-"danby456"
   drivepath<-"E:/"
+}else if(dir.exists("C:/Users/Daniel.Woodrich")){
+  user<-"Daniel.Woodrich"
+  drivepath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
@@ -2640,9 +2643,12 @@ combineDecRaven<-function(){
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
   drivepath<-"F:/"
-}else{
+}else if(dir.exists("C:/Users/danby456")){
   user<-"danby456"
   drivepath<-"E:/"
+}else if(dir.exists("C:/Users/Daniel.Woodrich")){
+  user<-"Daniel.Woodrich"
+  drivepath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
