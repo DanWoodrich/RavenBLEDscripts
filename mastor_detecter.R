@@ -39,8 +39,8 @@ library(imager)
 library(Cairo)
 library(obliqueRF)
 library(fpc)
-library(rAzureBatch)
-library(doAzureParallel)
+#library(rAzureBatch)
+#library(doAzureParallel)
 
 ###############################
 #run this stuff so I can know whether to start azure parallel. Run it again later to populate cluster w variable. 
@@ -68,18 +68,18 @@ ControlTab[,3]<-as.character(ControlTab[,3])
 
 parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
 
-if(parallelType=="azure"){
-  
-setwd(getwd()) #how the hell this line does anything I don't know. But it fixed a pathing error.
-setCredentials("credentials.json")
-
-cluz <- doAzureParallel::makeCluster("cluster.json")
-registerDoAzureParallel(cluz) 
-
-setAutoDeleteJob(FALSE)
-setHttpTraffic(TRUE)
-
-}
+#if(parallelType=="azure"){
+#  
+#setwd(getwd()) #how the hell this line does anything I don't know. But it fixed a pathing error.
+#setCredentials("credentials.json")
+#
+#cluz <- doAzureParallel::makeCluster("cluster.json")
+#registerDoAzureParallel(cluz) 
+#
+#setAutoDeleteJob(FALSE)
+#setHttpTraffic(TRUE)
+#
+#}
 
 startLocalPar<-function(...){
   if(user=="ACS-3"){
@@ -2466,7 +2466,14 @@ combineDecRaven<-function(){
       if(MoorInfo[m,8]=="open"){
         sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
         sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
-      }else if(MoorInfo[m,8]=="month"){
+      }else if(MoorInfo[m,8]=="month"&decNeeded=="y"){ #assuming month wil only be used when acthing on full moorings. If a different use case conditionals may not work. 
+        sound_files<-c()
+        sound_filesfullpath<-
+        allMonths<-dir(sfpath)
+        for(i in allMonths){
+          sound_files<-c(soundfiles,dir(paste(sfpath,i,sep="/"),pattern=".wav"))
+          sound_filesfullpath<-c(sound_filesfullpath,paste(sfpath,i,dir(paste(sfpath,i,sep="/"),pattern=".wav"),sep="/"))
+        }
         sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
         sound_filesfullpath<-NULL
       }
@@ -2738,7 +2745,7 @@ write.csv(MoorInfoMspec,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep="
 MoorInfo<-MoorInfoMspec
 resltsTab<-resltsTabF
 
-}else if(runGT=="y"){
+}else if(runGT=="y"&runProcessGT=="y"){
   
   if(length(spec)==1){
   recentTab<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "GT.csv"))
@@ -3034,6 +3041,8 @@ inputGT()
 #################
 
 if(runTestModel=="y"){
+  
+  stop()
   
 modData<-dataArrangeModel(GTset)
 
