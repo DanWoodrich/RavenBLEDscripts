@@ -48,16 +48,20 @@ library(fpc)
 if(dir.exists("C:/Users/ACS-3")){
   user<-"ACS-3"
   drivepath<-"F:/"
+  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
+  
 }else if(dir.exists("C:/Users/danby456")){
   user<-"danby456"
   drivepath<-"E:/"
+  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
+  
 }else if(dir.exists("C:/Users/Daniel.Woodrich")){
   user<-"Daniel.Woodrich"
-  drivepath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
+  drivepath<-"E:/"
+  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/"
 }
 
 startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
-gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
 BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
 ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
 outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
