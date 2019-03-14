@@ -2,11 +2,11 @@ Category,Parameter,Value,Description
 General,runname,All data test,name for run. Will have time/date tacked on to make unique
 General,spec,"BP,GS,RW",
 General,onlyPopulate,n,If you only want to prepare soundfiles for raven whitening and don't want to run the raven detectors. 
-General,runGT,y,"""y"" or ""n"". If ignored defualts to no"
+General,runGT,n,"""y"" or ""n"". If ignored defualts to no"
 General,runGTsections,"n,n,y","length 3 vector of ""y"" or ""n"" (ie n,n,y). Determines which sections of GT to run (Raven detector, process data, test model). If runGT!= y ignore this"
 General,useMasterGT,y,use processed GT data that is on github
 General,addToMaster,n,"Add to github data if your unprocessed GT contains different mooringID. Will only update local GT, need to manually update github GT. If ""n"", defaults to most recent GT table on local drive"
-General,runNEW,n,"""y"" or ""n"". If ignored defualts to no"
+General,runNEW,y,"""y"" or ""n"". If ignored defualts to no"
 Signal manipulation,fileCombinesize,280,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
 Signal manipulation,fileCombinesize2ndIt,12,how many files will be combined on 2nd iteration. Used to make detector more efficient. Will affect final file size which typically I've kept under 6 gigs. 
 Model,CV,45,Number of times to cross validate RF model
@@ -14,11 +14,11 @@ Model,TPRthresh,"0.98,0.98,0.98",Desired threshold for True positive rate on mod
 Model,modelType,rf,which machine learning model you want to classify with 
 Model,modelMethod,svm,"Used for ORF,…,ignored for others"
 Model,numFeatures,63,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "
-New Data,NEWmoorings,BS15_AU_02b,Same formatting as GT. Ignore if only running GT
-New Data,NEWsf,full,Same formatting as GT. Ignore if only running GT
-New Data,NEWpath,HG_datasets,Same formatting as GT. Ignore if only running GT
-New Data,NEWpath2,RW_GS,Same formatting as GT. Ignore if only running GT
-New Data,NEWsourceFormat,open,Same formatting as GT. Ignore if only running GT
+New Data,NEWmoorings,"AW14_AU_BS2,AW13_AU_BS3",Same formatting as GT. Ignore if only running GT
+New Data,NEWsf,"full,full",Same formatting as GT. Ignore if only running GT
+New Data,NEWpath,"HG_datasets,HG_datasets",Same formatting as GT. Ignore if only running GT
+New Data,NEWpath2,"RW_GS,RW_GS",Same formatting as GT. Ignore if only running GT
+New Data,NEWsourceFormat,"open,open",Same formatting as GT. Ignore if only running GT
 Signal manipulation,Decimate,y,Script will look if data is decimated and automatically decimate if y. OVERRIDES detector params when running through new data 
 Signal manipulation,decimationFactor,8,Decimation factor. Performed iteratively by prime factors. Should be a factor of sampling rate to avoid decimal sampling rate. OVERRIDES detector params when running through new data 
 Signal manipulation,whiten,n,"If y, script will assume data is whitened. Need to manually whiten data with raven and use naming conventions to path correctly. OVERRIDES detector params when running through new data "

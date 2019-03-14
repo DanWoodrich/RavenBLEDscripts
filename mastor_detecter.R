@@ -1721,7 +1721,7 @@ for(m in moors){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg")
+    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun")
     }
     
 #print("extracting spectral parameters")
@@ -1753,7 +1753,8 @@ specVar<<-do.call('rbind', specVar2)
     specVar<<-unlist(specDo(z,specRow,specpath))
     
 
-}
+  }
+  
 specTab<<-rbind(specTab,specVar)
 }
 
@@ -1871,14 +1872,26 @@ specDo<-function(z,featList,specpathh){
   #can use curSpec here to direct to species/detectionID folders. 
   # plot spectrogram
   
+  if(whichRun=="GT"){
+  
     jpeg(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
+    
+  }else if(whichRun=="NEW"){
+    jpeg(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""),quality=100)
+    imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    dev.off()
+  }
+  
   }else{
    #do nothing 
   }
-
+  if(whichRun=="GT"){
   image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
+  }else if(whichRun=="NEW"){
+  image1<-load.image(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""))
+  }
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
@@ -1997,7 +2010,8 @@ cData$RTb<-cData$RTFb+cData$FileOffsetBegin
 cData$RTe<-cData$RTFb+cData$FileOffsetEnd
 cData$remove<-0
 
-#remove conflicts so don't feed model that positives of a sound are + for a negative category 
+#remove conflicts so don't feed model that positives of a sound are + for a negative category
+if(any(cData$detectionType==1)){
 for(h in 1:nrow(cData)){
   if(cData$detectionType[h]==1){
     #do nothing
@@ -2018,10 +2032,13 @@ cData<-cData[which(cData$remove==0),]
 
 cData$remove<-NULL
 
+}
+
 #combine boxes with overlap and true detection (0.06 corresponding to lowest timediffself parameter GSs- works at whatever value though)
 cData$combine<-0
 p=1
 
+if(any(cData$detectionType==1)){
 for(h in 1:length(unique(cData$MooringID))){
   
   cDataPos<-cData[which(cData$detectionType==1&cData$MooringID==unique(cData$MooringID)[h]),]
@@ -2045,13 +2062,16 @@ for(h in 1:length(unique(cData$MooringID))){
   cData<-cData[-which(cData$detectionType==1&cData$MooringID==unique(cData$MooringID)[h]),]
   cData<-rbind(cData,cDataPos)
 }
+  #combine boxes with overlap and no detection
+  p=max(cData$combine)
+}
 
 cData$RTb<-NULL
 cData$RTe<-NULL
 cData$remove<-NULL
 
-#combine boxes with overlap and no detection
-p=max(cData$combine)
+
+
 
 for(h in 1:length(unique(cData$MooringID))){
   
@@ -2081,24 +2101,29 @@ for(h in 1:length(unique(cData$MooringID))){
 #combine boxes 
 cData$meantime<-NULL
 
+if(any(cData$combine>0)){
+
 for(g in unique(cData$combine)[which(unique(cData$combine)!=0)]){
   
   cDataGroup<-cData[which(cData$combine==g),]
   
-  newS<-min(cDataGroup$`Begin Time (s)`)
-  newE<-max(cDataGroup$`End Time (s)`)
-  newSo<-min(cDataGroup$FileOffsetBegin)
-  newEo<-max(cDataGroup$FileOffsetEnd)
-  newL<-min(cDataGroup$`Low Freq (Hz)`)
-  newH<-max(cDataGroup$`High Freq (Hz)`)
-  dt<-cDataGroup$detectionType[1]#internally consistent
-  newSpec<-paste(unique(cDataGroup$Species),collapse=",")
+  cDataRow<-data.frame(cDataGroup[1,])
   
-  newRow<-data.frame(cDataGroup[1,c(1:3)],newS,newE,newL,newH,cDataGroup[1,c(8:12)],newSo,newEo,cDataGroup[1,c(15:17)],newSpec,dt,0)
-  
-  names(newRow)<-names(cData)
+  cDataRow[,4]<-min(cDataGroup$`Begin Time (s)`)
+  cDataRow[,5]<-max(cDataGroup$`End Time (s)`)
+  cDataRow[,6]<-min(cDataGroup$`Low Freq (Hz)`)
+  cDataRow[,7]<-max(cDataGroup$`High Freq (Hz)`)
+  cDataRow[,13]<-min(cDataGroup$FileOffsetBegin)
+  cDataRow[,14]<-max(cDataGroup$FileOffsetEnd)
+  cDataRow[,18]<-paste(unique(cDataGroup$Species),collapse=",")
+  cDataRow[,19]<-cDataGroup$detectionType[1]#internally consistent
+  cDataRow[,20]<-0
+
   cData<-cData[-which(cData$combine==g),]
-  cData<-rbind(cData,newRow)
+  names(cDataRow)<-names(cData)
+  cData<-rbind(cData,cDataRow)
+}
+  
 }
 
 cData$combine<-NULL
@@ -2676,11 +2701,12 @@ runGT<-ControlTab[which(ControlTab[,2]=="runGT"),3]
 if(runGT=="y"){
 runGTsections<-str_split(ControlTab[which(ControlTab[,2]=="runGTsections"),3],",",simplify=TRUE)
 addToMaster<<-ControlTab[which(ControlTab[,2]=="addToMaster"),3] 
-useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
 }else{
 runGTsections<-c("n","n","n")
 addToMaster<-"n"
 }
+useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
+
 runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 #NEW
 if(runNEW=="y"){
@@ -3013,9 +3039,8 @@ print("extracting features from FFT of each putative call")
 
 dataMat<-spectral_features(dataMat)
 
-dataMat<-data.frame(dataMat[,c(1:5,8:ncol(dataMat))])
 GTset$combID<-NULL
-GTset<-cbind(GTset,dataMat[,c(6:length(dataMat))])
+GTset<-cbind(GTset,dataMat[,c(8:length(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
 
@@ -3238,17 +3263,22 @@ for(s in spec){
 
 DetecTab<-dataConflicts(DetecTab)
 
-DetecTab$combID<-as.factor(paste(DetecTab$Species,DetecTab$MooringID))
+DetecTab$combID<-as.factor(paste(substr(DetecTab$Species,1,2),DetecTab$MooringID)) #simplify species ID for correct indexing
 dataNEW<- data.matrix(cbind(DetecTab[,c(23,4:7)],as.numeric(DetecTab$RTFb+DetecTab$FileOffsetBegin),as.numeric(DetecTab$detectionType)))
 print("extracting features from FFT of each putative call")
 
 dataNEW<-spectral_features(dataNEW)
 
 dataNEW<-data.frame(dataNEW)
-dataNEW$combID<-NULL
-dataNEW<-cbind(dataNEW,dataNEW[,c(6:ncol(dataNEW[,c(1:5,8:ncol(dataNEW))]))])
+DetecTab$combID<-NULL
+DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
+stop()
 
-dataNEW<-apply(dataNEW,2,function(x) unlist(x))
+DetecTab<-apply(DetecTab,2,function(x) unlist(x))
+
+DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
+DetecTab<-data.frame(DetecTab)
+DetecTab$detectionType<-as.factor(DetecTab$detectionType)
 
 modData<-dataArrangeModel(DetecTab)
 
