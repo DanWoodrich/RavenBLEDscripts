@@ -3,7 +3,7 @@
 #for RW
 
 assTab<-NULL
-for(n in 1:20){
+for(n in 1:5){
   
 assignment<-NULL
 
@@ -39,4 +39,4 @@ assTab<-rbind(assTab,t(data.frame(assignment)))
 
 colnames(assTab)<-c("spec","year","Mooring","num_sf","per_through_dat_start")
 
-write.csv(assTab,"E:/Other/",row.names=FALSE)
+write.csv(dataNEW,"E:/GTplanRandom.csv",row.names=FALSE)

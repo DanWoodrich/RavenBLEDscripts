@@ -1214,7 +1214,7 @@ runRandomForest<-function(Moddata,GTdataset){
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
 
-  train<-splitdf(Moddata,weight = 2/3)
+  train<-splitdf(GTdataset,weight = 2/3)
   data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
   #if(length(unique(Moddata$detectionType))>1){
@@ -1254,7 +1254,7 @@ runRandomForest<-function(Moddata,GTdataset){
     probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(spec)*2+1)]),2]<-pred[n,2+s]
   }
   }else if(whichRun=="NEW"){
-    for(n in 1:nrow(pred)){
+    for(n in 1:nrow(predreal)){
       probstab[[p]][which(probstab[[p]]$Moddata.Selection==predreal[n,(length(spec)*2+1)]),2]<-predreal[n,2+s]
     }
   }
@@ -3243,7 +3243,11 @@ for(s in spec){
 }
 
   MoorInfo<-MoorInfoMspec
-  resltsTab<-resltsTabF
+
+  resltsTab<-resltsTab  
+  resltsTabF<-NULL
+  resltsTabS<-NULL
+  resltsVar<-NULL
   
   #Combine and configure spread detectors. 
   DetecTab<-NULL
@@ -3274,25 +3278,42 @@ DetecTab$combID<-NULL
 DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
 stop()
 
-DetecTab<-apply(DetecTab,2,function(x) unlist(x))
+#DetecTab<-apply(DetecTab,2,function(x) unlist(x))
 
 DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
 DetecTab<-data.frame(DetecTab)
-DetecTab$detectionType<-as.factor(DetecTab$detectionType)
+DetecTab$detectionType<-0
 
 modData<-dataArrangeModel(DetecTab)
 
 inputGT()
 
-GTset<-dataArrangeModel(GTset)
+GTData<-dataArrangeModel(GTset)
 
-modelOutput<-runRandomForest(modData[[1]],GTset)
+#temporarily exlude BS2 since can't have new factor levels in new data. 
+modData[[1]]<-modData[[1]][which(modData[[1]]$MooringCode!="BS2"),]
+modData[[2]]<-modData[[2]][which(modData[[1]]$Selection %in% modData[[2]]$Selection),]
+
+for(i in 1:ncol(modData[[1]])){
+
+levels(modData[[1]][,i])<-levels(GTData[[1]][,i]) 
+
+}
+
+
+CV<-10
+modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
 
 data3<-cbind(modData[[2]],modelOutput[[1]])
 
 CUTmean<-modelOutput[[2]]
 
 nospec<-ncol(data3)-(length(spec)*3)
+
+after_model_write(data3) #need to change to vector 
+
+
+
 
 stop()
 #Define table for later excel file export. 
