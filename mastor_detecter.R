@@ -114,6 +114,73 @@ startLocalPar<-function(...){
 # Check that the nodes are running 
 #doAzureParallel::getDoParWorkers() 
 
+formatModelData<-function(dataPostModel){
+  #pickup here or leave it for now. 
+  newSpec<-NULL
+  for(s in 1:length(spec)){
+    newSpec<-c(newSpec,(nospec+3*s-2))
+  }
+  
+  dataPostModel<-dataPostModel[,c(1:nospec,newSpec)]  
+  
+  #put columns excluded from model back in ?
+  
+  #change data columns from factor to numeric that should be numeric:
+  for(b in c(1,2,3,4,5,10,11)){
+    dataPostModel[,b]<-as.numeric(as.character(dataPostModel[,b])) 
+    
+  }
+  
+  for(b in c(13,14)){
+    dataPostModel[,b]<-as.integer(as.numeric(as.POSIXlt(dataPostModel[,b])))
+  }
+  
+  Tab<-NULL
+  Tab2<-NULL
+  
+  dataPostModellabs<-factorLevels(dataPostModel)
+  
+  for(s in 1:length(spec)){
+    
+    dataPostModelspec<-dataPostModel[grep(spec[s],dataPostModel$Species),]
+    
+    #adaptively combine detections based on probability
+    dataPostModelspecLabs<-factorLevels(dataPostModelspec)
+    
+    dataPostModelspec$Unq_Id<-as.numeric(as.factor(paste(dataPostModelspec$Species,dataPostModelspec$MooringID)))
+    
+    for(i in 1:ncol(dataPostModelspec)){
+      if(typeof(dataPostModelspec[,i])=="character"){
+        dataPostModelspec[,i]<-as.factor(dataPostModelspec[,i])
+      }
+      
+    }
+    
+    dataPostModelspecMat<- data.matrix(dataPostModelspec)
+    
+    dataPostModelspecMat<-adaptive_compare(dataPostModelspecMat) 
+    
+    #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
+    CS_output<-context_sim(dataPostModelspecMat)
+    
+    #remove missing rows:
+    dataPostModelspecMat<-dataPostModelspecMat[order(dataPostModelspecMat[,1]),]
+    dataPostModelspec<-data.frame(dataPostModelspecMat)
+    dataPostModelspec$Unq_Id<-NULL
+    dataPostModelspec<-applyLevels(dataPostModelspec,dataPostModelspecLabs)
+    
+    Tab<-rbind(Tab,dataPostModelspec)
+    Tab2<-rbind(Tab2,CS_output)
+  }
+  
+  dataPostModel<-Tab
+  CS_output<-Tab2
+  
+  dataPostModel<-applyLevels(dataPostModel,dataPostModellabs)
+
+  return(list(dataPostModel,CS_output))
+}
+
 factorLevels<-function(dataToMat){
   FactorTab<-lapply(dataToMat,as.numeric)
   datType<-lapply(dataToMat,typeof)
@@ -1225,7 +1292,7 @@ runRandomForest<-function(Moddata,GTdataset){
   
   if(whichRun=="NEW"){
   predreal<-stats::predict(data.rf,Moddata,type="prob")
-  predreal<-cbind(pred,Moddata$Selection)
+  predreal<-cbind(predreal,Moddata$Selection)
   }
   
   p=1
@@ -1275,10 +1342,8 @@ runRandomForest<-function(Moddata,GTdataset){
 }
 
 context_sim <-function(sdata){
+  CUTmeanspec<-CUTmean[[s]]
   datTab<-matrix(,ncol=8,nrow=0)
-  datTab2<-NULL
-  for(s in 1:length(spec)){
-  loadSpecVars(spec[s])
   colnames(datTab)<-paste(spec[s],c("Selection","mRT","Oprob","Fmod","Fprob","Bmod","Bprob","Tprob"))
   #context simulator- add or subtract % points based on how good neighboring calls were. Only useful for full mooring dataset. 
   for(w in 1:length(unique(sdata[,6]))){
@@ -1346,10 +1411,7 @@ context_sim <-function(sdata){
   
   datTab<-rbind(datTab,datVar)
   }
-  datTab2<-cbind(datTab2,datTab)
-  datTab<-matrix(,ncol=8,nrow=0)
-  }
-  return(datTab2)
+  return(datTab)
 }
 
 #should do table for all species/mooring, and for each species/mooring
@@ -1512,13 +1574,10 @@ after_model_write <-function(mdata){
 }
 
 adaptive_compare<-function(Compdata){
-  for(a in 1:3){#go through twice in case there are mulitple boxes close to one another. 
-  for(s in 1:length(spec)){
-  loadSpecVars(spec[s])
-  CompdataSPEC<-Compdata[which(Compdata[,15]==s),]
-  for(o in unique(CompdataSPEC[,6])){
+  for(a in 1:10){#go through twice in case there are mulitple boxes close to one another. 
+  for(o in unique(Compdata[,6])){
     print(paste("for mooring",s,o))
-    CompVar<-CompdataSPEC[which(CompdataSPEC[,6]==o),]
+    CompVar<-Compdata[which(Compdata[,6]==o),]
     CompVar<-CompVar[order(CompVar[,2]),]
     n=0
     newrow<-matrix(0,ncol=nospec+length(spec)+1)
@@ -1590,13 +1649,10 @@ adaptive_compare<-function(Compdata){
         n=n+1
       }
     if(n>0){
-      CompdataSPEC<-CompdataSPEC[-which(CompdataSPEC[,6]==o),]
-      CompdataSPEC<-rbind(CompdataSPEC,CompVar)      
+      Compdata<-Compdata[-which(Compdata[,6]==o),]
+      Compdata<-rbind(Compdata,CompVar)      
     }
 
-  }
-  Compdata<-Compdata[-which(Compdata[,15]==s),]
-  Compdata<-rbind(Compdata,CompdataSPEC)
   }
   }
  return(Compdata) 
@@ -3119,46 +3175,11 @@ plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionTy
 abline(v=CUTmeanspec)
 
 }
-#pickup here or leave it for now. 
-newSpec<-NULL
-for(s in 1:length(spec)){
-  newSpec<-c(newSpec,(nospec+3*s-2))
-}
 
-data3<-data3[,c(1:nospec,newSpec)]  
+dataPostModel<-formatModelData(data3)
 
-#put columns excluded from model back in ?
-
-#change data columns from factor to numeric that should be numeric:
-for(b in c(1,2,3,4,5,10,11)){
-  data3[,b]<-as.numeric(as.character(data3[,b])) 
-
-}
-
-for(b in c(13,14)){
-  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
-}
-
-#change to factor
-data3[,15]<-as.factor(data3[,15])
-
-#adaptively combine detections based on probability
-data3Labs<-factorLevels(data3)
-
-data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
-
-data3Mat<- data.matrix(data3)
-
-data3Mat<-adaptive_compare(data3Mat) 
-
-#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
-CS_output<-context_sim(data3Mat)
-
-#remove missing rows:
-data3Mat<-data3Mat[order(data3Mat[,1]),]
-data3<-data.frame(data3Mat)
-data3$Unq_Id<-NULL
-data3<-applyLevels(data3,data3Labs)
+data3<-dataPostModel[[1]]
+CS_output<-dataPostModel[[2]]
 
 #graphs
 AUCadj<-NULL
@@ -3244,7 +3265,7 @@ for(s in spec){
 
   MoorInfo<-MoorInfoMspec
 
-  resltsTab<-resltsTab  
+  resltsTab<-resltsTabF  
   resltsTabF<-NULL
   resltsTabS<-NULL
   resltsVar<-NULL
@@ -3262,8 +3283,6 @@ for(s in spec){
   DetecTab$detectionType<-0
   
   #print table that has buffer to allow for easily playing shorter GS
-  
-}
 
 DetecTab<-dataConflicts(DetecTab)
 
@@ -3276,23 +3295,28 @@ dataNEW<-spectral_features(dataNEW)
 dataNEW<-data.frame(dataNEW)
 DetecTab$combID<-NULL
 DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
-stop()
 
 #DetecTab<-apply(DetecTab,2,function(x) unlist(x))
 
 DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
 DetecTab<-data.frame(DetecTab)
-DetecTab$detectionType<-0
 
 modData<-dataArrangeModel(DetecTab)
 
+modData[[1]]$detectionType<-modData[[1]]$detectionType[1]
+modData[[1]]$detectionType<-droplevels(modData[[1]]$detectionType)
+
+MoorInfosave<-MoorInfo
+
 inputGT()
+
+MoorInfo<-MoorInfosave
 
 GTData<-dataArrangeModel(GTset)
 
 #temporarily exlude BS2 since can't have new factor levels in new data. 
-modData[[1]]<-modData[[1]][which(modData[[1]]$MooringCode!="BS2"),]
-modData[[2]]<-modData[[2]][which(modData[[1]]$Selection %in% modData[[2]]$Selection),]
+#modData[[1]]<-modData[[1]][which(modData[[1]]$MooringCode!="BS2"),]
+#modData[[2]]<-modData[[2]][which(modData[[1]]$Selection %in% modData[[2]]$Selection),]
 
 for(i in 1:ncol(modData[[1]])){
 
@@ -3300,15 +3324,19 @@ levels(modData[[1]][,i])<-levels(GTData[[1]][,i])
 
 }
 
+names(modData[[1]])<-names(GTData[[1]])
 
 CV<-10
 modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
 
 data3<-cbind(modData[[2]],modelOutput[[1]])
-
 CUTmean<-modelOutput[[2]]
 
 nospec<-ncol(data3)-(length(spec)*3)
+dataPostModel<-formatModelData(data3)
+
+data3<-dataPostModel[[1]]
+stop()
 
 after_model_write(data3) #need to change to vector 
 
@@ -3316,6 +3344,8 @@ after_model_write(data3) #need to change to vector
 
 
 stop()
+
+}
 #Define table for later excel file export. 
 colClasses = c("character","character","character","character","character","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
