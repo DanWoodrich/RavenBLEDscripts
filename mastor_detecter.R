@@ -142,6 +142,8 @@ formatModelData<-function(dataPostModel){
   
   for(s in 1:length(spec)){
     
+    loadSpecVars(spec[s])
+    
     dataPostModelspec<-dataPostModel[grep(spec[s],dataPostModel$Species),]
     
     #adaptively combine detections based on probability
