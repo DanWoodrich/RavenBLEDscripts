@@ -145,6 +145,11 @@ formatModelData<-function(dataPostModel){
     loadSpecVars(spec[s])
     
     dataPostModelspec<-dataPostModel[grep(spec[s],dataPostModel$Species),]
+    if(s!=1){
+      if(any(grepl(spec[s],dataPostModel$Species))){
+      Tab<-Tab[-grep(spec[s],Tab$Species),]
+      }
+    }
     
     #adaptively combine detections based on probability
     dataPostModelspecLabs<-factorLevels(dataPostModelspec)
@@ -160,7 +165,8 @@ formatModelData<-function(dataPostModel){
     
     dataPostModelspecMat<- data.matrix(dataPostModelspec)
     
-    dataPostModelspecMat<-adaptive_compare(dataPostModelspecMat) 
+    #take out temporarily
+    #dataPostModelspecMat<-adaptive_compare(dataPostModelspecMat) 
     
     #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
     CS_output<-context_sim(dataPostModelspecMat)
@@ -3339,6 +3345,8 @@ dataPostModel<-formatModelData(data3)
 
 data3<-dataPostModel[[1]]
 stop()
+
+AUCadj<-NULL
 
 after_model_write(data3) #need to change to vector 
 
