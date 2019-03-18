@@ -856,11 +856,11 @@ BP_algo<-function(groupdat){
    #}
 }
 
-sox.write<-function(numPass,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB,durTab2){
+sox.write<-function(numPass,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,bigFile_breaks,sound_filesB,durTab2){
 dir.create(paste(pathh,sep=""))
 print(paste("Creating file ",MoorInfo[m,10],"_",bigFile_breaks[b],sep=""))
 sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
-durList<-duration_store(numPass,m,sound_filesfullpathB,durTab,pad,pad2,sound_filesB,durTab2)
+durList<-duration_store(numPass,m,sound_filesfullpathB,durTab,pad,sound_filesB,durTab2)
 if(numPass==1){
   return(durList[[1]])
 }else if(numPass==2){
@@ -1133,8 +1133,6 @@ sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQ
 
 process_model<-function(stuff2,Moddata2){
 
-  if(length(unique(Moddata2$detectionType))>=2){
-  
   if(modelType=="rf"){
   giniTab<-data.frame(stuff2[[1]][[2]])
   for(i in 2:CV){
@@ -1143,7 +1141,7 @@ process_model<-function(stuff2,Moddata2){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType'))]
+  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType','MooringCode','year','month'))]
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -1152,12 +1150,12 @@ process_model<-function(stuff2,Moddata2){
                  main="Variable Importance random forest")
   giniAv<-NULL
   }
-  }
+  
   
   #probDeets<-NULL
   CUTmean<-list()
   
-  for(s in 1:length(spec)){
+  for(s in 1:length(mSpec)){
 
   CUTvec<-NULL
       
@@ -1185,7 +1183,7 @@ process_model<-function(stuff2,Moddata2){
   ##assuming $detection type is already in this data NOTE not 
   tempNames<-colnames(Moddata2)
   Moddata2<-cbind(Moddata2,probmean,probstderr,n)
-  colnames(Moddata2)<-c(tempNames,paste(spec[s],"prob"),paste(spec[s],"stderr"),paste(spec[s],"n"))
+  colnames(Moddata2)<-c(tempNames,paste(mSpec[s],"prob"),paste(mSpec[s],"stderr"),paste(mSpec[s],"n"))
   
   #tempNames<-colnames(probDeets)
   #probDeets<-cbind(probDeets,probmean)
@@ -1284,13 +1282,13 @@ runRandomForest<-function(Moddata,GTdataset){
   print(paste("creating random forest models with CV",CV))
 
   if(parallelType=="local"){
-  startLocalPar("Moddata","CV","splitdf","TPRthresh","spec","whichRun")
+  startLocalPar("Moddata","CV","splitdf","TPRthresh","mSpec","whichRun")
   }
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
 
   train<-splitdf(GTdataset,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  data.rf<-randomForest(formula=detectionType ~ . -Selection -MooringCode -year -month,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
   #if(length(unique(Moddata$detectionType))>1){
   #train[[2]]<-splitdf()
@@ -1308,7 +1306,7 @@ runRandomForest<-function(Moddata,GTdataset){
   CUT<-list()
   giniTab<-as.numeric(data.rf$importance)
     
-  for(s in (2*(1:length(spec))-2)){
+  for(s in (2*(1:length(mSpec))-2)){
     
   oneSpecDetType<-as.numeric(train[[2]]$detectionType)-(1+s)
   
@@ -1319,18 +1317,18 @@ runRandomForest<-function(Moddata,GTdataset){
   
   TPR<-NULL
   TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh[which(s %in% (2*(1:length(spec))-2))]),1]))
+  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh[which(s %in% (2*(1:length(mSpec))-2))]),1]))
   
   probstab[[p]]<-data.frame(Moddata$Selection)
   probstab[[p]][,2]<-NA
   
   if(whichRun=="GT"){
   for(n in 1:nrow(pred)){
-    probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(spec)*2+1)]),2]<-pred[n,2+s]
+    probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(mSpec)*2+1)]),2]<-pred[n,2+s]
   }
   }else if(whichRun=="NEW"){
     for(n in 1:nrow(predreal)){
-      probstab[[p]][which(probstab[[p]]$Moddata.Selection==predreal[n,(length(spec)*2+1)]),2]<-predreal[n,2+s]
+      probstab[[p]][which(probstab[[p]]$Moddata.Selection==predreal[n,(length(mSpec)*2+1)]),2]<-predreal[n,2+s]
     }
   }
   
@@ -1440,7 +1438,7 @@ after_model_write <-function(mdata){
       }
     }
     
-    MoorVar1<-MoorVar1[which(MoorVar1$remove!=length(spec)),]
+    MoorVar1<-MoorVar1[which(MoorVar1$remove!=length(mSpec)),]
     MoorVar1$remove<-NULL
     
     MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
@@ -1455,11 +1453,11 @@ after_model_write <-function(mdata){
     RavenExport[,8]<-MoorVar1$detectionType
     RavenExport[,9]<-MoorVar1$File
     RavenExport[,10]<-MoorVar1$FileOffsetBegin
-    for(s in 1:length(spec)){
+    for(s in 1:length(mSpec)){
       RavenExport<-cbind(RavenExport,MoorVar1[,nospec+s])
     }
     
-    colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(spec,"prob"))
+    colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec,"prob"))
     
     write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_AllSpecies_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }
@@ -1468,7 +1466,7 @@ after_model_write <-function(mdata){
     print(paste("2nd loop",v))
     
   #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
-    for(s in 1:length(spec)){
+    for(s in 1:length(mSpec)){
       MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
       
       MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
@@ -1490,9 +1488,9 @@ after_model_write <-function(mdata){
       RavenExport[,11]<-MoorVar1[,nospec+s]
       
       
-      colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(spec[s],"prob"))
+      colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec[s],"prob"))
       
-      write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_",spec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_",mSpec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       
       #get together variables to write to detectorRunLog
       if(modelType=="orf"){
@@ -1505,9 +1503,9 @@ after_model_write <-function(mdata){
       detTotal<-nrow(MoorVar1)
       
       #check to see if TPtottab entry exists (if so, compare it and calculate performance. If not, treat as new data and do not calculate performance) 
-      if(any(paste(spec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
-        numTP<-sum(MoorVar1$detectionType==paste(spec[s],"1"))
-        numTPtruth<-TPtottab[which(paste(spec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
+      if(any(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
+        numTP<-sum(MoorVar1$detectionType==paste(mSpec[s],"1"))
+        numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
         numFP<-detTotal-numTP
         numFN<-numTPtruth-numTP
         
@@ -1519,7 +1517,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
 
-        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1539,7 +1537,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(spec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -1548,7 +1546,7 @@ after_model_write <-function(mdata){
     }
     }
   }
-  for(s in 1:length(spec)){
+  for(s in 1:length(mSpec)){
   print(paste("3rd loop",s))
     
     
@@ -1556,10 +1554,10 @@ after_model_write <-function(mdata){
   
   detTotal<-nrow(MoorVar1)
   
-  MoorVar1 <-MoorVar1[which(paste(spec[[s]],MoorVar1$MooringID) %in% TPtottab$MoorCor),]
+  MoorVar1 <-MoorVar1[which(paste(mSpec[[s]],MoorVar1$MooringID) %in% TPtottab$MoorCor),]
     
-    numTP<-sum(MoorVar1$detectionType==paste(spec[[s]],"1"))
-    numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(spec[[s]],unique(MoorVar1$MooringID))),2])
+    numTP<-sum(MoorVar1$detectionType==paste(mSpec[[s]],"1"))
+    numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),2])
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
     
@@ -1571,7 +1569,7 @@ after_model_write <-function(mdata){
     detecEval<-detecEval[0,]
     detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     
-    detecEval[1,]<-c(spec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1667,7 +1665,7 @@ adaptive_compare<-function(Compdata){
 }
 
   
-duration_store<- function(numPass,m,sound_filesfullpathB,durTab,pad,pad2,sound_filesB,durTab2){
+duration_store<- function(numPass,m,sound_filesfullpathB,durTab,pad,sound_filesB,durTab2){
   if(numPass==1){
   durVar<-NULL
   durVar<-data.frame(SFfp=character(),
@@ -1685,7 +1683,7 @@ for(f in 1:length(sound_filesfullpathB)){
   durVar[f,3]<-round(audio$samples / audio$sample.rate, 2)
 }
   durVar[,4]<-cumsum(durVar$Duration)
-  durVar[,5]<-paste(pad,MoorInfo[m,10],pad2,".wav",sep="")
+  durVar[,5]<-paste(pad,MoorInfo[m,10],".wav",sep="")
   durVar[,6]<-MoorInfo[m,10]
   durVar[,7]<-MoorInfo[m,1]
 
@@ -1694,7 +1692,7 @@ durTab2<-1 #workaround to R not allowing dataframes to be "null".
   }else if(numPass==2){
     durVar<-durTab[which(durTab$CombSF %in% sound_filesB),]
    # durVar<-durVar[-which(duplicated(durVar$SFsh)),]
-    durVar$CombSF<-paste(pad,MoorInfo[m,10],pad2,".wav",sep="")
+    durVar$CombSF<-paste(pad,MoorInfo[m,10],".wav",sep="")
     durVar$CumDur<-cumsum(durVar$Duration)
     durTab2<-rbind(durTab2,durVar)
   }
@@ -2076,6 +2074,7 @@ cData$remove<-0
 
 #remove conflicts so don't feed model that positives of a sound are + for a negative category
 if(any(cData$detectionType==1)){
+
 for(h in 1:nrow(cData)){
   if(cData$detectionType[h]==1){
     #do nothing
@@ -2609,21 +2608,19 @@ combineDecRaven<-function(){
           filePathNoTemp<-pathh
           pathh<-paste(pathh,"/temp",sep="")
           pad<-sprintf("%02d",b)
-          pad2<-paste("_files",bigFile_breaks[b],sep="")
         }else{
           filePathNoTemp<-pathh
           pad<-""
-          pad2<-""
         }
         filePath<-paste(pathh,whiten2,sep="/")
         filePathNoTemp<-paste(filePathNoTemp,whiten2,sep="/")#look in final folder to see if SFiles is populated. 
         dir.create(filePath)
-        combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
+        combSound<-paste(filePath,"/",pad,MoorInfo[m,10],".wav",sep="")
         if(file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
           durTab <-read.csv(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
           stopRun<-TRUE
         }else if(!file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
-          durTab<-sox.write(1,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB,durTab2)
+          durTab<-sox.write(1,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,bigFile_breaks,sound_filesB,durTab2)
           stopRun<-FALSE
         }
         
@@ -2662,17 +2659,15 @@ combineDecRaven<-function(){
           }
           pathh<-paste(pathh,sep="")
           pad<-sprintf("%02d",b)
-          pad2<-paste("_files",bigFile_breaks[b],sep="")
-          
           
           filePath<-paste(pathh,whiten2,sep="/")
           dir.create(filePath)
           if(length(bigFile_breaks)<=2){
             combSound<-paste(filePath,"/",MoorInfo[m,10],".wav",sep="")
           }else if(length(bigFile_breaks)>2){
-            combSound<-paste(filePath,"/",pad,MoorInfo[m,10],pad2,".wav",sep="")
+            combSound<-paste(filePath,"/",pad,MoorInfo[m,10],".wav",sep="")
           }
-          durTab2<-sox.write(2,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,pad2,bigFile_breaks,sound_filesB,durTab2)
+          durTab2<-sox.write(2,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,bigFile_breaks,sound_filesB,durTab2)
         }
         
         unlink(paste(pathh,"/temp/",whiten2,sep=""),recursive=TRUE)
@@ -2914,7 +2909,7 @@ MoorCor=NULL
 
 for(s in spec){
 GT<-list()
-DetecTab2<-DetecTab[which(DetecTab$Species==s),]
+DetecTab2<-DetecTab[which(DetecTab$Species %in% s),]
 p=1
 for(f in 1:length(unique(DetecTab2$MooringName))){
   DetecVar<-DetecTab2[which(DetecTab2$MooringName==unique(DetecTab2$MooringName)[f]),]
@@ -3085,6 +3080,7 @@ GTset[which(GTset$detectionType=="FP"),which(colnames(GTset)=="detectionType")]<
 GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<-2
 
 #######1 mooring test######
+if(length(spec)>1){
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
 GTset<-dataConflicts(GTset)
@@ -3094,6 +3090,13 @@ GTset<-dataConflicts(GTset)
 
 GTset<-GTset[-grep(",",GTset$Species),]
 
+}else{
+  GTset$meanfreq<- (GTset$`Low Freq (Hz)`+GTset$`High Freq (Hz)`)/2
+  GTset$freqrange<- (GTset$`High Freq (Hz)`-GTset$`Low Freq (Hz)`)
+  GTset$meantime<- (GTset$`Begin Time (s)`+GTset$`End Time (s)`)/2
+  
+  GTset$Selection<-seq(1,nrow(GTset))
+}
 
 #"vectorize" GTset frame. 
 
@@ -3145,6 +3148,8 @@ if(runTestModel=="y"){
   
 modData<-dataArrangeModel(GTset)
 
+mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
+
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modData[[1]],modData[[1]])
 }else if(modelType=='orf'){
@@ -3181,13 +3186,48 @@ abline(v=CUTmeanspec)
 
 plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(spec[s],1),'blue','red'),main=spec[s],cex=0.25)
 abline(v=CUTmeanspec)
-
 }
 
-dataPostModel<-formatModelData(data3)
+#pickup here or leave it for now. 
+newSpec<-NULL
+for(s in 1:length(spec)){
+  newSpec<-c(newSpec,(nospec+3*s-2))
+}
 
-data3<-dataPostModel[[1]]
-CS_output<-dataPostModel[[2]]
+data3<-data3[,c(1:nospec,newSpec)]  
+
+#put columns excluded from model back in ?
+
+#change data columns from factor to numeric that should be numeric:
+for(b in c(1,2,3,4,5,10,11)){
+  data3[,b]<-as.numeric(as.character(data3[,b])) 
+  
+}
+
+for(b in c(13,14)){
+  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
+}
+
+#change to factor
+data3[,15]<-as.factor(data3[,15])
+
+#adaptively combine detections based on probability
+data3Labs<-factorLevels(data3)
+
+data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
+
+data3Mat<- data.matrix(data3)
+
+data3Mat<-adaptive_compare(data3Mat) 
+
+#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
+CS_output<-context_sim(data3Mat)
+
+#remove missing rows:
+data3Mat<-data3Mat[order(data3Mat[,1]),]
+data3<-data.frame(data3Mat)
+data3$Unq_Id<-NULL
+data3<-applyLevels(data3,data3Labs)
 
 #graphs
 AUCadj<-NULL
@@ -3318,6 +3358,9 @@ MoorInfosave<-MoorInfo
 
 inputGT()
 
+
+#eliminate all but RW for now to see if it generalizes better. 
+
 MoorInfo<-MoorInfosave
 
 GTData<-dataArrangeModel(GTset)
@@ -3335,21 +3378,46 @@ levels(modData[[1]][,i])<-levels(GTData[[1]][,i])
 names(modData[[1]])<-names(GTData[[1]])
 
 CV<-10
+
+#mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
+
+mSpec<-unique(substr(GTData[[1]]$detectionType,1,2))
+
 modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
 
 data3<-cbind(modData[[2]],modelOutput[[1]])
 CUTmean<-modelOutput[[2]]
 
-nospec<-ncol(data3)-(length(spec)*3)
-dataPostModel<-formatModelData(data3)
+nospec<-ncol(data3)-(length(mSpec)*3)
 
-data3<-dataPostModel[[1]]
-stop()
+newSpec<-NULL
+for(s in 1:length(mSpec)){
+  newSpec<-c(newSpec,(nospec+3*s-2))
+}
+
+data3<-data3[,c(1:nospec,newSpec)]  
+
+#put columns excluded from model back in ?
+
+#change data columns from factor to numeric that should be numeric:
+for(b in c(1,2,3,4,5,10,11)){
+  data3[,b]<-as.numeric(as.character(data3[,b])) 
+  
+}
+
+for(b in c(13,14)){
+  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
+}
+
+#dataPostModel<-formatModelData(data3)
+
+#data3<-dataPostModel[[1]]
 
 AUCadj<-NULL
 
 after_model_write(data3) #need to change to vector 
 
+stop()
 
 
 
