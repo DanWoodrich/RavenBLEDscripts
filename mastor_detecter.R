@@ -1562,7 +1562,7 @@ after_model_write <-function(mdata){
     numFN<-numTPtruth-numTP
     
     TPR <- numTP/(numTP+numFP)
-    FPR <- numFP/numTP*100
+    FPR <- numFP/(numTP+numFP)
     TPdivFP<- numTP/numFP
     
     detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -3026,8 +3026,8 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
   MoorCor<-c(MoorCor,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v])
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
-  TPR <- numTP/(numTP+numFP)
-  FPR <- numFP/numTP*100
+  TPR <- numTP/(numTP+numFN)
+  FPR <- numFP/(numTP+numFP)
   TPdivFP<- numTP/numFP
 
   #save stats and parameters to excel file
@@ -3051,8 +3051,8 @@ numTPtruth<- GTtot
 detTotal<-numTP+numFP
 
 
-TPR <- numTP/(numTP+numFP)
-FPR <- numFP/numTP*100
+TPR <- numTP/(numTP+numFN)
+FPR <- numFP/(numTP+numFP)
 TPdivFP<- numTP/numFP
 
 #save stats and parameters to excel file
@@ -3596,8 +3596,8 @@ for(v in 1:length(unique(findataMat[,1]))){
   numFP<-detTotal-numTP
   numFN<-numTPtruth-numTP
   
-  TPR <- numTP/(numTP+numFP)
-  FPR <- numFP/numTP*100
+  TPR <- numTP/(numTP+numFN)
+  FPR <- numFP/(numTP+numFP)
   TPdivFP<- numTP/numFP
   
   #save stats and parameters to excel file
