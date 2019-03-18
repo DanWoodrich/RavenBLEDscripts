@@ -3280,8 +3280,6 @@ after_model_write(data3) #need to change to vector
 
 beep(10)
 
-stop()
-
 }
 
 ###############################################
