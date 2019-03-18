@@ -3107,7 +3107,7 @@ print("extracting features from FFT of each putative call")
 dataMat<-spectral_features(dataMat)
 
 GTset$combID<-NULL
-GTset<-cbind(GTset,dataMat[,c(8:length(dataMat))])
+GTset<-cbind(GTset,dataMat[,c(8:ncol(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
 
@@ -3148,7 +3148,11 @@ if(runTestModel=="y"){
   
 modData<-dataArrangeModel(GTset)
 
-mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
+if(length(spec)>1){
+  mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
+}else if(length(spec==1)){
+  mSpec<-spec
+}
 
 if(modelType=="rf"){
   modelOutput<-runRandomForest(modData[[1]],modData[[1]])
