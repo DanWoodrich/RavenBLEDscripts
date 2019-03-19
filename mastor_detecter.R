@@ -1513,7 +1513,7 @@ after_model_write <-function(mdata){
         numFN<-numTPtruth-numTP
         
         TPR <- numTP/(numTP+numFN)
-        FPR <- numTP/(numTP+numFP)
+        FPR <- numFP/(numTP+numFP)
         TPdivFP<- numTP/numFP
         
         detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
