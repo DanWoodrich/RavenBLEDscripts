@@ -1994,48 +1994,56 @@ specDo<-function(z,featList,specpathh){
   areaW<-as.vector(areaW[,2])
   
   #calculate convexity of each shape:
-  IslIndex<-as.numeric(as.character(data.frame(table(labelsW))$labelsW))[-which(as.numeric(as.character(data.frame(table(labelsW))$labelsW))==0)]
-  shapeSlopes<-c()
-  shapeCentDistance<-c()
-  for(i in IslIndex){
+  if( length(areaW)<5){
+    worthyones<-length(areaW)
+  }else{
+    worthyones<-5
+  }
+  IslIndex<-as.numeric(as.character(data.frame(table(labelsW))$labelsW))[-which(as.numeric(as.character(data.frame(table(labelsW))$labelsW))==0)][1:worthyones]
+  shapeSlopes<-vector(mode="numeric", length=worthyones)
+  shapeCentDistance<-vector(mode="numeric", length=worthyones)
+  for(i in 1:worthyones){
     Island<-labelsW
-    Island[which(Island!=i)]<-0
+    ind<-IslIndex[i]
+    Island[which(Island!=ind)]<-0
     Island<-t(Island) #doesn't plot right but correct orientation for calculating stuff
     #actually want to have upsidedown image so line works... I think 
     #Island<-t(apply(Island, 1, rev)) 
     #par(mar=c(0,0,0,0))
     #image(Island)
-    Island_df <- RSAGA::grid.to.xyz(Island)
-    Island_df<-Island_df[which(Island_df$z==i),]
+    Island_df <- as.matrix(RSAGA::grid.to.xyz(Island))
+    Island_df<-Island_df[which(Island_df[,3]==ind),]
     #
-    slope<-c()
-    b<-c()
+    slope<-vector(mode="numeric", length=20)
+    b<-vector(mode="numeric", length=20)
     for(a in 1:20){
-    Island_df_minx<-Island_df[which(Island_df$x==min(Island_df$x)),][sample(1:nrow(Island_df[which(Island_df$x==min(Island_df$x)),]))[1],]
-    Island_df_maxx<-Island_df[which(Island_df$x==max(Island_df$x)),][sample(1:nrow(Island_df[which(Island_df$x==max(Island_df$x)),]))[1],]
-    slope<-c(slope,(Island_df_maxx$y-Island_df_minx$y)/(Island_df_maxx$x-Island_df_minx$x))
-    b<-c(b,Island_df_minx$y-(slope*Island_df_minx$x))
+    Island_df_minx<-NULL
+    Island_df_maxx<-NULL
+    Island_df_minx<-Island_df[which(Island_df[,1]==min(Island_df[,1])),][sample(1:nrow(Island_df[which(Island_df[,1]==min(Island_df[,1])),]))[1],]
+    Island_df_maxx<-Island_df[which(Island_df[,1]==max(Island_df[,1])),][sample(1:nrow(Island_df[which(Island_df[,1]==max(Island_df[,1])),]))[1],]
+    slope[a]<-(Island_df_maxx[2]-Island_df_minx[2])/(Island_df_maxx[1]-Island_df_minx[1])
+    b[a]<-Island_df_minx[2]-(slope*Island_df_minx[1])
     }
     slope<-mean(slope)
     b<-mean(b)
     
-    shapeSlopes<-c(shapeSlopes,arctan(slope))
+    shapeSlopes[i]<-atan(slope)
 
-    positionsX <- apply(Island[1:480,1:480], 1, function(x) which(x==i))
-    positionsY <- apply(Island[1:480,1:480], 2, function(x) which(x==i))
+    positionsX <- apply(Island[1:480,1:480], 1, function(x) which(x==ind))
+    positionsY <- apply(Island[1:480,1:480], 2, function(x) which(x==ind))
     cX<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
     cY<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
     
     cent<-c(cX,cY)
     linep1<-c(b,0)
-    linep2<-c(Island_df_minx$x,Island_df_minx$y)
+    linep2<-c(Island_df_minx[1],Island_df_minx[2])
     
     v1 <- linep1 - linep2
     v2 <- cent - linep1
     m <- cbind(v1,v2)
     d <- det(m)/sqrt(sum(v1*v1))
     
-    shapeCentDistance<-c(shapeCentDistance,d)
+    shapeCentDistance[i]<-d
     
   }
   
