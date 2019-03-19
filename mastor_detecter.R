@@ -592,9 +592,11 @@ dataArrangeModel<-function(dataForModel){
   removeMat<-apply(modelDat,2,function(x) !is.finite(x))
   removeVec<-which(apply(removeMat,1,function(x) any(x)))
   
+  if(length(removeVec)>0){
   modelDat<-modelDat[-removeVec,]
   modelDatFactors<-modelDatFactors[-removeVec,]
   otherDat<-otherDat[-removeVec,]
+  }
   
   modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
   
@@ -673,7 +675,8 @@ RW_algo<-function(resltsTabmat){
   if((runsum[,2]+1)<grpsize){
     kill="y"
   }
-  if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"){
+  HowBoutNot<-TRUE
+  if(((runsum[,2]+1)*downsweepCompMod)<nrow(groupdat)&kill=="n"&HowBoutNot!=TRUE){
     groupdat2<- resltsTabmat
     groupdat2<-groupdat2[order(groupdat2[,3],-groupdat2[,1]),]#reverse the order it counts stacks detections
     grpvec2<-groupdat2[,1]
@@ -1509,15 +1512,15 @@ after_model_write <-function(mdata){
         numFP<-detTotal-numTP
         numFN<-numTPtruth-numTP
         
-        TPR <- numTP/(numTP+numFP)
-        FPR <- numFP/numTP*100
+        TPR <- numTP/(numTP+numFN)
+        FPR <- numTP/(numTP+numFP)
         TPdivFP<- numTP/numFP
         
         detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
 
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1537,7 +1540,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -1569,7 +1572,7 @@ after_model_write <-function(mdata){
     detecEval<-detecEval[0,]
     detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj[s],paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
