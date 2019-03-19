@@ -1966,10 +1966,6 @@ specDo<-function(z,featList,specpathh){
   #TEST SECTION
   #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
   
-  par(mar=c(0,0,0,0))
-  plot(image1,axes=FALSE,asp="varying")
-  dev.off()
-  
    #calculate area chunks x and y 
   chunks<-5
   areaX<- vector("list", length = chunks)
@@ -2103,8 +2099,8 @@ specDo<-function(z,featList,specpathh){
   featList[57]<-Bestline[3]#bestBHough radian
   featList[58]<-Bestline[4]#bestSlopeHough
   featList[59]<-Bestline[5]#bestBHough
-  featList[61]<-median(Bestlines[,2])#medSlope
-  featList[62]<-median(Bestlines[,3])#medB
+  featList[61]<-median(Bestlines[,2])#medSlope radian
+  featList[62]<-median(Bestlines[,3])#medB radian 
   featList[63]<-median(Bestlines[,4])#medSlope
   featList[64]<-median(Bestlines[,5])#medB
   featList[65]<-nrow(Bestlines)#numGoodlines
