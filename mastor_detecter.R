@@ -1520,7 +1520,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
 
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1540,7 +1540,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringName"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
         detecEvalFinal<-rbind(detecEval2,detecEval)
@@ -1572,7 +1572,7 @@ after_model_write <-function(mdata){
     detecEval<-detecEval[0,]
     detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
     
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,"NA",paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),paste(downsweepCompMod,downsweepCompAdjust,sep=","),paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1966,9 +1966,9 @@ specDo<-function(z,featList,specpathh){
   #TEST SECTION
   #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
   
-  #par(mar=c(0,0,0,0))
-  #plot(image1,axes=FALSE,asp="varying")
-  #dev.off()
+  par(mar=c(0,0,0,0))
+  plot(image1,axes=FALSE,asp="varying")
+  dev.off()
   
    #calculate area chunks x and y 
   chunks<-5
@@ -1980,6 +1980,7 @@ specDo<-function(z,featList,specpathh){
   areaY<- vector("list", length = chunks)
   areaY<-lapply(num,function(x) sum(as.matrix(image1)[1:480,(((x*480/chunks)-95):(x*480/chunks))]))
   areaY<-unlist(areaY)
+  
   #distinguish islands and calculate area
   labels<-label(image1)
   labels<-as.matrix(labels[1:480,1:480])
@@ -1991,21 +1992,73 @@ specDo<-function(z,featList,specpathh){
     }
   }
   labelsW[which(labelsW<1000000)]<-0
+  
   areaW<-data.frame(table(labelsW))
   areaW<-areaW[which(areaW$labelsW!=0),]
   areaW<-as.vector(areaW[,2])
+  
+  #calculate convexity of each shape:
+  IslIndex<-as.numeric(as.character(data.frame(table(labelsW))$labelsW))[-which(as.numeric(as.character(data.frame(table(labelsW))$labelsW))==0)]
+  shapeSlopes<-c()
+  shapeCentDistance<-c()
+  for(i in IslIndex){
+    Island<-labelsW
+    Island[which(Island!=i)]<-0
+    Island<-t(Island) #doesn't plot right but correct orientation for calculating stuff
+    #actually want to have upsidedown image so line works... I think 
+    #Island<-t(apply(Island, 1, rev)) 
+    #par(mar=c(0,0,0,0))
+    #image(Island)
+    Island_df <- RSAGA::grid.to.xyz(Island)
+    Island_df<-Island_df[which(Island_df$z==i),]
+    #
+    slope<-c()
+    b<-c()
+    for(a in 1:20){
+    Island_df_minx<-Island_df[which(Island_df$x==min(Island_df$x)),][sample(1:nrow(Island_df[which(Island_df$x==min(Island_df$x)),]))[1],]
+    Island_df_maxx<-Island_df[which(Island_df$x==max(Island_df$x)),][sample(1:nrow(Island_df[which(Island_df$x==max(Island_df$x)),]))[1],]
+    slope<-c(slope,(Island_df_maxx$y-Island_df_minx$y)/(Island_df_maxx$x-Island_df_minx$x))
+    b<-c(b,Island_df_minx$y-(slope*Island_df_minx$x))
+    }
+    slope<-mean(slope)
+    b<-mean(b)
+    
+    shapeSlopes<-c(shapeSlopes,arctan(slope))
+
+    positionsX <- apply(Island[1:480,1:480], 1, function(x) which(x==i))
+    positionsY <- apply(Island[1:480,1:480], 2, function(x) which(x==i))
+    cX<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+    cY<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+    
+    cent<-c(cX,cY)
+    linep1<-c(b,0)
+    linep2<-c(Island_df_minx$x,Island_df_minx$y)
+    
+    v1 <- linep1 - linep2
+    v2 <- cent - linep1
+    m <- cbind(v1,v2)
+    d <- det(m)/sqrt(sum(v1*v1))
+    
+    shapeCentDistance<-c(shapeCentDistance,d)
+    
+  }
+  
+  perConcave<-length(shapeCentDistance[which(shapeCentDistance>0)])/length(shapeCentDistance)
   
   #TEST SECTION
   #labelsW[which(labelsW!=1000001)]<-0
   #plot(raster(t(labelsTest)))
   #plot(raster(t(labelsW)))
   #plot(smooth(rasterToPolygons(raster(t(labelsW)))))
-  
-  
+
   #hough lines
   test9<-hough_line(image1,data.frame = TRUE)
   test9<- cbind(test9,(-(cos(test9$theta)/sin(test9$theta))),test9$rho/sin(test9$theta))
-  test9<-test9[which(!is.infinite(test9[,4])),]
+  test9[which(is.infinite(test9[,4])&test9[,4]<0),4]<-min(c(-2.76824e+18,min(test9[-which(is.infinite(test9[,4])),4])))
+  test9[which(is.infinite(test9[,4])&test9[,4]>0),4]<-max(c(2.76824e+18,max(test9[-which(is.infinite(test9[,4])),4])))
+  test9[which(is.infinite(test9[,5])&test9[,5]<0),5]<-min(c(-2.76824e+18,min(test9[-which(is.infinite(test9[,5])),5])))
+  test9[which(is.infinite(test9[,5])&test9[,5]>0),5]<-max(c(2.76824e+18,max(test9[-which(is.infinite(test9[,5])),5])))
+  
   Bestline<-test9[which.max(test9$score),]
   Bestlines<-test9[which(test9$score>=max(test9$score)*.7),]
   
@@ -2046,24 +2099,36 @@ specDo<-function(z,featList,specpathh){
   featList[54]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
   featList[55]<-length(areaW)#NumShapes
 
-  featList[56]<-Bestline[4]#bestSlopeHough
-  featList[57]<-Bestline[5]#bestBHough
-  featList[58]<-nrow(Bestlines)#numGoodlines
-  featList[59]<-median(Bestlines[,4])#medSlope
-  featList[60]<-median(Bestlines[,5])#medB
+  featList[56]<-Bestline[2]#bestSlopeHough radian
+  featList[57]<-Bestline[3]#bestBHough radian
+  featList[58]<-Bestline[4]#bestSlopeHough
+  featList[59]<-Bestline[5]#bestBHough
+  featList[61]<-median(Bestlines[,2])#medSlope
+  featList[62]<-median(Bestlines[,3])#medB
+  featList[63]<-median(Bestlines[,4])#medSlope
+  featList[64]<-median(Bestlines[,5])#medB
+  featList[65]<-nrow(Bestlines)#numGoodlines
+  
 
-  featList[61]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
-  featList[62]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+  featList[66]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
+  featList[67]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
-  featList[63]<-mean(hpEven)#switchesX
-  featList[64]<-std.error(hpEven)#switchesXreg
-  featList[65]<-max(hpEven)#switchesXmax
-  featList[66]<-min(hpEven)#switchesXmin
+  featList[68]<-mean(hpEven)#switchesX
+  featList[69]<-std.error(hpEven)#switchesXreg
+  featList[70]<-max(hpEven)#switchesXmax
+  featList[71]<-min(hpEven)#switchesXmin
   
-  featList[67]<-mean(vpEven)#switchesY
-  featList[68]<-std.error(vpEven)#switchesYreg
-  featList[69]<-max(vpEven)#switchesYmax
-  featList[70]<-min(vpEven)#switchesYmin
+  featList[72]<-mean(vpEven)#switchesY
+  featList[73]<-std.error(vpEven)#switchesYreg
+  featList[74]<-max(vpEven)#switchesYmax
+  featList[75]<-min(vpEven)#switchesYmin
+  
+  #individual shape features:
+  featList[76]<-mean(shapeSlopes) #avg slope. using arctan(slope) hoping it makes numeric comparisons better since slope is nonlinear especially at large values
+  featList[77]<-std.error(shapeSlopes) #var slope
+  featList[78]<-sum(shapeCentDistance) #sum of all centroid distances (hopefully weighted towards larger shapes that have better potential for concavity)
+  featList[79]<-mean(shapeCentDistance) #other way of comparing centroid distances
+  featList[80]<-perConcave #% positive distances.  
   
   return(featList)
 }
@@ -3047,9 +3112,9 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 }
 
 #Make summary table of whole run statistics for table comparison. 
-numTP <- sum(as.numeric(detecEvalFinal[,6]))
-numFN <- sum(as.numeric(detecEvalFinal[,8]))
-numFP <- sum(as.numeric(detecEvalFinal[,7]))
+numTP <- sum(as.numeric(detecEvalFinal[,7]))
+numFN <- sum(as.numeric(detecEvalFinal[,9]))
+numFP <- sum(as.numeric(detecEvalFinal[,8]))
 numTPtruth<- GTtot
 detTotal<-numTP+numFP
 
@@ -3107,6 +3172,7 @@ GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
 
+stop()
 dataMat<-spectral_features(dataMat)
 
 GTset$combID<-NULL
@@ -3418,7 +3484,7 @@ for(b in c(13,14)){
 
 #data3<-dataPostModel[[1]]
 
-AUCadj<-NULL
+AUCadj<-"NA"
 
 after_model_write(data3) #need to change to vector 
 
