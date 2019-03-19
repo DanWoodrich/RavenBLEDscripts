@@ -17,9 +17,9 @@ Model,specCV,50,Number of times to cross validate RF model
 Model,specTPRthresh,0.95,Desired threshold for True positive rate on model. (% of TP will return)
 Model,specmodelType,orf,which machine learning model you want to classify with 
 Model,specmodelMethod,ridge,"Used for ORF,…,ignored for others"
-Detection Processing Spread,grpsize,4,minimum sum of 2s and 1s to be a positive detection
-Detection Processing Spread,allowedZeros,2,maximum number of 0s (instances where run doesn't go up with next detection) until considered end of run
-Detection Processing Spread,detskip,3,maximum amount of skips to be eligible increase in run
+Detection Processing Spread,grpsize,3,minimum sum of 2s and 1s to be a positive detection
+Detection Processing Spread,allowedZeros,4,maximum number of 0s (instances where run doesn't go up with next detection) until considered end of run
+Detection Processing Spread,detskip,4,maximum amount of skips to be eligible increase in run
 Detection Processing Spread,groupInt,0.45,max time distance for detectors to be considered in like group 
 Detection Processing Spread,Maxdur,3.5,max duration of detection
 Detection Processing Spread,Mindur,0.2,min duration of detection 
