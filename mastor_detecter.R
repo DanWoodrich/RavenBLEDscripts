@@ -39,6 +39,7 @@ library(imager)
 library(Cairo)
 library(obliqueRF)
 library(fpc)
+library(RSAGA)
 #library(rAzureBatch)
 #library(doAzureParallel)
 
