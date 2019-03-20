@@ -1992,17 +1992,20 @@ specDo<-function(z,featList,specpathh){
   
   areaW<-data.frame(table(labelsW))
   areaW<-areaW[which(areaW$labelsW!=0),]
-  areaW<-as.vector(areaW[,2])
+  areaW<-areaW[order(-areaW[,2]),]
   
   #calculate convexity of each shape:
-  if( length(areaW)<5){
-    worthyones<-length(areaW)
+  if( nrow(areaW)<5){
+    worthyones<-nrow(areaW)
   }else{
     worthyones<-5
   }
-  IslIndex<-as.numeric(as.character(data.frame(table(labelsW))$labelsW))[-which(as.numeric(as.character(data.frame(table(labelsW))$labelsW))==0)][1:worthyones]
+  IslIndex<-as.numeric(as.character(areaW$labelsW))[1:worthyones]
+  areaW<-as.vector(areaW[,2])
+  
   shapeSlopes<-vector(mode="numeric", length=worthyones)
   shapeCentDistance<-vector(mode="numeric", length=worthyones)
+  signVec<-vector(mode="numeric", length=worthyones)
   for(i in 1:worthyones){
     Island<-labelsW
     ind<-IslIndex[i]
@@ -2042,13 +2045,21 @@ specDo<-function(z,featList,specpathh){
     v1 <- linep1 - linep2
     v2 <- cent - linep1
     m <- cbind(v1,v2)
-    d <- det(m)/sqrt(sum(v1*v1))
+    d <- abs(det(m))/sqrt(sum(v1*v1))
     
+    if((slope*(cX)+b)>cY){
+      sign<-1
+    }else if((slope*(cX)+b)==cY){
+      sign<-0
+    }else{
+      sign<-(-1)
+    }
     shapeCentDistance[i]<-d
     
+    signVec[i]<-sign
   }
   
-  perConcave<-length(shapeCentDistance[which(shapeCentDistance>0)])/length(shapeCentDistance)
+  perConcave<-length(signVec[which(signVec>0)])/length(signVec)
   
   #TEST SECTION
   #labelsW[which(labelsW!=1000001)]<-0
@@ -3177,7 +3188,6 @@ GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
 
-stop()
 dataMat<-spectral_features(dataMat)
 
 GTset$combID<-NULL
