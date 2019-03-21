@@ -3234,9 +3234,9 @@ modData<-dataArrangeModel(GTset)
 
 if(length(spec)>1){
   mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
+  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
 }else if(length(spec==1)){
   mSpec<-spec
-  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
 }
 
 if(modelType=="rf"){
@@ -3470,9 +3470,9 @@ CV<-10
 
 if(length(spec)>1){
   mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
+  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
 }else if(length(spec==1)){
   mSpec<-spec
-  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
 }
 
 modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
