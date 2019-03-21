@@ -1948,16 +1948,16 @@ specDo<-function(z,featList,specpathh){
     jpeg(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
+    
+    image1<-load.image(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""))
   }
   
   }else{
-   #do nothing 
-  }
-  if(whichRun=="GT"){
+  
   image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
-  }else if(whichRun=="NEW"){
-  image1<-load.image(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""))
+
   }
+  
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
   f <- ecdf(image1)
   
