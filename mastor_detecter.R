@@ -1435,7 +1435,7 @@ after_model_write <-function(mdata){
     #only cut out detections where all species are below the threshold. 
     
     MoorVar1$remove<-0
-    for(s in 1:length(spec)){
+    for(s in 1:length(mSpec)){
       for(n in 1:nrow(MoorVar1)){
         if(MoorVar1[n,nospec+s]<CUTmean[[s]])
         MoorVar1$remove[n]<-MoorVar1$remove[n]+1
@@ -3233,8 +3233,7 @@ if(runTestModel=="y"){
 modData<-dataArrangeModel(GTset)
 
 if(length(spec)>1){
-  mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
-  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
+  mSpec<-spec[order(spec)] #alphabetical order, what is used by predict() 
 }else if(length(spec==1)){
   mSpec<-spec
 }
@@ -3469,8 +3468,7 @@ CV<-10
 #mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
 
 if(length(spec)>1){
-  mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
-  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
+  mSpec<-spec[order(spec)] #alphabetical order, what is used by predict() 
 }else if(length(spec==1)){
   mSpec<-spec
 }
