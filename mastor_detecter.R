@@ -1321,7 +1321,7 @@ runRandomForest<-function(Moddata,GTdataset){
   
   TPR<-NULL
   TPR <- data.frame(cut=prob.perf@alpha.values[[1]], tpr=prob.perf@y.values[[1]])
-  CUT <- c(CUT,max(TPR[which(TPR$tpr>=TPRthresh[which(s %in% (2*(1:length(mSpec))-2))]),1]))
+  CUT <- c(CUT,max(TPR[which(TPR$tpr>=as.numeric(TPRthresh[which(s %in% (2*(1:length(mSpec))-2))])),1]))
   
   probstab[[p]]<-data.frame(Moddata$Selection)
   probstab[[p]][,2]<-NA
@@ -3236,6 +3236,7 @@ if(length(spec)>1){
   mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
 }else if(length(spec==1)){
   mSpec<-spec
+  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
 }
 
 if(modelType=="rf"){
@@ -3254,11 +3255,11 @@ data3<-cbind(modData[[2]],modelOutput[[1]])
 
 CUTmean<-modelOutput[[2]]
 
-nospec<-ncol(data3)-(length(spec)*3)
+nospec<-ncol(data3)-(length(mSpec)*3)
 
-for(s in 1:length(spec)){
+for(s in 1:length(mSpec)){
   
-dataSPEC<-data3[which(data3$Species==spec[s]),]
+dataSPEC<-data3[which(data3$Species==mSpec[s]),]
 CUTmeanspec<-CUTmean[[s]]
 
 
@@ -3266,19 +3267,19 @@ probIndex<-nospec+(3*s-2)
 varIndex<-nospec+(3*s-1)
   
 #get these out of the way so I can remove mostly useless std.err and n from dataframe
-plot(dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(spec[s],0)),varIndex], col = "red",main=spec[s],cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),varIndex], col = "red",main=mSpec[s],cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[which(dataSPEC$detectionType==paste(spec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(spec[s],1)),varIndex], col = "blue",main=spec[s],cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),varIndex], col = "blue",main=mSpec[s],cex=0.25)
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(spec[s],1),'blue','red'),main=spec[s],cex=0.25)
+plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),main=mSpec[s],cex=0.25)
 abline(v=CUTmeanspec)
 }
 
 #pickup here or leave it for now. 
 newSpec<-NULL
-for(s in 1:length(spec)){
+for(s in 1:length(mSpec)){
   newSpec<-c(newSpec,(nospec+3*s-2))
 }
 
@@ -3319,9 +3320,9 @@ data3<-applyLevels(data3,data3Labs)
 
 #graphs
 AUCadj<-NULL
-for(s in 1:length(spec)){
+for(s in 1:length(mSpec)){
   
-dataSPEC<-data3[which(data3$Species==spec[s]),]
+dataSPEC<-data3[which(data3$Species==mSpec[s]),]
 CUTmeanspec<-CUTmean[[s]]
 
 
@@ -3345,17 +3346,17 @@ AUCadj<-c(AUCadj,auc.perf@y.values)
 for(m in unique(dataSPEC[,6])){
 data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
 CS_outputDate<-CS_output[which(CS_output[,1] %in% as.numeric(data3Matmoors[,1])),]
-#pointsDate<-data3Matmoors$Begin.Time..s.
-pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01",tz="UTC")
+pointsDate<-data3Matmoors$Begin.Time..s.
+#pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01",tz="UTC")
 plot(x=pointsDate,y=data3Matmoors[,nospec+1], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
 abline(h=CUTmean[s],col="red")
 abline(h=0.5,lty=3)
 #lines(lowess(data3Matmoors[,pos+5]))
 #lines(lowess(data3Matmoors[,pos+4]))
 #lines(lowess(data3Matmoors[,pos+2]))
-lines(pointsDate,(CS_outputDate[,(s*4)+1]),col="blue") #backwards through data 
-lines(pointsDate,(CS_outputDate[,(s*6)+1]),col="orange") #forwards through data
-lines(pointsDate,(CS_outputDate[,(s*7)+1]),col="green")
+lines(pointsDate,(CS_outputDate[,5]),col="blue") #backwards through data 
+lines(pointsDate,(CS_outputDate[,7]),col="orange") #forwards through data
+lines(pointsDate,(CS_outputDate[,8]),col="green")
 }
 
 }
@@ -3467,7 +3468,12 @@ CV<-10
 
 #mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
 
-mSpec<-unique(substr(GTData[[1]]$detectionType,1,2))
+if(length(spec)>1){
+  mSpec<-unique(substr(modData[[1]]$detectionType,1,2))
+}else if(length(spec==1)){
+  mSpec<-spec
+  mSpec<-mSpec[order(mSpec)] #alphabetical order, what is used by predict() 
+}
 
 modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
 
