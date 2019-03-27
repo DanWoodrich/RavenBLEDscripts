@@ -1972,6 +1972,8 @@ specDo<-function(z,featList,specpathh){
   image1<-threshold(image1,ImgThresh) 
   image1<-clean(image1,5) %>% imager::fill(1) 
   
+  plot(image1)
+  
   #TEST SECTION
   #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
   
@@ -2014,6 +2016,9 @@ specDo<-function(z,featList,specpathh){
   shapeSlopes<-vector(mode="numeric", length=worthyones)
   shapeCentDistance<-vector(mode="numeric", length=worthyones)
   signVec<-vector(mode="numeric", length=worthyones)
+  
+  plot(1, type="n", xlab="", ylab="", xlim=c(0, 480), ylim=c(0, 480))
+  
   for(i in 1:worthyones){
     Island<-labelsW
     ind<-IslIndex[i]
@@ -2044,11 +2049,11 @@ specDo<-function(z,featList,specpathh){
     positionsX <- apply(Island[1:480,1:480], 1, function(x) which(x==ind))
     positionsY <- apply(Island[1:480,1:480], 2, function(x) which(x==ind))
     cX<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
-    cY<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
+    cY<-480-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
     
     cent<-c(cX,cY)
-    linep1<-c(b,0)
-    linep2<-c(Island_df_minx[1],Island_df_minx[2])
+    linep1<-c(0,b)
+    linep2<-c((-b/slope),0)
     
     v1 <- linep1 - linep2
     v2 <- cent - linep1
@@ -2065,6 +2070,9 @@ specDo<-function(z,featList,specpathh){
     shapeCentDistance[i]<-d
     
     signVec[i]<-sign
+    
+    points(cX,cY,col=colors()[which(i==1:worthyones)*10],lwd=3)
+    abline(a=b,b=slope,col=colors()[which(i==1:worthyones)*10])
   }
   
   perConcave<-length(signVec[which(signVec>0)])/length(signVec)
@@ -3195,6 +3203,10 @@ GTset<-GTset[-grep(",",GTset$Species),]
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
+
+beep()
+stop()
+
 
 dataMat<-spectral_features(dataMat)
 
