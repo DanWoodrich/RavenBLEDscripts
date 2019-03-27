@@ -305,7 +305,7 @@ inputGT<-function(){
     if(addToMaster=="n"){
       GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
       TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
-      MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+      MoorInfo<<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
     }else if(addToMaster=="y"){
       GTset<<-rbind(GTset,read.csv(paste(gitPath,"Data/GroundTruth.csv",sep="")))
       TPtottab<<-rbind(TPtottab,read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")))
@@ -320,6 +320,10 @@ inputGT<-function(){
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
       GTset<<-read.csv(recentPath) #produces most recently modifed file 
       
+      recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      MoorInfo<<-read.csv(recentPath) #produces most recently modifed file 
+
       recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"TPtottab/",sep=""), full.names = T))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
       TPtottab<<-read.csv(recentPath) #produces most recently modifed file 
@@ -328,6 +332,10 @@ inputGT<-function(){
       recentTab<<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
       GTset<<-read.csv(recentPath) #produces most recently modifed file 
+      
+      recentTab<<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
+      recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
+      MoorInfo<<-read.csv(recentPath) #produces most recently modifed file 
       
       recentTab<<-file.info(list.files(paste(outputpathfiles,"TPtottab/",sep=""), full.names = T))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -1331,9 +1339,7 @@ runRandomForest<-function(Moddata,GTdataset){
     probstab[[p]][which(probstab[[p]]$Moddata.Selection==pred[n,(length(mSpec)*2+1)]),2]<-pred[n,2+s]
   }
   }else if(whichRun=="NEW"){
-    for(n in 1:nrow(predreal)){
-      probstab[[p]][which(probstab[[p]]$Moddata.Selection==predreal[n,(length(mSpec)*2+1)]),2]<-predreal[n,2+s]
-    }
+    probstab[[p]][,2]<-predreal[,2+s]
   }
   
   
@@ -1943,6 +1949,8 @@ specDo<-function(z,featList,specpathh){
     jpeg(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
+    
+    image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
     
   }else if(whichRun=="NEW"){
     jpeg(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""),quality=100)
@@ -3306,6 +3314,7 @@ data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
 
 data3Mat<- data.matrix(data3)
 
+loadSpecVars(spec[s])
 data3Mat<-adaptive_compare(data3Mat) 
 
 #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
@@ -3463,7 +3472,7 @@ levels(modData[[1]][,i])<-levels(GTData[[1]][,i])
 
 names(modData[[1]])<-names(GTData[[1]])
 
-CV<-10
+CV<-35
 
 #mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
 
