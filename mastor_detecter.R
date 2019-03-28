@@ -2017,7 +2017,7 @@ specDo<-function(z,featList,specpathh){
   shapeCentDistance<-vector(mode="numeric", length=worthyones)
   signVec<-vector(mode="numeric", length=worthyones)
   
-  plot(1, type="n", xlab="", ylab="", xlim=c(0, 480), ylim=c(0, 480))
+  #plot(1, type="n", xlab="", ylab="", xlim=c(0, 480), ylim=c(0, 480))
   
   for(i in 1:worthyones){
     Island<-labelsW
