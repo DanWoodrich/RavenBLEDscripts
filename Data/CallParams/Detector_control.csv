@@ -13,7 +13,7 @@ Model,CV,45,Number of times to cross validate RF model
 Model,TPRthresh,0.95,Desired threshold for True positive rate on model. (% of TP will return). Vector corresponding respectively to each species 'spec'
 Model,modelType,rf,which machine learning model you want to classify with 
 Model,modelMethod,svm,"Used for ORF,…,ignored for others"
-Model,numFeatures,73,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "
+Model,numFeatures,75,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "
 New Data,NEWmoorings,"BS15_AU_02a,BS15_AU_02b,BS15_AU_05a,BS15_AU_08a",Same formatting as GT. Ignore if only running GT
 New Data,NEWsf,"full,full,full,full",Same formatting as GT. Ignore if only running GT
 New Data,NEWpath,"Full_datasets,Full_datasets,Full_datasets,Full_datasets",Same formatting as GT. Ignore if only running GT

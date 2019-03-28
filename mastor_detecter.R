@@ -2159,8 +2159,10 @@ specDo<-function(z,featList,specpathh){
   featList[76]<-mean(shapeSlopes) #avg slope. using arctan(slope) hoping it makes numeric comparisons better since slope is nonlinear especially at large values
   featList[77]<-std.error(shapeSlopes) #var slope
   featList[78]<-sum(shapeCentDistance) #sum of all centroid distances (hopefully weighted towards larger shapes that have better potential for concavity)
+  featList[78]<-sum(shapeCentDistance*signVec)
   featList[79]<-mean(shapeCentDistance) #other way of comparing centroid distances
-  featList[80]<-perConcave #% positive distances.  
+  featList[80]<-mean(shapeCentDistance*signVec) #other way of comparing centroid distances
+  featList[81]<-perConcave #% positive distances.  
   
   return(featList)
 }
