@@ -1153,7 +1153,7 @@ process_model<-function(stuff2,Moddata2){
     
   #for some reason have to save giniAv as global variable to reassign rownames...
   giniAv<<-data.frame(apply(giniTab,1,mean))
-  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType','MooringCode','year','month'))]
+  giniRows<<-c(colnames(Moddata2[,2:ncol(Moddata2)]))[which(!c(colnames(Moddata2[,2:ncol(Moddata2)])) %in% c('detectionType','MooringCode','year','month','meanfreq'))]
   rownames(giniAv)<<-giniRows
   colnames(giniAv)<<-"MeanDecreaseGini"
     
@@ -1300,7 +1300,7 @@ runRandomForest<-function(Moddata,GTdataset){
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
 
   train<-splitdf(GTdataset,weight = 2/3)
-  data.rf<-randomForest(formula=detectionType ~ . -Selection -MooringCode -year -month,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
+  data.rf<-randomForest(formula=detectionType ~ . -meanfreq -Selection -MooringCode -year -month,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
   #if(length(unique(Moddata$detectionType))>1){
   #train[[2]]<-splitdf()
@@ -1571,7 +1571,7 @@ after_model_write <-function(mdata){
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
     
-    TPR <- numTP/(numTP+numFP)
+    TPR <- numTP/(numTP+numFN)
     FPR <- numFP/(numTP+numFP)
     TPdivFP<- numTP/numFP
     
