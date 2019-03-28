@@ -1972,7 +1972,7 @@ specDo<-function(z,featList,specpathh){
   image1<-threshold(image1,ImgThresh) 
   image1<-clean(image1,5) %>% imager::fill(1) 
   
-  plot(image1)
+  #plot(image1)
   
   #TEST SECTION
   #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
@@ -2071,8 +2071,8 @@ specDo<-function(z,featList,specpathh){
     
     signVec[i]<-sign
     
-    points(cX,cY,col=colors()[which(i==1:worthyones)*10],lwd=3)
-    abline(a=b,b=slope,col=colors()[which(i==1:worthyones)*10])
+    #points(cX,cY,col=colors()[which(i==1:worthyones)*10],lwd=3)
+    #abline(a=b,b=slope,col=colors()[which(i==1:worthyones)*10])
   }
   
   perConcave<-length(signVec[which(signVec>0)])/length(signVec)
@@ -3203,10 +3203,6 @@ GTset<-GTset[-grep(",",GTset$Species),]
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
-
-beep()
-stop()
-
 
 dataMat<-spectral_features(dataMat)
 
