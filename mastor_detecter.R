@@ -302,15 +302,10 @@ decimateData<-function(m,oldPath,sfpath){
 
 inputGT<-function(){
   if(useMasterGT=="y"){
-    if(addToMaster=="n"){
       GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
       TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
       MoorInfo<<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
-    }else if(addToMaster=="y"){
-      GTset<<-rbind(GTset,read.csv(paste(gitPath,"Data/GroundTruth.csv",sep="")))
-      TPtottab<<-rbind(TPtottab,read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")))
-      MoorInfo<<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
-    }
+    
     
   }else if(useMasterGT=="n"){
     
@@ -2331,8 +2326,10 @@ process_data<-function(){
   #seperate by species
 resltsTabTemp<-resltsTab[which(resltsTab$Species==s),]
 
-if(useMasterGT=="y" & addToMaster=="y"){
+if(addToMaster=="y"){
+  if(any(paste(resltsTabTemp$Species,resltsTabTemp$MooringID) %in% moorsCompleted)){
   resltsTabTemp<-resltsTabTemp[-which(paste(resltsTabTemp$Species,resltsTabTemp$MooringID) %in% moorsCompleted),]
+  }
 }
 
 print(paste("Combining spread for"))
@@ -2949,9 +2946,20 @@ for(s in spec){
   MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTpath2,GTsourceFormat,s)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
   
+  if(addToMaster=='y'){
+  MoorInfoMaster<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+  moorsCompleted<-paste(MoorInfoMaster[,9],MoorInfoMaster[,10])
+  MoorInfo<-MoorInfo[which(!paste(MoorInfo[,9],MoorInfo[,10]) %in% paste(MoorInfoMaster[,9],MoorInfoMaster[,10])),]
+  if(is.null(nrow(MoorInfo))){
+    MoorInfo<-t(data.frame(MoorInfo))
+  }
+  }
+  
   resltsTabS<-combineDecRaven()
   resltsTabF<-rbind(resltsTabF,resltsTabS)
   
+  MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTpath2,GTsourceFormat,s)
+
   #Save raven output 
   write.csv(resltsTabS,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = FALSE)
   write.csv(MoorInfo,paste(paste(outputpathfiles,s,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGTMoorInfo.csv",sep=""),row.names = FALSE,col.names = FALSE)
@@ -2991,17 +2999,15 @@ resltsTab<-resltsTabF
 
 }
 
-if(useMasterGT=="y"){
-  if(addToMaster=="y"){
+if(addToMaster=="y"){
     MoorInfoMaster<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
     moorsCompleted<-paste(MoorInfoMaster[,9],MoorInfoMaster[,10])
-    if(any(!(paste(resltsTabTemp$Species,resltsTabTemp$MooringID) %in% moorsCompleted))){
-      runProcessGT<-"n"
+    if(any(!(paste(resltsTab$Species,resltsTab$MooringID) %in% moorsCompleted))){
+      runProcessGT<-"y"
     }
   }else{
     runProcessGT<-"n"
   }
-}
 
 if(runProcessGT=="y"){
 
@@ -3156,7 +3162,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),,paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -3181,7 +3187,7 @@ TPdivFP<- numTP/numFP
 
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
-detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),,paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
@@ -3228,12 +3234,33 @@ GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 print("extracting features from FFT of each putative call")
 
+if(addToMaster=='y'){
+  MoorInfoMaster<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+  moorsCompleted<-paste(MoorInfoMaster[,9],MoorInfoMaster[,10])
+  MoorInfo<-MoorInfo[which(!paste(MoorInfo[,9],MoorInfo[,10]) %in% paste(MoorInfoMaster[,9],MoorInfoMaster[,10])),]
+  if(is.null(nrow(MoorInfo))){
+    MoorInfo<-t(data.frame(MoorInfo))
+  }
+}
+
 dataMat<-spectral_features(dataMat)
+
+MoorInfo<-MoorInfoMaster
 
 GTset$combID<-NULL
 GTset<-cbind(GTset,dataMat[,c(8:ncol(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
+
+if(addToMaster=="y"){
+  GTsetMaster<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
+  GTset<-data.frame(GTset,stringsAsFactors = FALSE)
+  names(GTset)<-names(GTsetMaster)
+  GTset<-rbind(GTset,GTsetMaster)
+  GTset$Selection<-seq(1,nrow(GTset),1)
+  
+  TPtottab<-rbind(read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")),TPtottab)
+}
 
 if(length(spec)==1){
 dir.create(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""))
@@ -3251,10 +3278,6 @@ write.csv(TPtottab,paste(outputpathfiles,spec,"TPtottab/",runname,"_processedGT.
   
 }
 
-GTset<-GTset[,c(1,4:ncol(GTset))]
-GTset<-data.frame(GTset)
-GTset$detectionType<-as.factor(GTset$detectionType)
-
 }else if(runGT=="y"){
   
 inputGT()
@@ -3269,6 +3292,10 @@ inputGT()
 #################
 
 if(runTestModel=="y"){
+  
+inputGT()
+  
+  GTset$Selection<-seq(1,nrow(GTset),1)
   
 modData<-dataArrangeModel(GTset)
 
@@ -3748,7 +3775,6 @@ stop()
 
 
 
-}
 
 stop()
 #Define table for later excel file export. 
