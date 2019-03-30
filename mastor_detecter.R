@@ -302,9 +302,9 @@ decimateData<-function(m,oldPath,sfpath){
 
 inputGT<-function(){
   if(useMasterGT=="y"){
-      GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
+      GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""),stringsAsFactors = FALSE)
       TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
-      MoorInfo<<-rbind(MoorInfo,read.csv(paste(gitPath,"Data/MoorInfo.csv",sep="")))
+      MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
     
     
   }else if(useMasterGT=="n"){
@@ -313,7 +313,7 @@ inputGT<-function(){
     if(length(spec)==1){
       recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""), full.names = T))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
-      GTset<<-read.csv(recentPath) #produces most recently modifed file 
+      GTset<<-read.csv(recentPath,stringsAsFactors = FALSE) #produces most recently modifed file 
       
       recentTab<<-file.info(list.files(paste(outputpathfiles,spec,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -326,7 +326,7 @@ inputGT<-function(){
     }else if(length(spec)>1){
       recentTab<<-file.info(list.files(paste(outputpathfiles,"Processed_GT_data/",sep=""), full.names = T))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
-      GTset<<-read.csv(recentPath) #produces most recently modifed file 
+      GTset<<-read.csv(recentPath,stringsAsFactors = FALSE) #produces most recently modifed file 
       
       recentTab<<-file.info(list.files(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""), full.names = T,pattern = "Info.csv"))
       recentPath<<-rownames(recentTab)[which.max(recentTab$mtime)]
@@ -579,8 +579,8 @@ parAlgo<-function(dataaa){
 }
 
 dataArrangeModel<-function(dataForModel){
-  dataForModel$year<-format(as.Date(dataForModel$RTfile),"%y")
-  dataForModel$month<-format(as.Date(dataForModel$RTfile),"%m")
+  dataForModel$year<-format(as.POSIXlt(dataForModel$RTfile,origin="1970-01-01",tz="UTC"),"%y")
+  dataForModel$month<-format(as.POSIXlt(dataForModel$RTfile,origin="1970-01-01",tz="UTC"),"%y")
   
   dataForModel$detectionType<-as.numeric(as.character(dataForModel$detectionType),sep="")
   
@@ -605,6 +605,9 @@ dataArrangeModel<-function(dataForModel){
   modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
   
   modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
+  
+  character_vars <- lapply(otherDat, class) == "character"
+  otherDat[, character_vars] <- lapply(otherDat[, character_vars], as.factor)
   
   return(list(modelDat,otherDat))
 }
@@ -3254,8 +3257,15 @@ GTset<-apply(GTset,2,function(x) unlist(x))
 
 if(addToMaster=="y"){
   GTsetMaster<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""))
+  #format(as.POSIXlt(GTset[,],origin="1970-01-01",tz="UTC"),"%Y/%m/%d-%H%M%OS3")
+
   GTset<-data.frame(GTset,stringsAsFactors = FALSE)
+  GTset$RTfile<-as.numeric(as.POSIXlt(GTset$RTfile))
+  GTset$RTFb<-as.numeric(as.POSIXlt(GTset$RTFb))
+  GTset$RTFe<-as.numeric(as.POSIXlt(GTset$RTFe))
+  
   names(GTset)<-names(GTsetMaster)
+
   GTset<-rbind(GTset,GTsetMaster)
   GTset$Selection<-seq(1,nrow(GTset),1)
   
@@ -3294,8 +3304,6 @@ inputGT()
 if(runTestModel=="y"){
   
 inputGT()
-  
-  GTset$Selection<-seq(1,nrow(GTset),1)
   
 modData<-dataArrangeModel(GTset)
 
@@ -3359,9 +3367,9 @@ for(b in c(1,2,3,4,5,10,11)){
   
 }
 
-for(b in c(13,14)){
-  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
-}
+#for(b in c(13,14)){
+#  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b],origin="1970-01-01",tz="UTC")))
+#}
 
 #change to factor
 data3[,15]<-as.factor(data3[,15])

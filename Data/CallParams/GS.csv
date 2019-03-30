@@ -21,9 +21,9 @@ Detection Processing Spread,Mindur,0,min duration of detection
 GS algo,timesepGS,1.2,Time difference for algo to count GS detection as a 1. 
 Adaptive Compare,timediffself,0.15,max secs that detections can be apart to be combined within detectors
 Adaptive Compare,probdist,0.2,max difference in probability difference to be combined within detectors. Otherwise will only take higher prob detection
-GT,GTmoorings,"AW15_AU_BS3,BS12_AU_02a,AW14_AU_BS3,BS13_AU_04,AW12_AU_BS3,AW12_AU_BS3,AW14_AU_BS3",moorings in GT dataset you want to run. 
-GT,GTsf,"705:749,1:46,1:71,137:224,1:250,1464:1507,309:369","Files in moorings in GT dataset you want to run. Can specify ""full"" in this vector instead of file range to include all files in path, or file names instead of position"
-GT,GTpath,"HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets","""open"" or ""month"" organization option for file organization"
-GT,GTpath2,"GS,GS,GS,GS,GS,GS,GS","Source HG folder. ""NULL"" if for full dataset  "
-GT,GTsourceFormat,"open,open,open,open,open,open,open",threshold that will be excluded during image thresholding
+GT,GTmoorings,"AW15_AU_BS3,BS12_AU_02a,AW14_AU_BS3,BS13_AU_04,AW12_AU_BS3,AW12_AU_BS3,AW14_AU_BS3,AW15_AU_BS2",moorings in GT dataset you want to run. 
+GT,GTsf,"705:749,1:46,1:71,137:224,1:250,1464:1507,309:369,33:103","Files in moorings in GT dataset you want to run. Can specify ""full"" in this vector instead of file range to include all files in path, or file names instead of position"
+GT,GTpath,"HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets","""open"" or ""month"" organization option for file organization"
+GT,GTpath2,"GS,GS,GS,GS,GS,GS,GS,GS","Source HG folder. ""NULL"" if for full dataset  "
+GT,GTsourceFormat,"open,open,open,open,open,open,open,open",threshold that will be excluded during image thresholding
 Image Analysis,ImgThresh,90,
