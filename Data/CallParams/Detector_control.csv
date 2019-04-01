@@ -14,8 +14,8 @@ Model,TPRthresh,0.95,Desired threshold for True positive rate on model. (% of TP
 Model,modelType,rf,which machine learning model you want to classify with 
 Model,modelMethod,svm,"Used for ORF,à,ignored for others"
 Model,numFeatures,75,"number of features currently used. Can inlude ""dead"" features (ones that you just set to 0 to avoid changing indexing) "
-New Data,NEWmoorings,AW15_AU_BS2,Same formatting as GT. Ignore if only running GT
-New Data,NEWsf,33:103,Same formatting as GT. Ignore if only running GT
+New Data,NEWmoorings,AL16_AU_BS3,Same formatting as GT. Ignore if only running GT
+New Data,NEWsf,77:170,Same formatting as GT. Ignore if only running GT
 New Data,NEWpath,HG_datasets,Same formatting as GT. Ignore if only running GT
 New Data,NEWpath2,GS,Same formatting as GT. Ignore if only running GT
 New Data,NEWsourceFormat,open,Same formatting as GT. Ignore if only running GT
