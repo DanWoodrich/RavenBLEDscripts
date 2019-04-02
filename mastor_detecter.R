@@ -3007,10 +3007,10 @@ if(addToMaster=="y"){
     moorsCompleted<-paste(MoorInfoMaster[,9],MoorInfoMaster[,10])
     if(any(!(paste(resltsTab$Species,resltsTab$MooringID) %in% moorsCompleted))){
       runProcessGT<-"y"
-    }
-  }else{
+    }else{
     runProcessGT<-"n"
-  }
+    }
+ }
 
 if(runProcessGT=="y"){
 
