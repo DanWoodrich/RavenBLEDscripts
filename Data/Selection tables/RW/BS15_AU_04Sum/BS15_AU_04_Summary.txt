@@ -1,3 +1,0 @@
-BS15_AU_04	HighFreq	LowFreq	RangeFreq	DurationTime
-Mean	NA	NA	NaN	NaN
-SD	NA	NA	NA	NA

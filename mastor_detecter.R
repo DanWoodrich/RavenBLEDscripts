@@ -3248,7 +3248,9 @@ if(addToMaster=='y'){
 
 dataMat<-spectral_features(dataMat)
 
-MoorInfo<-MoorInfoMaster
+if(addToMaster=="y"){
+  MoorInfo<-MoorInfoMaster
+}
 
 GTset$combID<-NULL
 GTset<-cbind(GTset,dataMat[,c(8:ncol(dataMat))])
@@ -3270,7 +3272,13 @@ if(addToMaster=="y"){
   GTset$Selection<-seq(1,nrow(GTset),1)
   
   TPtottab<-rbind(read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")),TPtottab)
+}else{
+  GTset$RTfile<-as.numeric(GTset$RTfile)
+  GTset$RTFb<-as.numeric(GTset$RTFb)
+  GTset$RTFe<-as.numeric(GTset$RTFe)
+  
 }
+
 
 if(length(spec)==1){
 dir.create(paste(outputpathfiles,spec,"Processed_GT_data/",sep=""))
