@@ -1297,7 +1297,16 @@ runRandomForest<-function(Moddata,GTdataset){
   
   stuff<-foreach(p=1:CV,.packages=c("randomForest","ROCR","stats")) %dopar% {
 
-  train<-splitdf(GTdataset,weight = 2/3)
+  #new, experimental. Use commented out line below block if it blows up
+  train<-splitdf(GTdataset,weight = 3/4)
+  trainNegs<-train[[1]][which(as.numeric(train[[1]]$detectionType)==1),]
+  trainPos<-train[[1]][which(as.numeric(train[[1]]$detectionType)==2),]
+  ratio<-nrow(trainPos)/nrow(trainNegs)
+  trainNegs<-splitdf(trainNegs,weight=ratio)
+  train[[1]]<-rbind(trainNegs[[1]],trainPos)
+  
+  #train<-splitdf(GTdataset,weight = 2/3)
+  
   data.rf<-randomForest(formula=detectionType ~ . -meanfreq -Selection -MooringCode -year -month,data=train[[1]],mtry=11) #-meanfreq,-freqrange,   na.action = na.roughfix
 
   #if(length(unique(Moddata$detectionType))>1){
