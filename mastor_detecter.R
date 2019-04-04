@@ -2831,15 +2831,16 @@ combineDecRaven<-function(){
       if(onlyPopulate=="y"){
         stop("you cannot populate and whiten. First populate, then whiten in raven, then use whiten argument to specify you have whitened data")
       }
+      
       if(MoorInfo[m,7]=="HG_datasets"){
         filePath<-paste(startcombpath,curSpec,"/",whiten2,sep="")
       }else if(MoorInfo[m,7]=="Full_datasets"){
         filePath<-paste(startcombpath,"/",whiten2,sep="")   
       }  
-      for(i in intersect(list.files(filePathNoTemp,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
+      for(i in intersect(list.files(filePath,pattern = paste(MoorInfo[m,10])), list.files(filePath,pattern = ".wav"))){
         combname<-i
         
-        resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
+        resltsTab<-runRavenDetector(m,filePath,combname,resltsTab)
       }
       
     }
