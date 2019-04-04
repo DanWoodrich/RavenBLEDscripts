@@ -3556,7 +3556,7 @@ levels(modData[[1]][,i])<-levels(GTData[[1]][,i])
 
 names(modData[[1]])<-names(GTData[[1]])
 
-CV<-35
+CV<-50
 
 #mSpec<-c(spec,unique(substr(GTData[[1]]$detectionType,1,2))[which(!unique(substr(GTData[[1]]$detectionType,1,2)) %in% spec)])
 
