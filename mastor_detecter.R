@@ -1821,7 +1821,7 @@ for(m in moors){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun")
+    startLocalPar("whiten2","ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun")
     }
     
 #print("extracting spectral parameters")
@@ -1943,12 +1943,13 @@ specDo<-function(z,featList,specpathh){
   
   #FEATURES FROM IMAGE 
   
-  dir.create(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],sep=""))
-  dir.create(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],sep=""))
+  #maybe best not to try to create directories while in parallel. Just populate the directory first 
+  #dir.create(paste(outputpathfiles,/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],sep=""))
+  #dir.create(paste(outputpathfiles,/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],sep=""))
   
   im_file_name<-paste(sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),1], perl=T), " "))[c(FALSE, TRUE)]),
                       "_B",format(as.POSIXlt(featList[6],origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"E",format(as.POSIXlt(featList[6]+End-Start,origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"L",as.character(Low),"H",as.character(High),".jpg",sep="")
-  if(!file.exists(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
+  if(!file.exists(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
   
   # create spectrogram
   spec.gram = specgram(x = snd,
@@ -1974,23 +1975,23 @@ specDo<-function(z,featList,specpathh){
   
   if(whichRun=="GT"){
   
-    jpeg(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
+    jpeg(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
     
-    image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
+    image1<-load.image(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
     
   }else if(whichRun=="NEW"){
-    jpeg(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""),quality=100)
+    jpeg(paste(outputpathfiles,"/Image_temp/",z,".jpg",sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
     
-    image1<-load.image(paste(outputpathfiles,"Image_temp/",z,".jpg",sep=""))
+    image1<-load.image(paste(outputpathfiles,"/Image_temp/",z,".jpg",sep=""))
   }
   
   }else{
   
-  image1<-load.image(paste(outputpathfiles,"Image_library/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
+  image1<-load.image(paste(outputpathfiles,"/","/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
 
   }
   
@@ -2639,6 +2640,9 @@ combineDecRaven<-function(){
     whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
   }
   
+  #save to memory
+  whiten2<<-whiten2
+  
   #run sound files:
   decNeeded<-"n"
   for(m in 1:nrow(MoorInfo)){
@@ -3283,9 +3287,9 @@ if(addToMaster=="y"){
   
   TPtottab<-rbind(read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")),TPtottab)
 }else{
-  GTset$RTfile<-as.numeric(GTset$RTfile)
-  GTset$RTFb<-as.numeric(GTset$RTFb)
-  GTset$RTFe<-as.numeric(GTset$RTFe)
+  GTset[,15]<-as.numeric(as.POSIXlt(GTset[,15]),tz="UTC")
+  GTset[,16]<-as.numeric(as.POSIXlt(GTset[,16]),tz="UTC")
+  GTset[,17]<-as.numeric(as.POSIXlt(GTset[,17]),tz="UTC")
   
 }
 
@@ -3589,9 +3593,33 @@ for(b in c(1,2,3,4,5,10,11)){
   
 }
 
-for(b in c(13,14)){
-  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b])))
-}
+#for(b in c(13,14)){
+#  data3[,b]<-as.integer(as.numeric(as.POSIXlt(data3[,b],origin="1970-01-01",tz="UTC")))
+#}
+
+#change to factor
+data3[,15]<-as.factor(data3[,15])
+
+#adaptively combine detections based on probability
+data3Labs<-factorLevels(data3)
+
+data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
+
+data3Mat<- data.matrix(data3)
+
+loadSpecVars(spec[s])
+data3Mat<-adaptive_compare(data3Mat) 
+
+#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
+CS_output<-context_sim(data3Mat)
+
+#remove missing rows:
+data3Mat<-data3Mat[order(data3Mat[,1]),]
+data3<-data.frame(data3Mat)
+data3$Unq_Id<-NULL
+data3<-applyLevels(data3,data3Labs)
+
+#put columns excluded from model back in ?
 
 #dataPostModel<-formatModelData(data3)
 
