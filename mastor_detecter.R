@@ -1765,12 +1765,15 @@ for(m in moors){
   if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
+      whiten2<<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
     }else{
       specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/No_whiten",sep="")
+      whiten2<<-"No_whiten"
     }
     
     if(Decimate=="y"){
       specpath<<-paste(specpath,"_decimate_by_",decimationFactor,sep="")
+      whiten2<<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
     }
     
     if(is.null(nrow(specdata))){
@@ -1949,7 +1952,7 @@ specDo<-function(z,featList,specpathh){
   
   im_file_name<-paste(sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),1], perl=T), " "))[c(FALSE, TRUE)]),
                       "_B",format(as.POSIXlt(featList[6],origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"E",format(as.POSIXlt(featList[6]+End-Start,origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"L",as.character(Low),"H",as.character(High),".jpg",sep="")
-  if(!file.exists(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
+  if(!file.exists(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
   
   # create spectrogram
   spec.gram = specgram(x = snd,
@@ -1975,11 +1978,11 @@ specDo<-function(z,featList,specpathh){
   
   if(whichRun=="GT"){
   
-    jpeg(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
+    jpeg(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
     imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
     dev.off()
     
-    image1<-load.image(paste(outputpathfiles,"/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
+    image1<-load.image(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
     
   }else if(whichRun=="NEW"){
     jpeg(paste(outputpathfiles,"/Image_temp/",z,".jpg",sep=""),quality=100)
@@ -1991,7 +1994,7 @@ specDo<-function(z,featList,specpathh){
   
   }else{
   
-  image1<-load.image(paste(outputpathfiles,"/","/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
+  image1<-load.image(paste(outputpathfiles,"/","/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
 
   }
   
@@ -2033,12 +2036,21 @@ specDo<-function(z,featList,specpathh){
   areaW<-areaW[which(areaW$labelsW!=0),]
   areaW<-areaW[order(-areaW[,2]),]
   
-  #calculate convexity of each shape:
-  if( nrow(areaW)<5){
-    worthyones<-nrow(areaW)
-  }else{
-    worthyones<-5
+  total<-sum(areaW$Freq)
+  runSum<-0
+  p=1
+  for(h in 1:nrow(areaW)){
+    worthyones<-p
+    if((areaW$Freq[h]+runSum)<(total/2)){
+      p=p+1
+      runSum<-areaW$Freq[h]+runSum
+      
+    }else{
+      break
+    }
+
   }
+  
   IslIndex<-as.numeric(as.character(areaW$labelsW))[1:worthyones]
   areaW<-as.vector(areaW[,2])
   
@@ -3246,6 +3258,7 @@ GTset<-GTset[-grep(",",GTset$Species),]
 }
 
 #"vectorize" GTset frame. 
+stop()
 
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))

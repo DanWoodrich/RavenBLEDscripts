@@ -1,7 +1,7 @@
 Category,Parameter,Value,Description
 Signal manipulation,Decimate,y,Script will look if data is decimated and automatically decimate if y. 
 Signal manipulation,decimationFactor,16,Decimation factor. Performed iteratively by prime factors. Should be a factor of sampling rate to avoid decimal sampling rate
-Signal manipulation,whiten,y,"If y, script will assume data is whitened. Need to manually whiten data with raven and use naming conventions to path correctly. "
+Signal manipulation,whiten,n,"If y, script will assume data is whitened. Need to manually whiten data with raven and use naming conventions to path correctly. "
 Signal manipulation,FO,100,Filter order for ALE (whitening) filter
 Signal manipulation,LMS,0.1,LMS step size for ALE (whitening) filter
 Signal manipulation,fileCombinesize,300,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
