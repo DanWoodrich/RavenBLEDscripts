@@ -1657,7 +1657,7 @@ adaptive_compare<-function(Compdata){
           row<-c(sel1,strt,e,l,h,MID,Mname,Sf,File,FOB,FOE,RTf,RTb,RTe,species,sel2,mf,fr)
           
           Mcode<-newdat[1,nospec-3]
-          dt<-max(newdat[,nospec-2])
+          dt<-max(newdat[,nospec-2]-1)
           yr<-newdat[1,nospec-1]
           month<-newdat[1,nospec]
           
