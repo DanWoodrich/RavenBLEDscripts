@@ -3069,24 +3069,19 @@ MoorCor=NULL
 for(s in spec){
 GT<-list()
 DetecTab2<-DetecTab[which(DetecTab$Species %in% s),]
-p=1
-for(f in 1:length(unique(DetecTab2$MooringName))){
-  DetecVar<-DetecTab2[which(DetecTab2$MooringName==unique(DetecTab2$MooringName)[f]),]
-  for(g in 1:length(unique(DetecVar$MooringID))){
-    GT[[p]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",unique(DetecVar$MooringID)[g],".txt",sep=""))
-    GT[[p]] <- GT[[p]][GT[[p]]$View=="Spectrogram 1",]
-    p=p+1
+  for(f in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
+    GT[[f]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",MoorInfo[which(MoorInfo[,9]==s),][f,1],"Sum/",MoorInfo[which(MoorInfo[,9]==s),][f,10],".txt",sep=""))
+    GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
   }
-}
 
 #Define table for later excel file export.
 
 colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
 detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
-for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
-  print(paste("Comparing ground truth of",unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],"with final detector"))   
-  MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v]),]
+for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
+  print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==s),][v,10],"with final detector"))   
+  MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10])),]
   MoorVar$meantime<-(MoorVar[,4]+MoorVar[,5])/2
   MoorVar<-MoorVar[order(MoorVar$meantime),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
@@ -3182,7 +3177,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 
   #store this for comparison with full mooring later
   TPtot<-c(TPtot,numTP)
-  MoorCor<-c(MoorCor,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v])
+  MoorCor<-c(MoorCor,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]))
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
   
   TPR <- numTP/(numTP+numFN)
@@ -3191,7 +3186,7 @@ for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -3271,6 +3266,7 @@ if(addToMaster=='y'){
     MoorInfo<-t(data.frame(MoorInfo))
   }
 }
+
 
 dataMat<-spectral_features(dataMat)
 
@@ -3653,24 +3649,20 @@ if(compareFinal_w_GT=="y"){
   for(s in mSpec){
     GT<-list()
     DetecTab2<-data3[which(data3[,nospec+which(s==mSpec)]>=CUTmean[[which(s==mSpec)]]),]
-    p=1
-    for(f in 1:length(unique(DetecTab2$MooringName))){
-      DetecVar<-DetecTab2[which(DetecTab2$MooringName==unique(DetecTab2$MooringName)[f]),]
-      for(g in 1:length(unique(DetecVar$MooringID))){
-        GT[[p]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",DetecVar$MooringName[1],"Sum/",unique(DetecVar$MooringID)[g],".txt",sep=""))
-        GT[[p]] <- GT[[p]][GT[[p]]$View=="Spectrogram 1",]
-        p=p+1
+    for(f in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
+        GT[[f]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",MoorInfo[which(MoorInfo[,9]==s),][f,1],"Sum/",MoorInfo[which(MoorInfo[,9]==s),][f,10],".txt",sep=""))
+        GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
       }
-    }
+    
     
     #Define table for later excel file export.
     
     colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
     detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
     
-    for(v in 1:length(unique(paste(DetecTab2$Species,DetecTab2$MooringID)))){
-      print(paste("Comparing ground truth of",unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],"with final detector"))   
-      MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v]),]
+    for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
+      print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==s),][v,10],"with final detector"))   
+      MoorVar<-DetecTab2[which(paste(DetecTab2$Species,DetecTab2$MooringID)==paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10])),]
       MoorVar$meantime<-(as.numeric(MoorVar[,2])+as.numeric(MoorVar[,3]))/2
       MoorVar<-MoorVar[order(MoorVar$meantime),]
       MoorVar$Selection<-seq(1:nrow(MoorVar))
@@ -3770,7 +3762,7 @@ if(compareFinal_w_GT=="y"){
       
       #store this for comparison with full mooring later
       TPtot<-c(TPtot,numTP)
-      MoorCor<-c(MoorCor,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v])
+      MoorCor<-c(MoorCor,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]))
       GTtot2<-c(GTtot2,nrow(GT[[v]]))
       
       TPR <- numTP/(numTP+numFN)
@@ -3779,7 +3771,7 @@ if(compareFinal_w_GT=="y"){
       
       #save stats and parameters to excel file
       detecEval<-detecEvalFinal[0,]
-      detecEval[1,]<-c(s,unique(paste(DetecTab2$Species,DetecTab2$MooringID))[v],paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
       detecEvalFinal <- rbind(detecEvalFinal,detecEval)
       
       MoorVar$detectionType<-TPFPs
