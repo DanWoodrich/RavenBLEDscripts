@@ -2159,12 +2159,12 @@ specDo<-function(z,featList,specpathh){
   featList[43]<-which.max(areaX) #areaXmaxP
   featList[44]<-max(areaX) #areaXmax
   featList[45]<-max(areaX)/sum(areaX) #areaXdom
-  featList[46]<-std.error(areaX) #areaXstd
+  featList[46]<-if(!is.na(std.error(areaX))){std.error(areaX)}else{0} #areaXstd
   
   featList[47]<-which.max(areaY) #areaYmaxP
   featList[48]<-max(areaY) #areaYmax
   featList[49]<-max(areaY)/sum(areaY)#areaYdom
-  featList[50]<-std.error(areaY)#areaYstd
+  featList[50]<-if(!is.na(std.error(areaY))){std.error(areaY)}else{0}#areaYstd
   
   #featList[51]<-std.error(areaW) #Areaspread
   featList[52]<-max(areaW)#AreaTop
@@ -2187,18 +2187,18 @@ specDo<-function(z,featList,specpathh){
   featList[67]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
   featList[68]<-mean(hpEven)#switchesX
-  featList[69]<-std.error(hpEven)#switchesXreg
+  featList[69]<-if(!is.na(std.error(hpEven))){std.error(hpEven)}else{0}#switchesXreg
   featList[70]<-max(hpEven)#switchesXmax
   featList[71]<-min(hpEven)#switchesXmin
   
   featList[72]<-mean(vpEven)#switchesY
-  featList[73]<-std.error(vpEven)#switchesYreg
+  featList[73]<-if(!is.na(std.error(vpEven))){std.error(vpEven)}else{0}#switchesYreg
   featList[74]<-max(vpEven)#switchesYmax
   featList[75]<-min(vpEven)#switchesYmin
   
   #individual shape features:
   featList[76]<-mean(shapeSlopes) #avg slope. using arctan(slope) hoping it makes numeric comparisons better since slope is nonlinear especially at large values
-  featList[77]<-std.error(shapeSlopes) #var slope
+  featList[77]<-if(worthyones>1){std.error(shapeSlopes)}else{0} #var slope
   featList[78]<-sum(shapeCentDistance) #sum of all centroid distances (hopefully weighted towards larger shapes that have better potential for concavity)
   featList[79]<-sum(shapeCentDistance*signVec)
   featList[80]<-mean(shapeCentDistance) #other way of comparing centroid distances
@@ -3258,7 +3258,6 @@ GTset<-GTset[-grep(",",GTset$Species),]
 }
 
 #"vectorize" GTset frame. 
-stop()
 
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
 dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
