@@ -305,6 +305,10 @@ inputGT<-function(){
       GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""),stringsAsFactors = FALSE)
       TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
       MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+      
+      MoorInfo<<-data.frame(MoorInfo)
+      
+      GTset<<-GTset[which(GTset$MooringID %in% MoorInfo[,10]),]
     
     
   }else if(useMasterGT=="n"){
@@ -3497,6 +3501,7 @@ for(s in spec){
   #############################
     
   MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
+  MoorInfo<-data.frame(MoorInfo)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
     
   resltsTabS<-combineDecRaven()
