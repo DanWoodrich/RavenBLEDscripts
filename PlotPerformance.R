@@ -7,7 +7,7 @@ dataNEW<-data[which(data$Type=="NEW"),]
 dataALL<-data[which(data$Type=="ALL"),]
 
 
-boxplot(dataGT$AUC ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'AUC',ylim = c(min(dataNEW$AUC)-0.01,1),xlab="Experiment",main="")
+boxplot(dataGT$AUC ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'AUC',ylim = c(min(dataNEW$AUC)-0.01,1),xlab="# moorings in GT set",main="GS")
 stripchart(dataALL$AUC ~ dataALL$Test, vertical = TRUE, data = dataALL, 
            add = TRUE, pch = 12, col = 'blue',lwd=3)
 stripchart(dataNEW$AUC ~ dataNEW$Test, vertical = TRUE, data = dataNEW, 
@@ -15,7 +15,7 @@ stripchart(dataNEW$AUC ~ dataNEW$Test, vertical = TRUE, data = dataNEW,
 
 
 
-boxplot(dataGT$TPR ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'TPR',ylim = c(min(dataNEW$TPR)-0.01,1),xlab="Experiment")
+boxplot(dataGT$TPR ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'TPR',ylim = c(min(dataNEW$TPR)-0.01,1),xlab="# moorings in GT set",main="GS")
 stripchart(dataALL$TPR ~ dataALL$Test, vertical = TRUE, data = dataALL, 
            add = TRUE, pch = 12, col = 'blue',lwd=3)
 stripchart(dataNEW$TPR ~ dataNEW$Test, vertical = TRUE, data = dataNEW, 
@@ -23,7 +23,7 @@ stripchart(dataNEW$TPR ~ dataNEW$Test, vertical = TRUE, data = dataNEW,
 
 
 
-boxplot(dataGT$FPR ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'FPR',ylim = c(min(dataNEW$FPR)-0.01,1),xlab="Experiment")
+boxplot(dataGT$FPR ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'FPR',ylim = c(min(dataNEW$FPR)-0.01,1),xlab="# moorings in GT set",main="GS")
 stripchart(dataALL$FPR ~ dataALL$Test, vertical = TRUE, data = dataALL, 
            add = TRUE, pch = 12, col = 'blue',lwd=3)
 stripchart(dataNEW$FPR ~ dataNEW$Test, vertical = TRUE, data = dataNEW, 
