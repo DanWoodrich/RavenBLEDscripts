@@ -8,9 +8,9 @@ s<-"GS"
 #loop for experiment: 
 for(experiment in 1:20){
   
-sequence<- sample(1:11, 10, replace=FALSE)
+sequence<- sample(1:11, 11, replace=FALSE)
 
-for(MooringNumm in sequence){
+for(MooringNumm in sequence){ #sequence
   
 indexxx<-1:which(MooringNumm == sequence)
 
@@ -32,7 +32,7 @@ NEWsourceFormat<-"open"
 runNEW<-"y"
 
 }else{
-  runNEw<-"n"
+  runNEW<-"n"
 }
 
 
@@ -80,6 +80,7 @@ library(Cairo)
 library(obliqueRF)
 library(fpc)
 library(RSAGA)
+library(stringr)
 #library(rAzureBatch)
 #library(doAzureParallel)
 
@@ -1541,6 +1542,18 @@ after_model_write <-function(mdata){
     for(s in 1:length(mSpec)){
       MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
       
+      if(whichRun=="GT"){
+      pp2<-as.vector(MoorVar1[,nospec+s])
+      ll2<-as.factor(MoorVar1$detectionType)
+      predd2<-prediction(pp2,ll2)
+      perff2<-performance(predd2,"tpr","fpr")
+      auc.perf = performance(predd2, measure = "auc",plot=F)
+      
+      AUCind<-c(auc.perf@y.values)
+      }else{
+        AUCind<-"NA"
+      }
+      
       MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
       
       if(nrow(MoorVar1)>0){
@@ -1589,7 +1602,7 @@ after_model_write <-function(mdata){
         detecEval<-detecEval[0,]
         detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
         
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringID"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringID"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCind,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
         
         
         detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
@@ -1598,11 +1611,12 @@ after_model_write <-function(mdata){
         
         #experiment
         if(whichRun=="GT"){
+          
         detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
         detecEvalExp<-detecEvalExp[0,]
         detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
         
-        detecEvalExp[1,]<-c(experiment,length(indexxx),"GT","GS",paste(MoorVar1[1,"MooringID"]),TPR,FPR,AUCadj)
+        detecEvalExp[1,]<-c(experiment,length(indexxx),"GT","GS",paste(MoorVar1[1,"MooringID"]),TPR,FPR,AUCind,NA)
         
         detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
         detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
@@ -1667,11 +1681,21 @@ after_model_write <-function(mdata){
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
     
     if(whichRun=="GT"){
+      
+      if(length(indexxx)==1){
+        DeltGini<-0
+      }else{
+        DeltGini<-giniSave-giniAv
+        DeltGini<- sum(abs(DeltGini))
+      }
+      
+      giniSave<<-giniAv
+      
       detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
       detecEvalExp<-detecEvalExp[0,]
       detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
       
-      detecEvalExp[1,]<-c(experiment,length(indexxx),"ALL","GS","all",TPR,FPR,AUCadj)
+      detecEvalExp[1,]<-c(experiment,length(indexxx),"ALL","GS","all",TPR,FPR,AUCadj,DeltGini)
       
       detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
       detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
@@ -2999,7 +3023,7 @@ addToMaster<-"n"
 }
 useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
 
-runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
+#runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 #NEW
 if(runNEW=="y"){
   #NEWmoorings<- as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWmoorings"),3],",",simplify=TRUE))
@@ -3517,6 +3541,8 @@ CUTmeanspec<-CUTmean[[s]]
 
 dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
 
+
+
 pp2<-as.vector(dataSPEC[,nospec+s])
 ll2<-dataSPEC$detectionType
 predd2<-prediction(pp2,ll2)
@@ -3554,6 +3580,8 @@ lines(pointsDate,(CS_outputDate[,8]),col="green")
 #see freq breakdown of calls 
 #cdplot(data3datFrame[,7] ~ data3datFrame[,8], data3datFrame, col=c("cornflowerblue", "orange"), main="Conditional density plot") #meanfreq
 #write data to drive
+
+
 after_model_write(data3) #need to change to vector 
 
 beep(10)
@@ -3999,7 +4027,7 @@ if(compareFinal_w_GT=="y"){
     detecEvalExp<-detecEvalExp[0,]
     detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
       
-    detecEvalExp[1,]<-c(experiment,length(indexxx),"NEW","GS",paste(MoorInfo[,10]),TPR,FPR,AUCadj)
+    detecEvalExp[1,]<-c(experiment,length(indexxx),"NEW","GS",paste(MoorInfo[,10]),TPR,FPR,AUCadj,NA)
       
     detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
     detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
