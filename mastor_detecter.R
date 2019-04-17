@@ -6,7 +6,8 @@ AllFilesExp<-as.character(str_split(AllFilesExp,",",simplify=TRUE))
 s<-"GS"
 
 #loop for experiment: 
-for(experiment in 1:20){
+for(experiment in 11:30){
+  
   
 sequence<- sample(1:11, 11, replace=FALSE)
 

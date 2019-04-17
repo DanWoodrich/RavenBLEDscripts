@@ -33,7 +33,7 @@ boxplot(dataNEW$TPR ~ dataNEW$Test, data = dataNEW, col=makeTransparent("white",
 boxplot(dataGT$FPR ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'FPR',ylim = c(min(dataNEW$FPR)-0.01,1),xlab="# moorings in GT set",main="GS")
 boxplot(dataNEW$FPR ~ dataNEW$Test, data = dataNEW, col=makeTransparent("white",0),boxcol=makeTransparent("red",99),medcol=makeTransparent("red",99),staplecol=makeTransparent("red",99),whiskcol=makeTransparent("red",99),outcol=makeTransparent("red",99), xaxt='n',lwd = 2,add=TRUE,at=2:(length(unique(dataNEW$Test))+1))
 
-boxplot(dataGT$DeltGini ~ dataGT$Test, data = dataGT, lwd = 2, ylab = 'Delta Gini score',ylim = c(min(dataNEW$FPR)-0.01,1),xlab="# moorings in GT set",main="GS")
+boxplot(dataALL$DeltGini ~ dataALL$Test, data = dataALL, lwd = 2, ylab = 'Delta Gini score',xlab="# moorings in GT set",main="GS")
 
 
 stripchart(dataALL$FPR ~ dataALL$Test, vertical = TRUE, data = dataALL, 
