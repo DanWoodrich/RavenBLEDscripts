@@ -1,3 +1,4 @@
+library(stringr)
 AllMooringsExp<-c("AW15_AU_BS2,AW12_AU_BS3,BS14_AU_04,AW14_AU_BS3,AW15_AU_BS3,AW14_AU_BS3,BS12_AU_02a,BS12_AU_02b,AL16_AU_BS3,AW12_AU_BS3,BS13_AU_04")
 AllFilesExp<-c("33:103,1:250,74:148,309:369,705:749,1:71,1:46,689:747,77:170,1464:1507,137:224")
 
@@ -6,7 +7,7 @@ AllFilesExp<-as.character(str_split(AllFilesExp,",",simplify=TRUE))
 s<-"GS"
 
 #loop for experiment: 
-for(experiment in 11:30){
+for(experiment in 21:30){
   
   
 sequence<- sample(1:11, 11, replace=FALSE)
@@ -2295,13 +2296,13 @@ specDo<-function(z,featList,specpathh){
   featList[66]<-mean(unlist(positionsX,recursive = TRUE),na.rm=TRUE)#xavg
   featList[67]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
-  featList[68]<-mean(hpEven)#switchesX
-  featList[69]<-if(!is.na(std.error(hpEven))){std.error(hpEven)}else{0}#switchesXreg
+  featList[68]<-mean(hpEven)#switchesXmean
+  featList[69]<-if(!is.na(std.error(hpEven))){std.error(hpEven)}else{0}#switchesXse
   featList[70]<-max(hpEven)#switchesXmax
   featList[71]<-min(hpEven)#switchesXmin
   
-  featList[72]<-mean(vpEven)#switchesY
-  featList[73]<-if(!is.na(std.error(vpEven))){std.error(vpEven)}else{0}#switchesYreg
+  featList[72]<-mean(vpEven)#switchesYmean
+  featList[73]<-if(!is.na(std.error(vpEven))){std.error(vpEven)}else{0}#switchesYse
   featList[74]<-max(vpEven)#switchesYmax
   featList[75]<-min(vpEven)#switchesYmin
   
@@ -4004,13 +4005,13 @@ if(compareFinal_w_GT=="y"){
     
     #Make summary table of whole run statistics for table comparison. 
     numTP <- sum(as.numeric(detecEvalFinal[,7]))
-    numFN <- sum(as.numeric(detecEvalFinal[,9]))
+    numFN <- sum(as.numeric(detecEvalFinal[,9])) #   change to numTPtruth-TP
     numFP <- sum(as.numeric(detecEvalFinal[,8]))
     numTPtruth<- GTtot
     detTotal<-numTP+numFP
     
-    TPR <- numTP/(numTP+numFN)
-    FPR <- numFP/(numTP+numFP)
+    TPR <- numTP/(numTP+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
+    FPR <- numFP/(numTP+numFP) # 
     TPdivFP<- numTP/numFP
     
     #save stats and parameters to excel file
