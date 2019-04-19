@@ -426,11 +426,11 @@ loadSpecVars<-function(whichSpec){
   
   #GT
   if(runGT=="y"){
-    #GTmoorings<<- as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE))
-    #GTsf<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE))
-    #GTpath<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTpath"),3],",",simplify=TRUE))
-    #GTpath2<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTpath2"),3],",",simplify=TRUE))
-    #GTsourceFormat<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE))
+    GTmoorings<<- as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTmoorings"),3],",",simplify=TRUE))
+    GTsf<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTsf"),3],",",simplify=TRUE))
+    GTpath<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTpath"),3],",",simplify=TRUE))
+    GTpath2<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTpath2"),3],",",simplify=TRUE))
+    GTsourceFormat<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE))
   }
   
   
@@ -2991,14 +2991,14 @@ runAdaptive_compare<<-ControlTab[which(ControlTab[,2]=="runAdaptive_compare"),3]
 TPR_type<<-ControlTab[which(ControlTab[,2]=="TPR_type"),3] 
 
 
-#runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
+runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 #NEW
 if(runNEW=="y"){
-  #NEWmoorings<- as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWmoorings"),3],",",simplify=TRUE))
-  #NEWsf<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWsf"),3],",",simplify=TRUE))
-  #NEWpath<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWpath"),3],",",simplify=TRUE))
-  #NEWpath2<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWpath2"),3],",",simplify=TRUE))
-  #NEWsourceFormat<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE))
+  NEWmoorings<- as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWmoorings"),3],",",simplify=TRUE))
+  NEWsf<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWsf"),3],",",simplify=TRUE))
+  NEWpath<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWpath"),3],",",simplify=TRUE))
+  NEWpath2<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWpath2"),3],",",simplify=TRUE))
+  NEWsourceFormat<-as.character(str_split(ControlTab[which(ControlTab[,2]=="NEWsourceFormat"),3],",",simplify=TRUE))
   compareFinal_w_GT<-ControlTab[which(ControlTab[,2]=="compareFinal_w_GT"),3]
 }
 
