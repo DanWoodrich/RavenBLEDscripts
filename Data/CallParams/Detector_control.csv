@@ -7,6 +7,8 @@ General,runGTsections,"n,n,y","length 3 vector of ""y"" or ""n"" (ie n,n,y). Det
 General,useMasterGT,y,use processed GT data that is on github
 General,addToMaster,n,"Add to github data if your unprocessed GT contains different mooringID. Will only update local GT, need to manually update github GT. If ""n"", defaults to most recent GT table on local drive"
 General,runNEW,y,"""y"" or ""n"". If ignored defualts to no"
+General,runAdaptive_compare,y,"""y"" or ""n"" for the adaptive compare filter (cleans up partial boxes using probability score and time distance). Runs after probabilities are calculated from model so may affect TPR"
+General,TPR_type,relative,"""true"" or ""relative"". 'true' compares # TP to the amount in the ground truth. ""relative"" compares # TP to the # of TP in the given dataset. Useful in case of overestimates due to extra boxing, or if comparing model performance on machine assisted and hand GT'd data. "
 Signal manipulation,fileCombinesize,280,how many files will be combined. Used to make detector more efficient. Will affect final file size which must stay under 6 gigs. 
 Signal manipulation,fileCombinesize2ndIt,12,how many files will be combined on 2nd iteration. Used to make detector more efficient. Will affect final file size which typically I've kept under 6 gigs. 
 Model,CV,60,Number of times to cross validate RF model

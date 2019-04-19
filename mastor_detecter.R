@@ -1,45 +1,3 @@
-library(stringr)
-AllMooringsExp<-c("AW15_AU_BS2,AW12_AU_BS3,BS14_AU_04,AW14_AU_BS3,AW15_AU_BS3,AW14_AU_BS3,BS12_AU_02a,BS12_AU_02b,AL16_AU_BS3,AW12_AU_BS3,BS13_AU_04")
-AllFilesExp<-c("33:103,1:250,74:148,309:369,705:749,1:71,1:46,689:747,77:170,1464:1507,137:224")
-
-AllMooringsExp<-as.character(str_split(AllMooringsExp,",",simplify=TRUE))
-AllFilesExp<-as.character(str_split(AllFilesExp,",",simplify=TRUE))
-s<-"GS"
-
-#loop for experiment: 
-for(experiment in 21:30){
-  
-  
-sequence<- sample(1:11, 11, replace=FALSE)
-
-for(MooringNumm in sequence){ #sequence
-  
-indexxx<-1:which(MooringNumm == sequence)
-
-GTmoorings<-AllMooringsExp[sequence[indexxx]]
-GTsf<-AllFilesExp[sequence[indexxx]]
-GTpath<-rep("HG_datasets",length(indexxx))
-GTpath2<-rep("GS",length(indexxx))
-GTsourceFormat<-rep("open",length(indexxx))
-
-NEWindexxx<-which(MooringNumm == sequence)+1
-if(NEWindexxx!=12){
-
-NEWmoorings<- AllMooringsExp[sequence[NEWindexxx]]
-NEWsf<-AllFilesExp[sequence[NEWindexxx]]
-NEWpath<-"HG_datasets"
-NEWpath2<-"GS"
-NEWsourceFormat<-"open"
-
-runNEW<-"y"
-
-}else{
-  runNEW<-"n"
-}
-
-
-
-
 #Evaluate and score custom BLED detector(s) in R. Sox must be installed and pathed to accordingly
 
 #catherine vandalism
@@ -347,10 +305,7 @@ inputGT<-function(){
   if(useMasterGT=="y"){
       GTset<<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""),stringsAsFactors = FALSE)
       TPtottab<<-read.csv(paste(gitPath,"Data/TotalTP_GT.csv",sep="")) #produces most recently modifed file 
-      
-      MoorInfo<-makeMoorInfo(GTmoorings,GTsf,GTpath,GTpath2,GTsourceFormat,s)
-      
-      #MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
+      MoorInfo<<-read.csv(paste(gitPath,"Data/MoorInfo.csv",sep=""))
       
       MoorInfo<<-data.frame(MoorInfo)
       
@@ -1592,7 +1547,11 @@ after_model_write <-function(mdata){
       #check to see if TPtottab entry exists (if so, compare it and calculate performance. If not, treat as new data and do not calculate performance) 
       if(any(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
         numTP<-sum(MoorVar1$detectionType==paste(mSpec[s],"1"))
+        if(TPR_type=="true"){
         numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
+        }else if(TPR_type=="relative"){
+        numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1]
+        }
         numFP<-detTotal-numTP
         numFN<-numTPtruth-numTP
         
@@ -1612,19 +1571,19 @@ after_model_write <-function(mdata){
         write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
         
         #experiment
-        if(whichRun=="GT"){
-          
-        detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-        detecEvalExp<-detecEvalExp[0,]
-        detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
+        #if(whichRun=="GT"){
+         # 
+        #detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+        #detecEvalExp<-detecEvalExp[0,]
+        #detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
+      #  
+      #  detecEvalExp[1,]<-c(experiment,length(indexxx),"GT","GS",paste(MoorVar1[1,"MooringID"]),TPR,FPR,AUCind,NA)
+      #  
+      #  detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+      #  detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
+      # write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
         
-        detecEvalExp[1,]<-c(experiment,length(indexxx),"GT","GS",paste(MoorVar1[1,"MooringID"]),TPR,FPR,AUCind,NA)
-        
-        detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-        detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
-        write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
-        
-        }
+      #  }
 
 
       }else{
@@ -1663,7 +1622,11 @@ after_model_write <-function(mdata){
   MoorVar1 <-MoorVar1[which(paste(mSpec[[s]],MoorVar1$MooringID) %in% TPtottab$MoorCor),]
     
     numTP<-sum(MoorVar1$detectionType==paste(mSpec[[s]],"1"))
-    numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),2])
+    if(TPR_type=="true"){
+      numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
+    }else if(TPR_type=="relative"){
+      numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1]
+    }
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
     
@@ -1682,28 +1645,28 @@ after_model_write <-function(mdata){
     detecEvalFinal<-rbind(detecEval2,detecEval)
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
     
-    if(whichRun=="GT"){
-      
-      if(length(indexxx)==1){
-        DeltGini<-0
-      }else{
-        DeltGini<-giniSave-giniAv
-        DeltGini<- sum(abs(DeltGini))
-      }
-      
-      giniSave<<-giniAv
-      
-      detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-      detecEvalExp<-detecEvalExp[0,]
-      detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
-      
-      detecEvalExp[1,]<-c(experiment,length(indexxx),"ALL","GS","all",TPR,FPR,AUCadj,DeltGini)
-      
-      detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-      detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
-      write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
-      
-    }
+    #if(whichRun=="GT"){
+    #  
+    #  if(length(indexxx)==1){
+    #    DeltGini<-0
+    #  }else{
+    #    DeltGini<-giniSave-giniAv
+    #    DeltGini<- sum(abs(DeltGini))
+    #  }
+    #  
+    #  giniSave<<-giniAv
+    # 
+    #  detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+    #  detecEvalExp<-detecEvalExp[0,]
+    #  detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
+    #  
+    #  detecEvalExp[1,]<-c(experiment,length(indexxx),"ALL","GS","all",TPR,FPR,AUCadj,DeltGini)
+    #  
+    #  detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+    #  detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
+    #  write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
+    #  
+    #}
   }else{
     numTP<-"uk"
     numTPtruth<-"uk"
@@ -3024,6 +2987,9 @@ runGTsections<-c("n","n","n")
 addToMaster<-"n"
 }
 useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
+runAdaptive_compare<<-ControlTab[which(ControlTab[,2]=="runAdaptive_compare"),3] 
+TPR_type<<-ControlTab[which(ControlTab[,2]=="TPR_type"),3] 
+
 
 #runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]
 #NEW
@@ -3522,8 +3488,10 @@ data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
 data3Mat<- data.matrix(data3)
 
 loadSpecVars(spec[s])
-#data3Mat<-adaptive_compare(data3Mat) 
 
+if(runAdaptive_compare=="y"){
+data3Mat<-adaptive_compare(data3Mat) 
+}
 #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
 CS_output<-context_sim(data3Mat)
 
@@ -3603,13 +3571,10 @@ whichRun<-"NEW"
 
 resltsTabF <- NULL
 MoorInfoMspec<-NULL
-#experiment section
-dontrun<-"y"
-s=spec
+
 MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
 MoorInfo<-data.frame(MoorInfo)
-if(dontrun!="y"){
-  ###
+
 for(s in spec){
 
   #populate global env with species specific variables
@@ -3662,15 +3627,6 @@ DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
 
 DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
 DetecTab<-data.frame(DetecTab)
-
-modData<-dataArrangeModel(DetecTab)
-
-}
-
-modData<-read.csv(paste(gitPath,"Data/GroundTruth.csv",sep=""),stringsAsFactors = FALSE)
-modData<-modData[which(modData$MooringID %in% MoorInfo[,10]),]
-modData<-modData[,c(1,4:ncol(modData))]
-
 
 modData<-dataArrangeModel(modData) #combine with above section after experiment
 
@@ -3833,8 +3789,9 @@ data3Mat<- data.matrix(data3)
 
 #loadSpecVars(spec[s])
 loadSpecVars(spec) #obviously not set up for multiple moorings 
-#data3Mat<-adaptive_compare(data3Mat) 
-
+if(runAdaptive_compare=="y"){
+data3Mat<-adaptive_compare(data3Mat) 
+}
 #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
 
 #CS_output<-context_sim(data3Mat)
@@ -3971,9 +3928,13 @@ if(compareFinal_w_GT=="y"){
       
       #Make summary table of statistics for table comparison. 
       numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
-      numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
-      numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
       numTPtruth<- nrow(GT[[v]])
+      if(TPR_type=="true"){
+        numFN <- numTPtruth-numTP
+      }else if(TPR_type=="relative"){
+        numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+      }
+      numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
       detTotal<-numTP+numFP
       
       #store this for comparison with full mooring later
@@ -4005,9 +3966,13 @@ if(compareFinal_w_GT=="y"){
     
     #Make summary table of whole run statistics for table comparison. 
     numTP <- sum(as.numeric(detecEvalFinal[,7]))
-    numFN <- sum(as.numeric(detecEvalFinal[,9])) #   change to numTPtruth-TP
-    numFP <- sum(as.numeric(detecEvalFinal[,8]))
     numTPtruth<- GTtot
+    if(TPR_type=="true"){
+      numFN <- numTPtruth-numTP
+    }else if(TPR_type=="relative"){
+      numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+    }
+    numFP <- sum(as.numeric(detecEvalFinal[,8]))
     detTotal<-numTP+numFP
     
     TPR <- numTP/(numTP+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
@@ -4025,15 +3990,15 @@ if(compareFinal_w_GT=="y"){
     
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
     
-    detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-    detecEvalExp<-detecEvalExp[0,]
-    detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
+    #detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+    #detecEvalExp<-detecEvalExp[0,]
+    #detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
       
-    detecEvalExp[1,]<-c(experiment,length(indexxx),"NEW","GS",paste(MoorInfo[,10]),TPR,FPR,AUCadj,NA)
+    #detecEvalExp[1,]<-c(experiment,length(indexxx),"NEW","GS",paste(MoorInfo[,10]),TPR,FPR,AUCadj,NA)
       
-    detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-    detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
-    write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
+    #detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
+    #detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
+    #write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
       
     }
     
@@ -4043,11 +4008,7 @@ if(compareFinal_w_GT=="y"){
   #translate response to binary 
 
   
-  }
+}
   
-
-}
-
-}
 
 
