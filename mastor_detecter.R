@@ -1623,9 +1623,9 @@ after_model_write <-function(mdata){
     
     numTP<-sum(MoorVar1$detectionType==paste(mSpec[[s]],"1"))
     if(TPR_type=="true"){
-      numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
+      numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),2])
     }else if(TPR_type=="relative"){
-      numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1]
+      numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),1])
     }
     numFP<-detTotal-numTP
     numFN<-numTPtruth-numTP
