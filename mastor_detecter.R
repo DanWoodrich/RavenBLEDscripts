@@ -3188,15 +3188,14 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
     for(g in min(gvec):max(gvec)){
       if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
         OutputCompare[p,]<-MoorVar[h,c(1:7,19,20)]
-        OutputCompare$detectionType<-"TP"
+        OutputCompare[p,9]<-"TP"
         p=p+1
+        break
       }
     }
   }
   }
   #remove duplicates:
-  OutputCompare<-OutputCompare[which(!duplicated(OutputCompare$Selection)),]
-
   
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,19,20)])
@@ -3212,12 +3211,11 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
           OutputCompare2[p,]<-GT[[v]][h,]
           OutputCompare2[p,9]<-"TP truth"
           p=p+1
+          break
         }
       }
     }
   }
-  
-  OutputCompare2<-OutputCompare2[which(!duplicated(OutputCompare2$Selection)),]
   
   
   #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
@@ -3241,6 +3239,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   OutputCompare<- OutputCompare[,-8]
   OutputCompare<- OutputCompare[,1:8]
   
+  OutputCompare<-OutputCompare[order(OutputCompare$`Begin Time (s)`),]
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   write.table(OutputCompare,paste(outputpath,runname,"/",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
@@ -3571,7 +3570,7 @@ whichRun<-"NEW"
 
 resltsTabF <- NULL
 MoorInfoMspec<-NULL
-
+s<-spec
 MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
 MoorInfo<-data.frame(MoorInfo)
 
@@ -3628,7 +3627,7 @@ DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
 DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
 DetecTab<-data.frame(DetecTab)
 
-modData<-dataArrangeModel(modData) #combine with above section after experiment
+modData<-dataArrangeModel(DetecTab) #combine with above section after experiment
 
 
 modData[[1]]$detectionType<-modData[[1]]$detectionType[1]
@@ -3753,7 +3752,7 @@ if(compareFinal_w_GT=="y"){
         gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+Maxdur+1)&GT[[v]]$meantime>(MoorVar$meantime[h]-Maxdur-1))
         if(length(gvec)>0){
           for(g in min(gvec):max(gvec)){
-            if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
+            if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,2] & GT[[v]]$meantime[g]<MoorVar[h,3])){
               MoorVar$detectionType[h]<-1
               break
             }
@@ -3867,17 +3866,18 @@ if(compareFinal_w_GT=="y"){
         gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+Maxdur+1)&GT[[v]]$meantime>(MoorVar$meantime[h]-Maxdur-1))
         if(length(gvec)>0){
           for(g in min(gvec):max(gvec)){
-            if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
-              OutputCompare[p,]<-MoorVar[h,c(1,nospec+which(s==mSpec)+1,nospec+which(s==mSpec)+2,2,3,4,5,17,nospec-2)]
-              OutputCompare$detectionType<-"TP"
+            if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,2] & GT[[v]]$meantime[g]<MoorVar[h,3])){
+              OutputCompare[p,]<-MoorVar[h,c(1,nospec+which(s==mSpec)+2,nospec+which(s==mSpec)+3,2,3,4,5,17,nospec-2)]
+              OutputCompare[p,9]<-"TP"
               p=p+1
+              break
             }
           }
         }
       }
+      
       #remove duplicates:
-      OutputCompare<-OutputCompare[which(!duplicated(OutputCompare$Selection)),]
-      thisThing<-MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1,nospec+which(s==mSpec)+1,nospec+which(s==mSpec)+2,2,3,4,5,17,nospec-2)]
+      thisThing<-MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1,nospec+which(s==mSpec)+2,nospec+which(s==mSpec)+3,2,3,4,5,17,nospec-2)]
       names(thisThing)<-names(OutputCompare)
       
       #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
@@ -3890,17 +3890,15 @@ if(compareFinal_w_GT=="y"){
         gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+Maxdur+1)&MoorVar$meantime>(GT[[v]]$meantime[h]-Maxdur-1))
         if(length(gvec)>0){
           for(g in min(gvec):max(gvec)){
-            if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar$meantime[g]>GT[[v]][h,4]) & (MoorVar$meantime[g]<GT[[v]][h,5]))){
+            if((GT[[v]][h,8]>MoorVar[g,2] & GT[[v]][h,8]<MoorVar[g,3])|(MoorVar$meantime[g]>GT[[v]][h,4] & MoorVar$meantime[g]<GT[[v]][h,5])){
               OutputCompare2[p,]<-GT[[v]][h,]
               OutputCompare2[p,9]<-"TP truth"
               p=p+1
+              break
             }
           }
         }
       }
-      
-      OutputCompare2<-OutputCompare2[which(!duplicated(OutputCompare2$Selection)),]
-      
       
       #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
       OutputCompare2 <- rbind(OutputCompare2,GT[[v]][-which(GT[[v]]$Selection %in% OutputCompare2$Selection),])
@@ -3919,12 +3917,13 @@ if(compareFinal_w_GT=="y"){
       OutputCompare$Selection<-seq(1:nrow(OutputCompare))
       
       #Ready table for Raven and save. 
-      colnames(OutputCompare)[8]<-'TP/FP/FN'
       OutputCompare<- OutputCompare[,-8]
       OutputCompare<- OutputCompare[,1:8]
+      colnames(OutputCompare)[8]<-'TP/FP/FN'
       
+      OutputCompare<-OutputCompare[order(OutputCompare$`Begin Time (s)`),]
       OutputCompare$Selection<-seq(1:nrow(OutputCompare))
-      write.table(OutputCompare,paste(outputpath,runname,"/",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+      write.table(OutputCompare,paste(outputpath,runname,"/","AM",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       
       #Make summary table of statistics for table comparison. 
       numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
@@ -3966,14 +3965,14 @@ if(compareFinal_w_GT=="y"){
     
     #Make summary table of whole run statistics for table comparison. 
     numTP <- sum(as.numeric(detecEvalFinal[,7]))
-    numTPtruth<- GTtot
     if(TPR_type=="true"){
-      numFN <- numTPtruth-numTP
+      numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),2]
     }else if(TPR_type=="relative"){
-      numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+      numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),1]
     }
     numFP <- sum(as.numeric(detecEvalFinal[,8]))
     detTotal<-numTP+numFP
+    numFN<-numTPtruth-numTP
     
     TPR <- numTP/(numTP+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
     FPR <- numFP/(numTP+numFP) # 
