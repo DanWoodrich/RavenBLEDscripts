@@ -3273,11 +3273,10 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
 }
 
 #Make summary table of whole run statistics for table comparison. 
-numTP <- sum(as.numeric(detecEvalFinal[,7]))
+numTP <- GTtot
 numFN <- sum(as.numeric(detecEvalFinal[,9]))
 numFP <- sum(as.numeric(detecEvalFinal[,8]))
-numTPtruth<- GTtot
-detTotal<-numTP+numFP
+detTotal<-sum(as.numeric(detecEvalFinal[,7]))+numFP
 
 
 TPR <- numTP/(numTP+numFN)
@@ -3926,20 +3925,10 @@ if(compareFinal_w_GT=="y"){
       write.table(OutputCompare,paste(outputpath,runname,"/","AM",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       
       #Make summary table of statistics for table comparison. 
-      numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
-      numTPtruth<- nrow(GT[[v]])
-      if(TPR_type=="true"){
-        numFN <- numTPtruth-numTP
-      }else if(TPR_type=="relative"){
-        numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
-      }
+      numTP<- nrow(GT[[v]])
+      numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
       numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
-      detTotal<-numTP+numFP
-      
-      #store this for comparison with full mooring later
-      TPtot<-c(TPtot,numTP)
-      MoorCor<-c(MoorCor,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]))
-      GTtot2<-c(GTtot2,nrow(GT[[v]]))
+      detTotal<-nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])+numFP
       
       TPR <- numTP/(numTP+numFN)
       FPR <- numFP/(numTP+numFP)
@@ -3972,7 +3961,7 @@ if(compareFinal_w_GT=="y"){
     }
     numFP <- sum(as.numeric(detecEvalFinal[,8]))
     detTotal<-numTP+numFP
-    numFN<-numTPtruth-numTP
+    numFN<-sum(as.numeric(detecEvalFinal[,9]))
     
     TPR <- numTP/(numTP+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
     FPR <- numFP/(numTP+numFP) # 
