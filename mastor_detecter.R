@@ -1715,7 +1715,7 @@ after_model_write <-function(mdata){
     
     #save stats and parameters to excel file
     detecEval<-detecEvalFinal[0,]
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all",MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCadj,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCadj,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     detecEvalFinal <- rbind(detecEvalFinal,detecEval)
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
