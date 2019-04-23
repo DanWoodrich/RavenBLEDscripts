@@ -1492,30 +1492,40 @@ after_model_write <-function(mdata){
     write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_AllSpecies_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }
 
-  for(v in 1:length(unique(MoorInfo[,10]))){
-    print(paste("2nd loop",v))
+  OB<-NULL
+  MB<-NULL
+  Combset<-NULL
+  
+  colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+  detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTPtruth,numTP, numFP, numFN, TPR, FPR, multiboxperc,overboxperc,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+  
+  for(s in 1:length(mSpec)){
     
   #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
-    for(s in 1:length(mSpec)){
-      MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
+      for(v in 1:length(unique(MoorInfo[,10]))){
+      
+        MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
       
       if(whichRun=="GT"){
-      pp2<-as.vector(MoorVar1[,nospec+s])
-      ll2<-as.factor(MoorVar1$detectionType)
-      predd2<-prediction(pp2,ll2)
-      perff2<-performance(predd2,"tpr","fpr")
-      auc.perf = performance(predd2, measure = "auc",plot=F)
-      
-      AUCind<-c(auc.perf@y.values)
+        pp2<-as.vector(MoorVar1[,nospec+s])
+        ll2<-as.factor(MoorVar1$detectionType)
+        predd2<-prediction(pp2,ll2)
+        perff2<-performance(predd2,"tpr","fpr")
+        auc.perf = performance(predd2, measure = "auc",plot=F)
+        
+        AUCind<-c(auc.perf@y.values)
       }else{
-        AUCind<-"NA"
+        AUCadj<-AUCind
       }
-      
+        
       MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
       
+      print(paste("2nd loop",v))
+
       if(nrow(MoorVar1)>0){
       
       MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
+
       #save data frame 
       RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
       RavenExport[,2]<-"Spectrogram 1"
@@ -1542,152 +1552,180 @@ after_model_write <-function(mdata){
       }
       
       #calculate stats: 
-      detTotal<-nrow(MoorVar1)
+    # detTotal<-nrow(MoorVar1)
       
       #check to see if TPtottab entry exists (if so, compare it and calculate performance. If not, treat as new data and do not calculate performance) 
       if(any(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
-        numTP<-sum(MoorVar1$detectionType==paste(mSpec[s],"1"))
-        if(TPR_type=="true"){
-        numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),2]
-        }else if(TPR_type=="relative"){
-        numTPtruth<-TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1]
+        
+        GT <- read.delim(paste(gitPath,"Data/Selection tables/",mSpec[[s]],"/",MoorInfo[which(unique(MoorInfo[,10])[v]==MoorInfo[,10]),1],"Sum/",unique(MoorInfo[,10])[v],".txt",sep=""))
+        GT <- GT[GT$View=="Spectrogram 1",]
+        
+        print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10],"with final detector"))   
+        MoorVar1$meantime<-(as.numeric(MoorVar1[,2])+as.numeric(MoorVar1[,3]))/2
+        MoorVar1<-MoorVar1[order(MoorVar1$meantime),]
+        MoorVar1$Selection<-seq(1:nrow(MoorVar1))
+        
+        #Define useful comlumns in both MoorVar1 and GT
+        GT$meantime<-(as.numeric(GT[,4])+as.numeric(GT[,5]))/2
+        GT$View<-as.character(GT$View)
+        GT$detectionType<-0
+        
+        MoorVar1$View<-"Spectrogram 1"
+        MoorVar1$Channel<-1
+        
+        #change GT names to match what Raven accepts
+        colnames(GT) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+        colClasses = c("numeric","character", "numeric","numeric","numeric", "numeric","numeric","numeric","numeric")
+        
+        #define tables for Tp/FN/FPs
+        OutputCompare <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), meantime, detection type", colClasses = colClasses)
+        colnames(OutputCompare)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+        OutputCompare2 <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz),meantime, detection type", colClasses = colClasses)
+        colnames(OutputCompare2)<- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
+        
+        #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
+        #reset detectionType
+        MoorVar1$detectionType<-0
+        overbox<-0
+        p=1
+        for(h in 1:nrow(MoorVar1)){
+          gvec <- which(GT$meantime<(MoorVar1$meantime[h]+Maxdur+1)&GT$meantime>(MoorVar1$meantime[h]-Maxdur-1))
+          if(length(gvec)>0){
+            overboxcount<-0
+            for(g in min(gvec):max(gvec)){
+              if((MoorVar1$meantime[h]>GT[g,4]) & (MoorVar1$meantime[h]<GT[g,5])|(GT$meantime[g]>MoorVar1[h,2] & GT$meantime[g]<MoorVar1[h,3])){
+                if(overboxcount!=1){
+                  OutputCompare[p,]<-MoorVar1[h,c(1,nospec+which(mSpec[[s]]==mSpec)+2,nospec+which(mSpec[[s]]==mSpec)+3,2,3,4,5,17,nospec-2)]
+                  OutputCompare[p,9]<-"TP"
+                  p=p+1
+                  overboxcount<-1
+                  MoorVar1$detectionType[h]<-1
+                }else{
+                  overbox<-overbox+1
+                }
+              }
+            }
+          }
         }
-        numFP<-detTotal-numTP
-        numFN<-numTPtruth-numTP
-        
-        TPR <- numTP/(numTP+numFN)
-        FPR <- numFP/(numTP+numFP)
-        TPdivFP<- numTP/numFP
-        
-        detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-        detecEval<-detecEval[0,]
-        detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
-        
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringID"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCind,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-        
-        
-        detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-        detecEvalFinal<-rbind(detecEval2,detecEval)
-        write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
-        
-        #experiment
-        #if(whichRun=="GT"){
-         # 
-        #detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-        #detecEvalExp<-detecEvalExp[0,]
-        #detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
-      #  
-      #  detecEvalExp[1,]<-c(experiment,length(indexxx),"GT","GS",paste(MoorVar1[1,"MooringID"]),TPR,FPR,AUCind,NA)
-      #  
-      #  detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-      #  detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
-      # write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
-        
-      #  }
-
-
-      }else{
-        numTP<-"uk"
-        numTPtruth<-"uk"
-        numFP<-"uk"
-        numFN<-"uk"
-        
-        TPR <- "uk"
-        FPR <- "uk"
-        TPdivFP<-"uk"
-        
-        detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-        detecEval<-detecEval[0,]
-        detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
-        
-        detecEval[1,]<-c(mSpec[[s]],paste(name,MoorVar1[1,"MooringID"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-        
-        detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-        detecEvalFinal<-rbind(detecEval2,detecEval)
-        write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
+          
+          #remove duplicates:
+          thisThing<-MoorVar1[-which(MoorVar1$Selection %in% OutputCompare$Selection),c(1,nospec+which(mSpec[[s]]==mSpec)+2,nospec+which(mSpec[[s]]==mSpec)+3,2,3,4,5,17,nospec-2)]
+          names(thisThing)<-names(OutputCompare)
+          
+          #Identify and add FPs. if selection in MoorVar1 row does not match that in Output compare, add it to Output compare under designation FP.  
+          OutputCompare <- rbind(OutputCompare,thisThing)
+          OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
+          
+          #Add rows where GT meantime was in between 
+          multibox<-0
+          p=1
+          for(h in 1:nrow(GT)){
+            gvec <- which(MoorVar1$meantime<(GT$meantime[h]+Maxdur+1)&MoorVar1$meantime>(GT$meantime[h]-Maxdur-1))
+            if(length(gvec)>0){
+              multiboxcount<-0
+              for(g in min(gvec):max(gvec)){
+                if((GT[h,8]>MoorVar1[g,2] & GT[h,8]<MoorVar1[g,3])|(MoorVar1$meantime[g]>GT[h,4] & MoorVar1$meantime[g]<GT[h,5])){
+                  if(multiboxcount!=1){
+                    OutputCompare2[p,]<-GT[h,]
+                    OutputCompare2[p,9]<-"TP truth"
+                    p=p+1
+                    multiboxcount<-1
+                  }else{
+                    multibox<-multibox+1
+                  }
+                }
+              }
+            }
+          }
+          
+          #Identify and add FNs. if selection in GT row does not match that in OutputCompare2, add it to Output compare under designation FN.  
+          OutputCompare2 <- rbind(OutputCompare2,GT[-which(GT$Selection %in% OutputCompare2$Selection),])
+          OutputCompare2[which(OutputCompare2$detectionType!="TP truth"),9]<-"FN"
+          
+          #Combine tables and remove GT TPs from dataset. Save TPs in other vector 
+          OutputCompareDet<-OutputCompare
+          OutputCompareDet$meantime<-(OutputCompareDet[,4]+OutputCompareDet[,5])/2  
+          OutputCompareDet<-OutputCompareDet[order(OutputCompareDet$meantime),]
+          TPFPs<-OutputCompareDet$detectionType
+          OutputCompare<-rbind(OutputCompare,OutputCompare2)
+          OutputCompare$meantime<-as.numeric(OutputCompare$meantime)
+          OutputCompare<-OutputCompare[order(OutputCompare$meantime),]
+          OutputCompare[which(OutputCompare$detectionType=="TP truth"),9]<-"x"
+          OutputCompare <- subset(OutputCompare,detectionType!="x")
+          OutputCompare$Selection<-seq(1:nrow(OutputCompare))
+          
+          #Ready table for Raven and save. 
+          OutputCompare<- OutputCompare[,-8]
+          OutputCompare<- OutputCompare[,1:8]
+          colnames(OutputCompare)[8]<-'TP/FP/FN'
+          
+          OutputCompare<-OutputCompare[order(OutputCompare$`Begin Time (s)`),]
+          OutputCompare$Selection<-seq(1:nrow(OutputCompare))
+          write.table(OutputCompare,paste(outputpath,runname,"/","AM",mSpec[[s]],"_",MoorVar1$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+          
+          #Make summary table of statistics for table comparison. 
+          numTP<- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
+          numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
+          numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
+          numTPtruth<-nrow(GT)
+          detTotal<-numTP+numFP
+          
+          if(TPR_type=="true"){
+            TPR <- numTPtruth/(numTPtruth+numFN)
+            FPR <- numFP/(numTPtruth+numFP) # 
+          }else if(TPR_type=="relative"){
+            TPR <- numTP/(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1])
+            FPR <- numFP/(numTP+numFP) # 
+          }
+          overboxperc<-overbox/numTP*100
+          multiboxperc<-multibox/numTP*100
+    
+          #save stats and parameters to excel file
+          detecEval<-detecEvalFinal[0,]
+          detecEval[1,]<-c(mSpec[[s]],paste(name,MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCind,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+          detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+          
+          #combine all data:
+          
+          OB<-c(OB,overbox)
+          MB<-c(MB,multibox)
+          
+          Combset<-rbind(Combset,MoorVar1)
       }
     }
-    }
-  }
-  for(s in 1:length(mSpec)){
-  print(paste("3rd loop",s))
-    
-    
-  MoorVar1<-mdata[which(mdata[,nospec+s]>=CUTmean[[s]]),]
-  
-  detTotal<-nrow(MoorVar1)
-  
-  if(any(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor)){
-    
-  MoorVar1 <-MoorVar1[which(paste(mSpec[[s]],MoorVar1$MooringID) %in% TPtottab$MoorCor),]
-    
-    numTP<-sum(MoorVar1$detectionType==paste(mSpec[[s]],"1"))
+  } 
+    #Make summary table of statistics for table comparison. 
+    detTotal<- sum(detecEvalFinal[,6])
+    numTPtruth<-sum(detecEvalFinal[,7])
+    numTP<- sum(detecEvalFinal[,8])
+    numFP <-sum(detecEvalFinal[,9])
+    numFN <- sum(detecEvalFinal[,10])
+    overbox<-sum(OB)
+    multibox<-sum(MB)
+
     if(TPR_type=="true"){
-      numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),2])
+      TPR <- numTPtruth/(numTPtruth+numFN)
+      FPR <- numFP/(numTPtruth+numFP) # 
     }else if(TPR_type=="relative"){
-      numTPtruth<-sum(TPtottab[which(TPtottab$MoorCor %in% paste(mSpec[[s]],unique(MoorVar1$MooringID))),1])
+      TPR <- numTP/sum(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10]))==TPtottab$MoorCor),1])
+      FPR <- numFP/(numTP+numFP) # 
     }
-    numFP<-detTotal-numTP
-    numFN<-numTPtruth-numTP
+    overboxperc<-overbox/numTP*100
+    multiboxperc<-multibox/numTP*100
     
-    TPR <- numTP/(numTP+numFN)
-    FPR <- numFP/(numTP+numFP)
-    TPdivFP<- numTP/numFP
-    
-    detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-    detecEval<-detecEval[0,]
-    detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
-    
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","),paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-    
+    #save stats and parameters to excel file
+    detecEval<-detecEvalFinal[0,]
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all",MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCadj,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEvalFinal <- rbind(detecEvalFinal,detecEval)
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-    detecEvalFinal<-rbind(detecEval2,detecEval)
+    detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
+    
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
     
-    #if(whichRun=="GT"){
-    #  
-    #  if(length(indexxx)==1){
-    #    DeltGini<-0
-    #  }else{
-    #    DeltGini<-giniSave-giniAv
-    #    DeltGini<- sum(abs(DeltGini))
-    #  }
-    #  
-    #  giniSave<<-giniAv
-    # 
-    #  detecEvalExp<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-    #  detecEvalExp<-detecEvalExp[0,]
-    #  detecEvalExp<-data.frame(lapply(detecEvalExp,as.character),stringsAsFactors = FALSE)
-    #  
-    #  detecEvalExp[1,]<-c(experiment,length(indexxx),"ALL","GS","all",TPR,FPR,AUCadj,DeltGini)
-    #  
-    #  detecEvalExp2<-read.csv(paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""))
-    #  detecEvalExpFinal<-rbind(detecEvalExp2,detecEvalExp)
-    #  write.csv(detecEvalExpFinal,paste(outputpath,"AddDataSummaryGS_automate.csv",sep=""),row.names=FALSE)
-    #  
-    #}
-  }else{
-    numTP<-"uk"
-    numTPtruth<-"uk"
-    numFP<-"uk"
-    numFN<-"uk"
     
-    TPR <- "uk"
-    FPR <- "uk"
-    TPdivFP<-"uk"
-    
-    detecEval<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-    detecEval<-detecEval[0,]
-    detecEval<-data.frame(lapply(detecEval,as.character),stringsAsFactors = FALSE)
-    
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
-    
-    detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
-    detecEvalFinal<-rbind(detecEval2,detecEval)
-    write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
-  }
-  }
+    detecEvalFinal<-NULL
+   }
 }
 
 adaptive_compare<-function(Compdata){
@@ -3141,6 +3179,8 @@ GTtot=0
 GTtot2=NULL
 TPtot=NULL
 MoorCor=NULL
+OB=NULL
+MB=NULL
 
 for(s in spec){
 GT<-list()
@@ -3152,8 +3192,8 @@ DetecTab2<-DetecTab[which(DetecTab$Species %in% s),]
 
 #Define table for later excel file export.
 
-colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
-detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTPtruth,numTP, numFP, numFN, TPR, FPR, multiboxperc,overboxperc,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
 
 for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==s),][v,10],"with final detector"))   
@@ -3182,15 +3222,21 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   
   #Identify TPs in data. Criteria is if meantime of detection is between that of GT start and end time
   p=1
+  overbox=0
   for(h in 1:nrow(MoorVar)){
     gvec <- which(GT[[v]]$meantime<(MoorVar$meantime[h]+Maxdur+1)&GT[[v]]$meantime>(MoorVar$meantime[h]-Maxdur-1))
     if(length(gvec)>0){
+    overboxcount=0
     for(g in min(gvec):max(gvec)){
       if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,4] & GT[[v]]$meantime[g]<MoorVar[h,5])){
-        OutputCompare[p,]<-MoorVar[h,c(1:7,19,20)]
-        OutputCompare[p,9]<-"TP"
-        p=p+1
-        break
+        if(overboxcount!=1){
+          OutputCompare[p,]<-MoorVar[h,c(1:7,19,20)]
+          OutputCompare[p,9]<-"TP"
+          p=p+1
+          overboxcount<-1
+        }else{
+          overbox<-overbox+1
+        }
       }
     }
   }
@@ -3203,15 +3249,21 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   
   #Add rows where GT meantime was in between 
   p=1
+  multibox=0
   for(h in 1:nrow(GT[[v]])){
     gvec <- which(MoorVar$meantime<(GT[[v]]$meantime[h]+Maxdur+1)&MoorVar$meantime>(GT[[v]]$meantime[h]-Maxdur-1))
     if(length(gvec)>0){
+      multiboxcount=0
       for(g in min(gvec):max(gvec)){
         if((GT[[v]][h,8]>MoorVar[g,4] & GT[[v]][h,8]<MoorVar[g,5])|((MoorVar$meantime[g]>GT[[v]][h,4]) & (MoorVar$meantime[g]<GT[[v]][h,5]))){
-          OutputCompare2[p,]<-GT[[v]][h,]
-          OutputCompare2[p,9]<-"TP truth"
-          p=p+1
-          break
+          if(multiboxcount!=1){
+            OutputCompare2[p,]<-GT[[v]][h,]
+            OutputCompare2[p,9]<-"TP truth"
+            p=p+1
+            multiboxcount<-1
+          }else{
+            multibox<-multibox+1
+          }
         }
       }
     }
@@ -3254,14 +3306,17 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   TPtot<-c(TPtot,numTP)
   MoorCor<-c(MoorCor,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]))
   GTtot2<-c(GTtot2,nrow(GT[[v]]))
-  
-  TPR <- numTP/(numTP+numFN)
-  FPR <- numFP/(numTP+numFP)
-  TPdivFP<- numTP/numFP
+  OB<-c(OB,overbox)
+  MB<-c(MB,multibox)
+
+  TPR <- numTPtruth/(numTPtruth+numFN)
+  FPR <- numFP/(numTPtruth+numFP)
+  overboxperc<-overbox/numTP*100
+  multiboxperc<-multibox/numTP*100
 
   #save stats and parameters to excel file
   detecEval<-detecEvalFinal[0,]
-  detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+  detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
   MoorVar$detectionType<-TPFPs
@@ -3273,19 +3328,22 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
 }
 
 #Make summary table of whole run statistics for table comparison. 
-numTP <- GTtot
-numFN <- sum(as.numeric(detecEvalFinal[,9]))
-numFP <- sum(as.numeric(detecEvalFinal[,8]))
-detTotal<-sum(as.numeric(detecEvalFinal[,7]))+numFP
+numTP <- sum(as.numeric(detecEvalFinal[,8]))
+numFN <- sum(as.numeric(detecEvalFinal[,10]))
+numFP <- sum(as.numeric(detecEvalFinal[,9]))
+detTotal<-numTP+numFP
+numTPtruth<-sum(GTtot2)
+overbox<-sum(OB)
+multibox<-sum(MB)
 
-
-TPR <- numTP/(numTP+numFN)
-FPR <- numFP/(numTP+numFP)
-TPdivFP<- numTP/numFP
+TPR <- numTPtruth/(numTPtruth+numFN)
+FPR <- numFP/(numTPtruth+numFP)
+overboxperc<-overbox/numTP*100
+multiboxperc<-multibox/numTP*100
 
 #save stats and parameters to excel file
 detecEval<-detecEvalFinal[0,]
-detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
 
 detecEvalFinal <- rbind(detecEvalFinal,detecEval)
  
@@ -3697,13 +3755,6 @@ data3[,15]<-as.factor(data3[,15])
 
 if(compareFinal_w_GT=="y"){
   
-  GTset=NULL
-  
-  GTtot=0
-  GTtot2=NULL
-  TPtot=NULL
-  MoorCor=NULL
-  
   for(s in mSpec){
     GT<-list()
     DetecTab2<-data3
@@ -3717,9 +3768,6 @@ if(compareFinal_w_GT=="y"){
     
     
     #Define table for later excel file export.
-    
-    colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
-    detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
     
     for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
       print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==s),][v,10],"with final detector"))   
@@ -3808,18 +3856,13 @@ data3<-applyLevels(data3,data3Labs)
 
 after_model_write(data3) #need to change to vector 
 
-if(compareFinal_w_GT=="y"){
+if(compareFinal_w_GT=="bagel"){
   
   GTset=NULL
-  
-  GTtot=0
-  GTtot2=NULL
-  TPtot=NULL
-  MoorCor=NULL
-  
+
   for(s in mSpec){
     GT<-list()
-    DetecTab2<-data3[which(data3[,nospec+which(s==mSpec)]>=CUTmean[[which(s==mSpec)]]),]
+    DetecTab2<-Probdata[which(Probdata[,nospec+which(s==mSpec)]>=CUTmean[[which(s==mSpec)]]),]
     for(f in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
         GT[[f]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",MoorInfo[which(MoorInfo[,9]==s),][f,1],"Sum/",MoorInfo[which(MoorInfo[,9]==s),][f,10],".txt",sep=""))
         GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
@@ -3828,8 +3871,8 @@ if(compareFinal_w_GT=="y"){
     
     #Define table for later excel file export.
     
-    colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
-    detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTP, numFP, numFN, TPR, FPR, TPdivFP,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
+    colClasses = c("character","character","character","character","character","numeric","numeric","numeric","numeric","numeric", "numeric","numeric","numeric","numeric","numeric","character","character","character","character","character","character","character","character","character","character","character","character","numeric","numeric","character")
+    detecEvalFinal <- read.csv(text="Species, Moorings, Detectors, DetType, RunName, detTotal, numTPtruth,numTP, numFP, numFN, TPR, FPR, multiboxperc,overboxperc,AUCav,CV_TPRthresh,Greatcall_goodcall,Max_modifier_penalty,ZerosAllowed,GroupSize,DownsweepThresh_DownsweepDiff,SkipAllowance,GroupInterval,TimeDiff,TimeDiffself,MinMaxDur,numDetectors,FO,LMS,Notes", colClasses = colClasses)
     
     for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
       print(paste("Comparing ground truth of",MoorInfo[which(MoorInfo[,9]==s),][v,10],"with final detector"))   
@@ -3845,9 +3888,6 @@ if(compareFinal_w_GT=="y"){
       
       MoorVar$View<-"Spectrogram 1"
       MoorVar$Channel<-1
-      
-      #sum rows of GT to do stats with later
-      GTtot<-sum(GTtot,nrow(GT[[v]]))
       
       #change GT names to match what Raven accepts
       colnames(GT[[v]]) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
@@ -3866,10 +3906,13 @@ if(compareFinal_w_GT=="y"){
         if(length(gvec)>0){
           for(g in min(gvec):max(gvec)){
             if((MoorVar$meantime[h]>GT[[v]][g,4]) & (MoorVar$meantime[h]<GT[[v]][g,5])|(GT[[v]]$meantime[g]>MoorVar[h,2] & GT[[v]]$meantime[g]<MoorVar[h,3])){
-              OutputCompare[p,]<-MoorVar[h,c(1,nospec+which(s==mSpec)+2,nospec+which(s==mSpec)+3,2,3,4,5,17,nospec-2)]
-              OutputCompare[p,9]<-"TP"
-              p=p+1
-              break
+              if(multiboxcount!=1){
+                OutputCompare[p,]<-MoorVar[h,c(1,nospec+which(s==mSpec)+2,nospec+which(s==mSpec)+3,2,3,4,5,17,nospec-2)]
+                OutputCompare[p,9]<-"TP"
+                p=p+1
+                multiboxcount<-1
+              }else{
+                multibox<-multibox+1
             }
           }
         }
@@ -3890,10 +3933,14 @@ if(compareFinal_w_GT=="y"){
         if(length(gvec)>0){
           for(g in min(gvec):max(gvec)){
             if((GT[[v]][h,8]>MoorVar[g,2] & GT[[v]][h,8]<MoorVar[g,3])|(MoorVar$meantime[g]>GT[[v]][h,4] & MoorVar$meantime[g]<GT[[v]][h,5])){
-              OutputCompare2[p,]<-GT[[v]][h,]
-              OutputCompare2[p,9]<-"TP truth"
-              p=p+1
-              break
+              if(multiboxcount!=1){
+                OutputCompare2[p,]<-GT[[v]][h,]
+                OutputCompare2[p,9]<-"TP truth"
+                p=p+1
+                multiboxcount<-1
+              }else{
+                multibox<-multibox+1
+              }
             }
           }
         }
@@ -3925,24 +3972,29 @@ if(compareFinal_w_GT=="y"){
       write.table(OutputCompare,paste(outputpath,runname,"/","AM",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
       
       #Make summary table of statistics for table comparison. 
-      numTP<- nrow(GT[[v]])
+      numTP<- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
       numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
       numFP <- nrow(OutputCompare[which(OutputCompare[,8]=="FP"),])
-      detTotal<-nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])+numFP
+      numTPtruth<-nrow(GT[[v]])
+      detTotal<-numTP+numFP
       
-      TPR <- numTP/(numTP+numFN)
-      FPR <- numFP/(numTP+numFP)
-      TPdivFP<- numTP/numFP
+      TPR <- numTPtruth/(numTPtruth+numFN)
+      FPR <- numFP/(numTPtruth+numFP)
+      overboxperc<-overbox/numTP*100
+      multiboxperc<-multibox/numTP*100
       
       #save stats and parameters to excel file
       detecEval<-detecEvalFinal[0,]
-      detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+      detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
       detecEvalFinal <- rbind(detecEvalFinal,detecEval)
       
       MoorVar$detectionType<-TPFPs
       
       
       #combine all data:
+      
+      OB<-c(OB,overbox)
+      OB<-c(MB,multibox)
       
       GTset<-rbind(GTset,MoorVar)
     }
@@ -3953,23 +4005,26 @@ if(compareFinal_w_GT=="y"){
     GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<-2
     
     #Make summary table of whole run statistics for table comparison. 
-    numTP <- sum(as.numeric(detecEvalFinal[,7]))
+    numTP <- sum(as.numeric(detecEvalFinal[,8]))
     if(TPR_type=="true"){
       numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),2]
     }else if(TPR_type=="relative"){
       numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),1]
     }
-    numFP <- sum(as.numeric(detecEvalFinal[,8]))
+    numFP <- sum(as.numeric(detecEvalFinal[,9]))
     detTotal<-numTP+numFP
-    numFN<-sum(as.numeric(detecEvalFinal[,9]))
+    numFN<-sum(as.numeric(detecEvalFinal[,10]))
+    overbox<-sum(OB)
+    multibox<-sum(MB)
     
-    TPR <- numTP/(numTP+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
-    FPR <- numFP/(numTP+numFP) # 
-    TPdivFP<- numTP/numFP
+    TPR <- numTPtruth/(numTPtruth+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
+    FPR <- numFP/(numTPtruth+numFP) # 
+    overboxperc<-overbox/numTP*100
+    multiboxperc<-multibox/numTP*100
     
     #save stats and parameters to excel file
     detecEval<-detecEvalFinal[0,]
-    detecEval[1,]<-c(s,"all",paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTP,numFP,numFN,TPR,FPR,TPdivFP,AUCadj,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(s,paste(name,MoorVar1[1,"MooringID"]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,TPdivFP,AUCind,paste(CV,TPRthresh,sep=","),paste(greatcallThresh,-maxPenalty,sep=","),paste(maxBonus,goodcallBonus,badcallPenalty,sep=","), paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     
     detecEvalFinal <- rbind(detecEvalFinal,detecEval)
     
@@ -3994,7 +4049,7 @@ if(compareFinal_w_GT=="y"){
     
   }
   #translate response to binary 
-
+}
   
 }
   
