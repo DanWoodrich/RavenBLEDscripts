@@ -3503,13 +3503,14 @@ probIndex<-nospec+(3*s-2)
 varIndex<-nospec+(3*s-1)
   
 #get these out of the way so I can remove mostly useless std.err and n from dataframe
-plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),varIndex], col = "red",main=mSpec[s],cex=0.25)
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),varIndex], col = "red",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution Negatives")
+abline(v=CUTmeanspec)
+legend()
+
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),varIndex], col = "blue",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution Positives")
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),varIndex], col = "blue",main=mSpec[s],cex=0.25)
-abline(v=CUTmeanspec)
-
-plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),main=mSpec[s],cex=0.25)
+plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution All")
 abline(v=CUTmeanspec)
 }
 
@@ -3582,12 +3583,6 @@ auc.perf = performance(predd2, measure = "auc",plot=F)
 print(auc.perf@y.values)
 
 AUCadj<-c(AUCadj,auc.perf@y.values)
-
-#temporary
-#plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", print.cutoffs.at=c(0.35,0.4,0.5,0.6,0.7,0.8,0.9,0.99),
-#     cutoff.label.function = function(x) return(paste("              ",x)),
-#     lwd = 2, main = paste("ROC for Average Gunshot Random Forest Classifier"),colorize=F)
-#abline(a=0, b= 1)
 
 #plot of probabilities after context sim:
 for(m in unique(dataSPEC[,6])){
