@@ -1670,12 +1670,12 @@ after_model_write <-function(mdata){
           numTPtruth<-nrow(GT)
           detTotal<-numTP+numFP
           
+          FPR <- numFP/(numTP+numFP) # 
+          
           if(TPR_type=="true"){
             TPR <- numTPtruth/(numTPtruth+numFN)
-            FPR <- numFP/(numTPtruth+numFP) # 
           }else if(TPR_type=="relative"){
             TPR <- numTP/(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1])
-            FPR <- numFP/(numTP+numFP) # 
           }
           overboxperc<-overbox/numTP*100
           multiboxperc<-multibox/numTP*100
@@ -1703,12 +1703,12 @@ after_model_write <-function(mdata){
     overbox<-sum(OB)
     multibox<-sum(MB)
 
+    FPR <- numFP/(numTP+numFP) # 
     if(TPR_type=="true"){
       TPR <- numTPtruth/(numTPtruth+numFN)
-      FPR <- numFP/(numTPtruth+numFP) # 
     }else if(TPR_type=="relative"){
       TPR <- numTP/sum(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10]))==TPtottab$MoorCor),1])
-      FPR <- numFP/(numTP+numFP) # 
+
     }
     overboxperc<-overbox/numTP*100
     multiboxperc<-multibox/numTP*100
@@ -3310,7 +3310,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   MB<-c(MB,multibox)
 
   TPR <- numTPtruth/(numTPtruth+numFN)
-  FPR <- numFP/(numTPtruth+numFP)
+  FPR <- numFP/(numTP+numFP)
   overboxperc<-overbox/numTP*100
   multiboxperc<-multibox/numTP*100
 
@@ -3582,6 +3582,12 @@ auc.perf = performance(predd2, measure = "auc",plot=F)
 print(auc.perf@y.values)
 
 AUCadj<-c(AUCadj,auc.perf@y.values)
+
+#temporary
+#plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", print.cutoffs.at=c(0.35,0.4,0.5,0.6,0.7,0.8,0.9,0.99),
+#     cutoff.label.function = function(x) return(paste("              ",x)),
+#     lwd = 2, main = paste("ROC for Average Gunshot Random Forest Classifier"),colorize=F)
+#abline(a=0, b= 1)
 
 #plot of probabilities after context sim:
 for(m in unique(dataSPEC[,6])){
