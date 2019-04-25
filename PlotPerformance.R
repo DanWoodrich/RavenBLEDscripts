@@ -7,7 +7,7 @@ makeTransparent<-function(someColor, alpha=100)
                                               blue=curcoldata[3],alpha=alpha, maxColorValue=255)})
 }
 
-data<-read.csv("E:/DetectorRunOutput/AddDataSummaryRW_automate.csv")
+data<-read.csv("E:/DetectorRunOutput/AddDataSummaryGS_automate.csv")
 
 dataGT<-data[which(data$Type=="GT"),]
 dataNEW<-data[which(data$Type=="NEW"),]

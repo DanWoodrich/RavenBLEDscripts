@@ -37,14 +37,14 @@ legend("topright",
 
 plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution All")
 abline(v=CUTmeanspec)
-
+plot.new()
 legend("topright", 
        legend = c("Negatives", "Positives"), 
        col = c("red","blue"), 
        pch = c(15,15), 
        bty = "n", 
-       pt.cex = 2, 
-       cex = 1.2, 
+       pt.cex = 10, 
+       cex = 6, 
        text.col = "black", 
        horiz = F , 
        inset = c(0.1, 0.1))
