@@ -1673,7 +1673,7 @@ after_model_write <-function(mdata){
           FPR <- numFP/(numTP+numFP) # 
           
           if(TPR_type=="true"){
-            TPR <- numTPtruth/(numTPtruth+numFN)
+            TPR <- (numTPtruth-numFN)/(numTPtruth)
           }else if(TPR_type=="relative"){
             TPR <- numTP/(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1])
           }
@@ -1705,7 +1705,7 @@ after_model_write <-function(mdata){
 
     FPR <- numFP/(numTP+numFP) # 
     if(TPR_type=="true"){
-      TPR <- numTPtruth/(numTPtruth+numFN)
+      TPR <- (numTPtruth-numFN)/(numTPtruth)
     }else if(TPR_type=="relative"){
       TPR <- numTP/sum(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10]))==TPtottab$MoorCor),1])
 
@@ -3309,7 +3309,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   OB<-c(OB,overbox)
   MB<-c(MB,multibox)
 
-  TPR <- numTPtruth/(numTPtruth+numFN)
+  TPR <- (numTPtruth-numFN)/(numTPtruth)
   FPR <- numFP/(numTP+numFP)
   overboxperc<-overbox/numTP*100
   multiboxperc<-multibox/numTP*100
@@ -3336,7 +3336,7 @@ numTPtruth<-sum(GTtot2)
 overbox<-sum(OB)
 multibox<-sum(MB)
 
-TPR <- numTPtruth/(numTPtruth+numFN)
+TPR <- (numTPtruth-numFN)/(numTPtruth)
 FPR <- numFP/(numTPtruth+numFP)
 overboxperc<-overbox/numTP*100
 multiboxperc<-multibox/numTP*100
@@ -3503,14 +3503,13 @@ probIndex<-nospec+(3*s-2)
 varIndex<-nospec+(3*s-1)
   
 #get these out of the way so I can remove mostly useless std.err and n from dataframe
-plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),varIndex], col = "red",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution Negatives")
-abline(v=CUTmeanspec)
-legend()
-
-plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),varIndex], col = "blue",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution Positives")
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],0)),varIndex], col = "red",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Upsweep Random Forest Classifier Distribution Negatives")
 abline(v=CUTmeanspec)
 
-plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Gunshot Random Forest Classifier Distribution All")
+plot(dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),probIndex],dataSPEC[which(dataSPEC$detectionType==paste(mSpec[s],1)),varIndex], col = "blue",cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Upsweep Random Forest Classifier Distribution Positives")
+abline(v=CUTmeanspec)
+
+plot(dataSPEC[,probIndex],dataSPEC[,varIndex], col = ifelse(dataSPEC$detectionType==paste(mSpec[s],1),'blue','red'),cex=0.25,xlab="Average probability of true detection",ylab="Average standard error",main="Average Upsweep Random Forest Classifier Distribution All")
 abline(v=CUTmeanspec)
 }
 
@@ -3979,8 +3978,8 @@ if(compareFinal_w_GT=="bagel"){
       numTPtruth<-nrow(GT[[v]])
       detTotal<-numTP+numFP
       
-      TPR <- numTPtruth/(numTPtruth+numFN)
-      FPR <- numFP/(numTPtruth+numFP)
+      TPR <- (numTPtruth-numFN)/(numTPtruth)
+      FPR <- numFP/(numTP+numFP)
       overboxperc<-overbox/numTP*100
       multiboxperc<-multibox/numTP*100
       
@@ -4018,8 +4017,8 @@ if(compareFinal_w_GT=="bagel"){
     overbox<-sum(OB)
     multibox<-sum(MB)
     
-    TPR <- numTPtruth/(numTPtruth+numFN) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
-    FPR <- numFP/(numTPtruth+numFP) # 
+    TPR <- (numTPtruth-numFN)/(numTPtruth) #should be numTP/GTtot to be consistent with the way TPR is calculated in test model section
+    FPR <- numFP/(numTP+numFP) # 
     overboxperc<-overbox/numTP*100
     multiboxperc<-multibox/numTP*100
     
