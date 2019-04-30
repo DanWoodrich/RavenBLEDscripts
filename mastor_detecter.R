@@ -1515,7 +1515,7 @@ after_model_write <-function(mdata){
         
         AUCind<-c(auc.perf@y.values)
       }else{
-        AUCadj<-AUCind
+        AUCind<-AUCadj
       }
         
       MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
@@ -3820,6 +3820,8 @@ if(compareFinal_w_GT=="y"){
       AUCadj<-auc.perf@y.values
     }
   }
+}else{
+  AUCadj<-"NA"
 }
 
       
