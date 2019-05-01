@@ -1671,12 +1671,8 @@ after_model_write <-function(mdata){
           detTotal<-numTP+numFP
           
           FPR <- numFP/(numTP+numFP) # 
-          
-          if(TPR_type=="true"){
-            TPR <- (numTPtruth-numFN)/(numTPtruth)
-          }else if(TPR_type=="relative"){
-            TPR <- numTP/(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10])[v])==TPtottab$MoorCor),1])
-          }
+          TPR <- (numTPtruth-numFN)/(numTPtruth)
+
           overboxperc<-overbox/numTP*100
           multiboxperc<-multibox/numTP*100
     
@@ -1704,12 +1700,8 @@ after_model_write <-function(mdata){
     multibox<-sum(MB)
 
     FPR <- numFP/(numTP+numFP) # 
-    if(TPR_type=="true"){
-      TPR <- (numTPtruth-numFN)/(numTPtruth)
-    }else if(TPR_type=="relative"){
-      TPR <- numTP/sum(TPtottab[which(paste(mSpec[s],unique(MoorInfo[,10]))==TPtottab$MoorCor),1])
+    TPR <- (numTPtruth-numFN)/(numTPtruth)
 
-    }
     overboxperc<-overbox/numTP*100
     multiboxperc<-multibox/numTP*100
     
@@ -4008,11 +4000,8 @@ if(compareFinal_w_GT=="bagel"){
     
     #Make summary table of whole run statistics for table comparison. 
     numTP <- sum(as.numeric(detecEvalFinal[,8]))
-    if(TPR_type=="true"){
-      numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),2]
-    }else if(TPR_type=="relative"){
-      numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),1]
-    }
+    numTPtruth<-TPtottab[which(paste(s,unique(MoorInfo[,10]))==TPtottab$MoorCor),2]
+
     numFP <- sum(as.numeric(detecEvalFinal[,9]))
     detTotal<-numTP+numFP
     numFN<-sum(as.numeric(detecEvalFinal[,10]))
