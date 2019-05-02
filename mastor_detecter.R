@@ -273,10 +273,22 @@ lastFeature<-function(a,b){
 decimateData<-function(m,oldPath,sfpath){
   print(paste("decimate folder",oldPath))
   
-  fstart<-MoorInfo[m,2]
-  fend<-MoorInfo[m,3]
-    for(z in dir(oldPath,pattern=".wav")[fstart:fend]){
-      print(paste(z,"to",sfpath))
+  fstart<<-MoorInfo[m,2]
+  fend<<-MoorInfo[m,3]
+  
+  oldPath<<-oldPath
+  thispath<<-sfpath
+  
+  print(paste("Decimating data to",sfpath))
+  
+  if(parallelType=="local"){
+    startLocalPar("oldPath","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","decimationSteps")
+  }
+  
+  #print("extracting spectral parameters")
+  foreach(z=dir(oldPath,pattern=".wav"), .packages=c("signal","tuneR")) %dopar% {
+    
+    #for(z in dir(oldPath,pattern=".wav")[fstart:fend]){
       wav<-readWave(paste(oldPath,"/",z,sep=""),unit="sample")
       wav.samp.rate<-wav@samp.rate
       if(wav@samp.rate<16384){
@@ -294,9 +306,13 @@ decimateData<-function(m,oldPath,sfpath){
         
         wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
 
-        writeWave.nowarn(wav, filename=paste(sfpath,"/",z,sep=""),extensible = FALSE)
-      }
-      write.table(paste("This data has been decimated by factor of",decdo),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
+        writeWave.nowarn(wav, filename=paste(thispath,"/",z,sep=""),extensible = FALSE)
+      #}
+  }
+  if(parallelType=="local"){
+    parallel::stopCluster(cluz)
+  }
+      #write.table(paste("This data has been decimated by factor of",decdo),paste(sfpath,"/decimationStatus.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE,col.names=FALSE)
       
 }
 
