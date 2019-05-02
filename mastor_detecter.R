@@ -3018,7 +3018,6 @@ addToMaster<-"n"
 }
 useMasterGT<<-ControlTab[which(ControlTab[,2]=="useMasterGT"),3] 
 runAdaptive_compare<<-ControlTab[which(ControlTab[,2]=="runAdaptive_compare"),3] 
-TPR_type<<-ControlTab[which(ControlTab[,2]=="TPR_type"),3] 
 
 
 runNEW<-ControlTab[which(ControlTab[,2]=="runNEW"),3]

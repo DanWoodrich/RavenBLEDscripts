@@ -27,9 +27,9 @@ RW algo,downsweepCompMod,2,factor which helps determine if group will be analyze
 RW algo,downsweepCompAdjust,4,constant which compares upsweep size to downsweep size to see if group will be excluded. Higher value is less conservative
 Adaptive Compare,timediffself,1.25,max secs that detections can be apart to be combined within detectors
 Adaptive Compare,probdist,0.2,max difference in probability difference to be combined within detectors. Otherwise will only take higher prob detection
-GT,GTmoorings,AW12_AU_BS3,moorings in GT dataset you want to run. Can ignore parameter if running on full mooring
-GT,GTsf,full,"Files in moorings in GT dataset you want to run. Can ignore parameter if running on full mooring. ""full"" if want all files from path, or file names instead of position"
-GT,GTpath,HG_datasets,Vector of source folder for files 
-GT,GTpath2,RW,"Source HG folder. ""NULL"" if for full dataset  "
-GT,GTsourceFormat,open,"vector ""open"" or ""month"" (ie open,month,open) organization option for file organization"
+GT,GTmoorings,"BS15_AU_02a,BS14_AU_04,AW12_AU_BS3,BS13_AU_04,BS16_AU_02a,BS15_AU_02b,AW14_AU_BS3,AL16_AU_BS1,BS13_AU_02a,BS16_AU_05,BS15_AU_04,AW14_AU_BS2",moorings in GT dataset you want to run. Can ignore parameter if running on full mooring
+GT,GTsf,"1:104,full,full,full,1:175,full,1:160,full,full,full,301:417,full","Files in moorings in GT dataset you want to run. Can ignore parameter if running on full mooring. ""full"" if want all files from path, or file names instead of position"
+GT,GTpath,"HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets",Vector of source folder for files 
+GT,GTpath2,"RW,RW,RW,RW,RW,RW,RW,RW,RW,RW,RW,RW","Source HG folder. ""NULL"" if for full dataset  "
+GT,GTsourceFormat,"open,open,open,open,open,open,open,open,open,open,open,open","vector ""open"" or ""month"" (ie open,month,open) organization option for file organization"
 Image Analysis,ImgThresh,65,threshold that will be excluded during image thresholding
