@@ -2839,6 +2839,9 @@ combineDecRaven<-function(){
           dir.create(sfpath)
         }
         decimateData(m,sound_filesfullpath,sound_files,sfpath)
+        
+        sound_files <- dir(sfpath,pattern=".wav")
+        sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
       }
       
       if(length(sound_files)>=fileCombinesize){
