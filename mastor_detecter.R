@@ -258,7 +258,7 @@ decimateData<-function(m,Filez,FilezJustNames,sfpath){
   FilezJustNames<<-FilezJustNames
   
   if(parallelType=="local"){
-    startLocalPar("Filez","FilezJustNames","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","decimationSteps")
+    startLocalPar("Filez","FilezJustNames","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","write_4byte_unsigned_int","write_longvector","decimationSteps")
   }
   
   #print("extracting spectral parameters")
@@ -476,6 +476,9 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
         lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets" & sourceFormat[n]=="open"){
         lookup<-paste(drivePath,path[n],moorings[n],sep="/")
+        if(length(list.files(lookup,pattern=".wav"))==0){
+        lookup<-paste(lookup,"/",moorings[n],"_files_All_decimate_by_",decimationFactor,sep="")
+        }
       }else if(path[n]=="Full_datasets" & sourceFormat[n]=="month"){
         lookup<-NULL
       }
@@ -486,7 +489,9 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
         }
         #save this section for when I am looking at a folder with months in it. 
       }else if(sourceFormat[n]=="open"){
+        if(length(list.files(lookup,pattern=".wav"))>0){
         fileEnd<-length(list.files(lookup,pattern=".wav"))
+        }
       }
       sf[n]<-paste(1,fileEnd,sep=":")
     }
@@ -505,6 +510,9 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
         lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
         lookup<-paste(drivePath,path[n],moorings[n],sep="/")
+        if(length(list.files(lookup,pattern=".wav"))==0){
+          lookup<-paste(lookup,"/",moorings[n],"_files_",sf1,"-",sf2,"_decimate_by_",decimationFactor,sep="")
+        }
       }
 
       fileStart<-which(list.files(lookup,pattern=".wav")==sf1)
@@ -530,6 +538,14 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
       lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
     }else if(path[n]=="Full_datasets"){
       lookup<-paste(drivePath,path[n],moorings[n],sep="/")
+      if(length(list.files(lookup,pattern=".wav"))==0){
+        lookup1<-paste(lookup,"/",moorings[n],"_files_All_decimate_by_",decimationFactor,sep="")
+        if(length(list.files(lookup1,pattern=".wav"))==0){
+          lookup<-paste(lookup,"/",moorings[n],"_files_",sf1,"-",sf2,"_decimate_by_",decimationFactor,sep="")
+        }else{
+          lookup<-lookup1
+        }
+      }
     }
     
     if(sourceFormat[n]!="month"){
