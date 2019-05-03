@@ -47,35 +47,10 @@ library(stringr)
 ###############################
 #run this stuff so I can know whether to start azure parallel. Run it again later to populate cluster w variable. 
 #dumb conditional so I don't have to change path from machine to machine
-if(dir.exists("C:/Users/ACS-3")){
-  user<-"ACS-3"
-  drivepath<-"F:/"
-  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
-  
-}else if(dir.exists("C:/Users/danby456")){
-  user<-"danby456"
-  drivepath<-"E:/"
-  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
-  
-}else if(dir.exists("C:/Users/Daniel.Woodrich")){
-  user<-"Daniel.Woodrich"
-  drivepath<-"E:/"
-  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/RavenBLEDscripts/"
-}
 
-startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
-BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
-ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
-outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
-outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
-
-###############input parameters
-#detector control
-ControlTab<-read.csv(paste(gitPath,"Data/CallParams/Detector_control.csv",sep=""))
-ControlTab[,3]<-as.character(ControlTab[,3])
 #####################################
 
-parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
+#parallelType<- ControlTab[which(ControlTab[,2]=="parallelType"),3]
 
 #if(parallelType=="azure"){
 #  
@@ -270,26 +245,27 @@ lastFeature<-function(a,b){
 
 
 #decimate dataset. 
-decimateData<-function(m,oldPath,sfpath){
-  print(paste("decimate folder",oldPath))
-  
+decimateData<-function(m,Filez,FilezJustNames,sfpath){
+
+  print(paste("decimating data to",sfpath))
+
   fstart<<-MoorInfo[m,2]
   fend<<-MoorInfo[m,3]
   
-  oldPath<<-oldPath
-  thispath<<-sfpath
   
-  print(paste("Decimating data to",sfpath))
+  thispath<<-sfpath
+  Filez<<-Filez
+  FilezJustNames<<-FilezJustNames
   
   if(parallelType=="local"){
-    startLocalPar("oldPath","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","decimationSteps")
+    startLocalPar("Filez","FilezJustNames","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","decimationSteps")
   }
   
   #print("extracting spectral parameters")
-  foreach(z=dir(oldPath,pattern=".wav"), .packages=c("signal","tuneR")) %dopar% {
+  foreach(z=Filez[fstart:fend], .packages=c("signal","tuneR")) %dopar% {
     
     #for(z in dir(oldPath,pattern=".wav")[fstart:fend]){
-      wav<-readWave(paste(oldPath,"/",z,sep=""),unit="sample")
+      wav<-readWave(z,unit="sample")
       wav.samp.rate<-wav@samp.rate
       if(wav@samp.rate<16384){
         dfact<-16384/wav@samp.rate
@@ -306,7 +282,7 @@ decimateData<-function(m,oldPath,sfpath){
         
         wav <- Wave(wav, right = numeric(0), samp.rate = 16384/decimationFactor)
 
-        writeWave.nowarn(wav, filename=paste(thispath,"/",z,sep=""),extensible = FALSE)
+        writeWave.nowarn(wav, filename=paste(thispath,"/",FilezJustNames[which(Filez==z)],sep=""),extensible = FALSE)
       #}
   }
   if(parallelType=="local"){
@@ -492,39 +468,48 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
   type<-rep("partial",length(sf))
   type[which(status)]<-"all"
   
+  
   if(any(sf=="full")){
     for(n in which(sf=="full")){
+      
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
-      }else if(path[n]=="Full_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],sep="/")
+        lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
+      }else if(path[n]=="Full_datasets" & sourceFormat[n]=="open"){
+        lookup<-paste(drivePath,path[n],moorings[n],sep="/")
+      }else if(path[n]=="Full_datasets" & sourceFormat[n]=="month"){
+        lookup<-NULL
       }
       if(sourceFormat[n]=="month"){
+        fileEnd<-0
+        for(i in dir(paste(dataPath,"/",moorings[n],sep=""))){
+          fileEnd<-fileEnd+length(dir(paste(dataPath,moorings[n],i,sep="/")))
+        }
         #save this section for when I am looking at a folder with months in it. 
       }else if(sourceFormat[n]=="open"){
         fileEnd<-length(list.files(lookup,pattern=".wav"))
-        sf[n]<-paste(1,fileEnd,sep=":")
       }
+      sf[n]<-paste(1,fileEnd,sep=":")
     }
   }
   
   #test for file name formatting and convert to numeric
   if(any(!grepl("[^A-Za-z]", sf))){
     for(n in which(!grepl("[^A-Za-z]", sf))){
+      if(sourceFormat[n]=="month"){
+        stop("Bounding the files numerically within month folders isn't supported. Load the files into a single folder on your own drive.")
+        #save this section for when I am looking at a folder with months in it.  
+      }
       sf1<-c(as.character(str_split(sf[n],":",simplify=TRUE)[1]))
       sf2<-c(as.character(str_split(sf[n],":",simplify=TRUE)[2]))
       if(path[n]=="HG_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
+        lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
       }else if(path[n]=="Full_datasets"){
-        lookup<-paste(drivepath,path[n],moorings[n],sep="/")
+        lookup<-paste(drivePath,path[n],moorings[n],sep="/")
       }
-      if(sourceFormat[n]=="month"){
-        #save this section for when I am looking at a folder with months in it.  
-      }else if(sourceFormat[n]=="open"){
-        fileStart<-which(list.files(lookup,pattern=".wav")==sf1)
-        fileEnd<-which(list.files(lookup,pattern=".wav")==sf2)
-        sf[n]<-paste(fileStart,fileEnd,sep=":")
-      }
+
+      fileStart<-which(list.files(lookup,pattern=".wav")==sf1)
+      fileEnd<-which(list.files(lookup,pattern=".wav")==sf2)
+      sf[n]<-paste(fileStart,fileEnd,sep=":")
     }
   }
   
@@ -539,16 +524,20 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
   sf3<-list()
   sf4<-list()
   for(n in 1:length(sf)){
-    if(path[n]=="HG_datasets"){
-      lookup<-paste(drivepath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
-    }else if(path[n]=="Full_datasets"){
-      lookup<-paste(drivepath,path[n],moorings[n],sep="/")
-    }
     if(sourceFormat[n]=="month"){
-      #save this section for when I am looking at a folder with months in it. 
-    }else if(sourceFormat[n]=="open"){
-      sf3[[n]]<-list.files(lookup,pattern=".wav")[sf1[[n]]]
-      sf4[[n]]<-list.files(lookup,pattern=".wav")[sf2[[n]]]
+      #do nothing
+    }else if(path[n]=="HG_datasets"){
+      lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
+    }else if(path[n]=="Full_datasets"){
+      lookup<-paste(drivePath,path[n],moorings[n],sep="/")
+    }
+    
+    if(sourceFormat[n]!="month"){
+    sf3[[n]]<-list.files(lookup,pattern=".wav")[sf1[[n]]]
+    sf4[[n]]<-list.files(lookup,pattern=".wav")[sf2[[n]]]
+    }else{
+      sf3[[n]]<-"uk"
+      sf4[[n]]<-"uk"
     }
   }
   
@@ -890,7 +879,7 @@ BP_algo<-function(groupdat){
 sox.write<-function(numPass,m,b,pathh,sound_filesfullpathB,combSound,durTab,pad,bigFile_breaks,sound_filesB,durTab2){
 dir.create(paste(pathh,sep=""))
 print(paste("Creating file ",MoorInfo[m,10],"_",bigFile_breaks[b],sep=""))
-sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivepath,"Accessory/sox-14-4-2",sep=""))
+sox_alt(paste(noquote(paste(paste(sound_filesfullpathB,collapse=" ")," ",combSound,sep=""))),exename="sox.exe",path2exe=paste(drivePath,"Accessory/sox-14-4-2",sep=""))
 durList<-duration_store(numPass,m,sound_filesfullpathB,durTab,pad,sound_filesB,durTab2)
 if(numPass==1){
   return(durList[[1]])
@@ -2799,25 +2788,25 @@ combineDecRaven<-function(){
     
     if(whiten=="n"){
       if(MoorInfo[m,7]=="HG_datasets"){
-        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+        if(Decimate=="y"&file.exists(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
           decNeeded<-"n"
-        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
+        }else if(Decimate=="y"&!file.exists(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/"))){
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
           decNeeded<-"y"
         }else if(Decimate=="n"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/")
           decNeeded<-"n"
         }
       }else if(MoorInfo[m,7]=="Full_datasets"){
-        if(Decimate=="y"&file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
+        if(Decimate=="y"&file.exists(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
           decNeeded<-"n"
-        }else if(Decimate=="y"&!file.exists(paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
-          sfpath<-paste(drivepath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
+        }else if(Decimate=="y"&!file.exists(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/"))){
+          sfpath<-paste(drivePath,MoorInfo[m,7],"/",MoorInfo[m,1],sep = "")
           decNeeded<-"y"
         }else if(Decimate=="n"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],sep = "/")
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],sep = "/")
           decNeeded<-"n"
         }
       }
@@ -2826,28 +2815,30 @@ combineDecRaven<-function(){
       if(MoorInfo[m,8]=="open"){
         sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
         sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
-      }else if(MoorInfo[m,8]=="month"&decNeeded=="y"){ #assuming month wil only be used when acthing on full moorings. If a different use case conditionals may not work. 
+      }else if(MoorInfo[m,8]=="month"){ #assuming month wil only be used when acthing on full moorings. If a different use case conditionals may not work. 
         sound_files<-c()
-        sound_filesfullpath<-
-        allMonths<-dir(sfpath)
+        sound_filesfullpath<-c()
+        allMonths<-dir(paste(dataPath,"/",MoorInfo[m,1],sep=""))
         for(i in allMonths){
-          sound_files<-c(soundfiles,dir(paste(sfpath,i,sep="/"),pattern=".wav"))
-          sound_filesfullpath<-c(sound_filesfullpath,paste(sfpath,i,dir(paste(sfpath,i,sep="/"),pattern=".wav"),sep="/"))
+          sound_files<-c(sound_files,dir(paste(dataPath,"/",MoorInfo[m,1],"/",i,sep=""),pattern=".wav"))
+          sound_filesfullpath<-c(sound_filesfullpath,paste(paste(dataPath,"/",MoorInfo[m,1],sep=""),i,dir(paste(dataPath,"/",MoorInfo[m,1],"/",i,sep=""),pattern=".wav"),sep="/"))
         }
-        sound_files <- NULL #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
-        sound_filesfullpath<-NULL
+        sound_files <- sound_files[order(sound_files)] #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
+        sound_filesfullpath<-sound_filesfullpath[order(sound_filesfullpath)]
       }
       
       if(decNeeded=="y"){
-        oldPath<-sfpath
         if(MoorInfo[m,7]=="HG_datasets"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
+          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1]),sep="/")
+          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep="")))
           dir.create(sfpath)
         }else if(MoorInfo[m,7]=="Full_datasets"){
-          sfpath<-paste(drivepath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
+          sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
+          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],sep="/"))
           dir.create(sfpath)
         }
-        decimateData(m,oldPath,sfpath)
+        decimateData(m,sound_filesfullpath,sound_files,sfpath)
       }
       
       if(length(sound_files)>=fileCombinesize){
@@ -2992,34 +2983,30 @@ combineDecRaven<-function(){
 
 
 #############################################################################
-
-#dumb conditional so I don't have to change path from machine to machine
 if(dir.exists("C:/Users/ACS-3")){
-  user<-"ACS-3"
-  drivepath<-"F:/"
-  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
-  
+  gitPath<-paste(drivePath,"RavenBLEDscripts/",sep="")
 }else if(dir.exists("C:/Users/danby456")){
   user<-"danby456"
-  drivepath<-"E:/"
-  gitPath<-paste(drivepath,"RavenBLEDscripts/",sep="")
-  
 }else if(dir.exists("C:/Users/Daniel.Woodrich")){
-  user<-"Daniel.Woodrich"
-  drivepath<-"E:/"
   gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/RavenBLEDscripts/"
 }
 
-startcombpath<-paste(drivepath,"Combined_sound_files/",sep="")
-BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
-ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
-outputpath<-paste(drivepath,"DetectorRunOutput/",sep="")
-outputpathfiles<-paste(drivepath,"DetectorRunFiles/",sep="")
+user<-"Daniel.Woodrich"
 
 ###############input parameters
 #detector control
 ControlTab<-read.csv(paste(gitPath,"Data/CallParams/Detector_control.csv",sep=""))
 ControlTab[,3]<-as.character(ControlTab[,3])
+
+#Pathing
+drivePath<-ControlTab[which(ControlTab[,2]=="drivePath"),3]
+dataPath<-ControlTab[which(ControlTab[,2]=="dataPath"),3]
+
+startcombpath<-paste(drivePath,"Combined_sound_files/",sep="")
+BLEDpath<-paste("C:/Users/",user,"/Raven Pro 1.5/Presets/Detector/Band Limited Energy Detector/",sep="")
+ravenpath<-paste("C:/Users/",user,"/Raven Pro 1.5",sep="")
+outputpath<-paste(drivePath,"DetectorRunOutput/",sep="")
+outputpathfiles<-paste(drivePath,"DetectorRunFiles/",sep="")
 
 #General
 runname<- ControlTab[which(ControlTab[,2]=="runname"),3]
@@ -3635,8 +3622,6 @@ whichRun<-"NEW"
 resltsTabF <- NULL
 MoorInfoMspec<-NULL
 s<-spec
-MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
-MoorInfo<-data.frame(MoorInfo)
 
 for(s in spec){
 
@@ -3648,7 +3633,7 @@ for(s in spec){
   MoorInfo<-makeMoorInfo(NEWmoorings,NEWsf,NEWpath,NEWpath2,NEWsourceFormat,s)
   MoorInfo<-data.frame(MoorInfo)
   MoorInfoMspec<-rbind(MoorInfoMspec,MoorInfo)
-    
+
   resltsTabS<-combineDecRaven()
   resltsTabF<-rbind(resltsTabF,resltsTabS)
 }
