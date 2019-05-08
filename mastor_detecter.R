@@ -218,6 +218,10 @@ lastFeature<-function(a,b){
   
   ## get frequency windows length for smoothing
   step <- a/128/1000
+  if(a<256){
+  step <- a/64/1000
+  }
+
   fsmooth = 0.1
   fsmooth <- fsmooth/step
   
@@ -249,8 +253,8 @@ decimateData<-function(m,Filez,FilezJustNames,sfpath){
 
   print(paste("decimating data to",sfpath))
 
-  fstart<<-MoorInfo[m,2]
-  fend<<-MoorInfo[m,3]
+  #fstart<<-MoorInfo[m,2]
+  #fend<<-MoorInfo[m,3]
   
   
   thispath<<-sfpath
@@ -258,11 +262,11 @@ decimateData<-function(m,Filez,FilezJustNames,sfpath){
   FilezJustNames<<-FilezJustNames
   
   if(parallelType=="local"){
-    startLocalPar("Filez","FilezJustNames","thispath","fstart","fend","prime.factor","decimationFactor","writeWave.nowarn","write_4byte_unsigned_int","write_longvector","decimationSteps")
+    startLocalPar("Filez","FilezJustNames","thispath","prime.factor","decimationFactor","writeWave.nowarn","write_4byte_unsigned_int","write_longvector","decimationSteps")
   }
   
   #print("extracting spectral parameters")
-  foreach(z=Filez[fstart:fend], .packages=c("signal","tuneR")) %dopar% {
+  foreach(z=Filez, .packages=c("signal","tuneR")) %dopar% {
     
     #for(z in dir(oldPath,pattern=".wav")[fstart:fend]){
       wav<-readWave(z,unit="sample")
@@ -409,6 +413,14 @@ loadSpecVars<-function(whichSpec){
     
   }
   
+  if(whichSpec=="LM"){
+    #do nothing for now 
+    timesepGS<<-NULL #placeholder so that I can export variable for parallel 
+    timesepBP<<-NULL
+    downsweepCompMod<<-NULL #placeholder so that I can export variable for parallel 
+    downsweepCompAdjust<<-NULL #placeholder so that I can export variable for parallel 
+  }
+  
   #Image analysis
   ImgThresh<<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
   
@@ -450,6 +462,8 @@ loadSpecVars<-function(whichSpec){
     ravenView<<-"RW_Upcalls"
   }else if(whichSpec=="GS"|whichSpec=="BP"){
     ravenView<<-"RW_GS"
+  }else if(whichSpec=="LM"){
+    ravenView<<-"LMfreq"
   }
   
   if(Decimate=="y"){
@@ -595,6 +609,8 @@ parAlgo<-function(dataaa){
       BP_algo(groupdat=group)
     }
     wantedSelections<-do.call('cbind', wantedSelections)
+  }else if(s=="LM"){
+    wantedSelections<-rownames(dataaa)
   }
   print("end algo")
   if(parallelType=="local"){
@@ -1795,11 +1811,14 @@ adaptive_compare<-function(Compdata){
           print(paste("adaptive compare index:",newdat[1,nospec+length(spec)+1]))
           print(paste("adaptive compare lookup:",which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10]))))))
           print(paste("adaptive compare MoorID:",MoorInfo[which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10]))
-            
-          #print(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt))
-          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt)))
           
-          row<-c(row,row2[c(8:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
+          FileNumm<-substr(File,1,2)
+          FileNumm[which(is.na(as.numeric(FileNumm)))]<-"01"
+          
+          #print(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt))
+          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt,FileNumm)))
+          
+          row<-c(row,row2[c(9:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
           
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
@@ -1883,21 +1902,17 @@ for(m in moors){
   print(paste("spectral features MoorID:",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),10]))
   
   specVar<<-NULL
-  whiten2<<-NULL
   specpath<<-NULL
 
   if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),7]=="HG_datasets"){
     if(whiten=="y"){
       specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/",Filtype,"p",LMS*100,"x_FO",FO,sep="")
-      whiten2<<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
     }else{
       specpath<<-paste(startcombpath,"/",MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==m),11],"/No_whiten",sep="")
-      whiten2<<-"No_whiten"
     }
     
     if(Decimate=="y"){
       specpath<<-paste(specpath,"_decimate_by_",decimationFactor,sep="")
-      whiten2<<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
     }
     
     if(is.null(nrow(specdata))){
@@ -1915,15 +1930,6 @@ for(m in moors){
     }
     
   }else{
-    
-    if(whiten=="y"){
-      whiten2<<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
-    }else{
-      whiten2<<-"No_whiten"
-    }
-    if(Decimate=="y"){
-      whiten2<<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
-    }
     
     specpath<<-paste(startcombpath,whiten2,sep="")
       
@@ -1948,7 +1954,7 @@ for(m in moors){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("whiten2","ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun")
+    startLocalPar("whiten2","ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun","fileCombinesize","fileCombinesize2ndIt")
     }
     
 #print("extracting spectral parameters")
@@ -1985,6 +1991,7 @@ specVar<<-do.call('rbind', specVar2)
 specTab<<-rbind(specTab,specVar)
 }
 
+
   
   return(specTab)
 }
@@ -2002,7 +2009,15 @@ specDo<-function(z,featList,specpathh){
   Low<-featList[4]
   High<-featList[5]
   
-  foo <-readWave(paste(specpathh,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10],".wav",sep=""),Start,End,units="seconds")
+  if(file.exists(paste(specpathh,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10],".wav",sep=""))){
+    foo <-readWave(paste(specpathh,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10],".wav",sep=""),Start,End,units="seconds")
+  }else{
+    Filenumm<-featList[8]
+    pad<-sprintf("%02d",Filenumm)
+    foo <-readWave(paste(specpathh,"/",pad,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10],".wav",sep=""),Start,End,units="seconds")
+  }
+  
+
   
   fs<-foo@samp.rate
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
@@ -2400,9 +2415,6 @@ cData$RTb<-NULL
 cData$RTe<-NULL
 cData$remove<-NULL
 
-
-
-
 for(h in 1:length(unique(cData$MooringID))){
   
   cDataPos<-cData[which(cData$detectionType==0&cData$MooringID==unique(cData$MooringID)[h]),]
@@ -2540,6 +2552,10 @@ for(e in unique(resltsTabTemp$sound.files)){
         }
       }
     }
+  
+    if(s=="LM"){
+      gGroup<-1:nrow(resltsVar)
+    }
     
     resltsVar[,15]<-gGroup
     
@@ -2600,7 +2616,7 @@ for(e in unique(resltsTabTemp$sound.files)){
       resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, MooringCode, sound.files", colClasses = colClasses)
       colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","MooringCode","sound.files")
       
-      if(s=="RW"){
+      if(s=="RW"|s=="LM"){
       p=1
       for(j in unique(resltsVar$group)){
         grpminfreq <- min(resltsVar[resltsVar$group==j,6])
@@ -2723,11 +2739,12 @@ for(e in unique(resltsTabTemp$sound.files)){
         resltsTabFinal$FileOffsetEnd<-0
         
         print("calculate file ID and begin time and end time relative to file for sound.file")
+        durTabSF<-durTab[which(durTab$CombSF==e),]
           for(c in 1:nrow(resltsTabFinal)){
-            index<-findInterval(resltsTabFinal[c,4], c(0,durTab$CumDur))
-            resltsTabFinal$File[c]<-as.character(durTab[index,2])
-            durations<-durTab[index,3]
-            FileStartSec[c]<-durTab[index,4]-durTab[index,3]
+            index<-findInterval(resltsTabFinal[c,4], c(0,durTabSF$CumDur))
+            resltsTabFinal$File[c]<-as.character(durTabSF[index,2])
+            durations<-durTabSF[index,3]
+            FileStartSec[c]<-durTabSF[index,4]-durTabSF[index,3]
           }
         resltsTabFinal$FileOffsetBegin<-resltsTabFinal$`Begin Time (s)`-FileStartSec
         resltsTabFinal$FileOffsetEnd<-resltsTabFinal$`End Time (s)`-FileStartSec  
@@ -2736,9 +2753,13 @@ for(e in unique(resltsTabTemp$sound.files)){
         
         resltsTabFinal$Selection<-seq(1,nrow(resltsTabFinal))
         
-        RT<-substrRight(as.character(resltsTabFinal$File),19)
-        RT<-substr(RT,1,15)
-        RT<-strptime(RT,format='%Y%m%d_%H%M%S',tz="UTC")
+        RT<-substrRight(as.character(resltsTabFinal$File),17)
+        RT<-substr(RT,1,13)
+        if(grepl("-",as.character(resltsTabFinal$File[1]))){
+        RT<-strptime(RT,format='%y%m%d-%H%M%S',tz="UTC") #some files have different naming convention 
+        }else{
+        RT<-strptime(RT,format='%y%m%d_%H%M%S',tz="UTC")
+        }
         
         resltsTabFinal$RTfile<-RT
         resltsTabFinal$RTFb<-RT
@@ -2752,7 +2773,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         
         allRSTF<- rbind(allRSTF,resltsTabFinal)
         
-        write.table(resltsTabFinal,paste(outputpath,runname,"/",resltsTabFinal$MooringID[1],"FINAL_Summary_spread_",substr(resltsTabFinal$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        write.table(resltsTabFinal,paste(outputpath,runname,"/",e,"FINAL_Summary_spread_",substr(resltsTabFinal$detector[1],1,3),"_",length(detectorsspr),".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
         
       }
   }
@@ -2830,7 +2851,7 @@ combineDecRaven<-function(){
       #maybe put whiten check right here? 
       if(MoorInfo[m,8]=="open"){
         sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
-        sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+        sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
       }else if(MoorInfo[m,8]=="month"){ #assuming month wil only be used when acthing on full moorings. If a different use case conditionals may not work. 
         sound_files<-c()
         sound_filesfullpath<-c()
@@ -2846,8 +2867,8 @@ combineDecRaven<-function(){
       if(decNeeded=="y"){
         if(MoorInfo[m,7]=="HG_datasets"){
           sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep=""),sep="/")
-          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1]),sep="/")
-          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep="")))
+          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],sep="/"))
+          dir.create(paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(curSpec,"_yesUnion",sep=""),sep="/"))
           dir.create(sfpath)
         }else if(MoorInfo[m,7]=="Full_datasets"){
           sfpath<-paste(drivePath,MoorInfo[m,7],MoorInfo[m,1],paste(MoorInfo[m,10],"_decimate_by_",decimationFactor,sep = ""),sep="/")
@@ -2909,7 +2930,7 @@ combineDecRaven<-function(){
         sfpath<-filePathNoTemp
         
         sound_files <- dir(sfpath,pattern=".wav")[grep(MoorInfo[m,10],dir(sfpath,pattern=".wav"))]
-        sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+        sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
         bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
         did2<-TRUE
         
@@ -2919,7 +2940,7 @@ combineDecRaven<-function(){
         sfpath<-filePath
         
         sound_files <- dir(sfpath,pattern=".wav")
-        sound_filesfullpath<-paste(sfpath,sound_files,sep = "")
+        sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
         
         bigFile_breaks<-c(seq(1,length(sound_files),fileSizeInt2),length(sound_files)) 
         
@@ -2959,14 +2980,22 @@ combineDecRaven<-function(){
       }
       
       if(onlyPopulate=="n"){
-        for(b in 1:(length(bigFile_breaks)-1)){
-          if(length(bigFile_breaks)>2&did2==TRUE){
-            combname<- paste(sprintf("%02d",b),MoorInfo[m,10],"_files",bigFile_breaks[b],".wav",sep="")
-          }else{
-            combname<- paste(MoorInfo[m,10],".wav",sep="")
+        if(file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
+          bigFiles<-list.files(filePathNoTemp,pattern=paste(MoorInfo[m,10],".wav",sep=""))
+          for(b in 1:length(bigFiles)){
+            combname<-bigFiles[b]
+            resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
           }
-          #run detector(s)
-          resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
+        }else{
+          for(b in 1:(length(bigFile_breaks)-1)){
+            if(length(bigFile_breaks)>2&did2==TRUE){
+              combname<- paste(sprintf("%02d",b),MoorInfo[m,10],".wav",sep="")
+            }else{
+              combname<- paste(MoorInfo[m,10],".wav",sep="")
+            }
+            #run detector(s)
+            resltsTab<-runRavenDetector(m,filePathNoTemp,combname,resltsTab)
+          }
         }
       }
       #write durtab to file
@@ -3199,7 +3228,7 @@ for(s in spec){
 GT<-list()
 DetecTab2<-DetecTab[which(DetecTab$Species %in% s),]
   for(f in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
-    GT[[f]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",MoorInfo[which(MoorInfo[,9]==s),][f,1],"Sum/",MoorInfo[which(MoorInfo[,9]==s),][f,10],".txt",sep=""))
+    GT[[f]] <- read.delim(paste(gitPath,"Data/Selection tables/",s,"/",MoorInfo[which(MoorInfo[,9]==s),][f,1],"Sum/",MoorInfo[which(MoorInfo[,9]==s),][f,10],".txt",sep=""),row.names=NULL)
     GT[[f]] <- GT[[f]][GT[[f]]$View=="Spectrogram 1",]
   }
 
@@ -3382,8 +3411,15 @@ GTset[which(GTset$detectionType=="FN"),which(colnames(GTset)=="detectionType")]<
 if(length(spec)>1){
 #GTset<-GTset[which(GTset$`soundfiles[n]`=="BS15_AU_02a_files1-104.wav"),]
 
-GTset<-dataConflicts(GTset)
-
+#GTset<-dataConflicts(GTset)
+  
+DetecTab$meanfreq<- (DetecTab$`Low Freq (Hz)`+DetecTab$`High Freq (Hz)`)/2
+DetecTab$freqrange<- (DetecTab$`High Freq (Hz)`-DetecTab$`Low Freq (Hz)`)
+DetecTab$meantime<- (DetecTab$`Begin Time (s)`+DetecTab$`End Time (s)`)/2
+  
+  
+DetecTab$Selection<-c(1:nrow(DetecTab))
+rownames(DetecTab)<-c(1:nrow(DetecTab))
 
 #if multiclass: throw out double positives from the ground truth. Comment out line if choose to go with binary. 
 
@@ -3400,7 +3436,11 @@ GTset<-GTset[-grep(",",GTset$Species),]
 #"vectorize" GTset frame. 
 
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
-dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
+dataMat<- data.matrix(cbind(GTset[,c(23,4:7,11)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
+FileNum<-substr(as.character(GTset$sound.files),1,2)
+FileNum[which(is.na(as.numeric(FileNum)))]<-"01"
+dataMat<-cbind(dataMat,as.numeric(FileNum))
+
 print("extracting features from FFT of each putative call")
 
 if(addToMaster=='y'){
@@ -3415,6 +3455,7 @@ if(addToMaster=='y'){
 
 dataMat<-spectral_features(dataMat)
 
+dataMat<-dataMat[,c(1:7)]
 if(addToMaster=="y"){
   MoorInfo<-MoorInfoMaster
 }
@@ -3678,14 +3719,27 @@ for(s in spec){
   
   #print table that has buffer to allow for easily playing shorter GS
 
-DetecTab<-dataConflicts(DetecTab)
+  #DetecTab<-dataConflicts(DetecTab)
+  
+DetecTab$meanfreq<- (DetecTab$`Low Freq (Hz)`+DetecTab$`High Freq (Hz)`)/2
+DetecTab$freqrange<- (DetecTab$`High Freq (Hz)`-DetecTab$`Low Freq (Hz)`)
+DetecTab$meantime<- (DetecTab$`Begin Time (s)`+DetecTab$`End Time (s)`)/2
+  
+  
+DetecTab$Selection<-c(1:nrow(DetecTab))
 
+stop()
 DetecTab$combID<-as.factor(paste(substr(DetecTab$Species,1,2),DetecTab$MooringID)) #simplify species ID for correct indexing
 dataNEW<- data.matrix(cbind(DetecTab[,c(23,4:7)],as.numeric(DetecTab$RTFb+DetecTab$FileOffsetBegin),as.numeric(DetecTab$detectionType)))
+FileNum<-substr(as.character(DetecTab$sound.files),1,2)
+FileNum[which(is.na(as.numeric(FileNum)))]<-"01"
+dataNEW<-cbind(dataNEW,as.numeric(FileNum))
+
 print("extracting features from FFT of each putative call")
 
 dataNEW<-spectral_features(dataNEW)
-
+dataNEW<-dataNEW[,c(1:7)]
+  
 dataNEW<-data.frame(dataNEW)
 DetecTab$combID<-NULL
 DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
