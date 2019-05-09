@@ -1823,6 +1823,7 @@ adaptive_compare<-function(Compdata){
           newrow<-rbind(newrow,row)
           if(newrow[1,1]==0){
             newrow<-matrix(newrow[2,],ncol=length(newrow[2,]))
+            
           }
         }
           
@@ -3728,7 +3729,6 @@ DetecTab$meantime<- (DetecTab$`Begin Time (s)`+DetecTab$`End Time (s)`)/2
   
 DetecTab$Selection<-c(1:nrow(DetecTab))
 
-stop()
 DetecTab$combID<-as.factor(paste(substr(DetecTab$Species,1,2),DetecTab$MooringID)) #simplify species ID for correct indexing
 dataNEW<- data.matrix(cbind(DetecTab[,c(23,4:7)],as.numeric(DetecTab$RTFb+DetecTab$FileOffsetBegin),as.numeric(DetecTab$detectionType)))
 FileNum<-substr(as.character(DetecTab$sound.files),1,2)
