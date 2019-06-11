@@ -1,0 +1,36 @@
+Category,Parameter,Value,Description
+Signal manipulation,Decimate,y,Script will look if data is decimated and automatically decimate if y. 
+Signal manipulation,decimationFactor,4,Decimation factor. Performed iteratively by prime factors. Should be a factor of sampling rate to avoid decimal sampling rate
+Signal manipulation,whiten,n,"If y, script will assume data is whitened. Need to manually whiten data with raven and use naming conventions to path correctly. "
+Signal manipulation,FO,100,Filter order for ALE (whitening) filter
+Signal manipulation,LMS,0.1,LMS step size for ALE (whitening) filter
+Signal manipulation,Filtype,Bband,Type of filter being used to whiten signal. Fband filters out narrowband Bband filters out broadband. 
+Raven Detectors,spStart,43,start of spread in raven detector preset folder
+Raven Detectors,spEnd,56,end of spread in raven detector preset folder
+Context sim,greatcallThresh,0.8,level at which rolling score will reset to maxBonus
+Context sim,maxBonus,0.05,Maximum bonus level. Same as reset value when greatcallThresh is reached. 
+Context sim,goodcallBonus,0.005,increase factor for every call within resonable range (-maxPenalty to greatcallThresh)
+Context sim,maxPenalty,-0.35,"same abs value as lowest value for ""good calls"" that give bonus "
+Context sim,badcallPenalty,-0.0005,constant decrease every detection below threshold
+Detection Processing Spread,grpsize,2,minimum sum of 2s and 1s to be a positive detection
+Detection Processing Spread,allowedZeros,2,maximum number of 0s (instances where run doesn't go up with next detection) until considered end of run
+Detection Processing Spread,detskip,3,maximum amount of skips to be eligible increase in run
+Detection Processing Spread,groupInt,1.5,max time distance for detectors to be considered in like group 
+Detection Processing Spread,Maxdur,8,max duration of detection
+Detection Processing Spread,Mindur,0.5,min duration of detection 
+BN algo,timesepBN,1.2,Time difference for algo to count GS detection as a 1. 
+Adaptive Compare,timediffself,1.5,max secs that detections can be apart to be combined within detectors
+Adaptive Compare,probdist,0.2,max difference in probability difference to be combined within detectors. Otherwise will only take higher prob detection
+GT,GTmoorings,"AW12_AU_CL1,AW12_AU_CL1,AW12_AU_KZ1,AW13_AU_CL1,AW13_AU_CL1,AW13_AU_CL1,AW13_AU_PH1,AW14_AU_NM1,AW14_AU_PH1,CZ11_AU_IC1c,AL16_AU_CC2,AL17_AU_CC2",moorings in GT dataset you want to run. 
+GT,GTsf,"1:384,385:523,full,1:123,124:360,full,full,full,full,full,full","Files in moorings in GT dataset you want to run. Can specify ""full"" in this vector instead of file range to include all files in path, or file names instead of position"
+GT,GTpath,"HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets","""open"" or ""month"" organization option for file organization"
+GT,GTpath2,"BN,BN,BN,BN,BN,BN,BN,BN,BN,BN,BN","Source HG folder. ""NULL"" if for full dataset  "
+GT,GTsourceFormat,"open,open,open,open,open,open,open,open,open,open,open",
+Image Analysis,ImgThresh,90,threshold that will be excluded during image thresholding
+Image Analysis,ImgNoiseRedPower,2,power level of noise reduction for creating binary image
+Image Analysis,ImgFillPower,8,power level of shape fill for creating binary image
+Image Analysis,WindowLength,2048,spectrogram parameters
+Image Analysis,Overlap,90,spectrogram parameters
+Image Analysis,ZeroPadding,128,spectrogram parameters
+Image Analysis,IsoblurSigma,3,spectrogram parameters
+Image Analysis,SpectrogramFunc,spectro,"specgram (what I was using for RW and GSs) or spectro (which you can zero pad with, possibly less reliable for GS and RW)"

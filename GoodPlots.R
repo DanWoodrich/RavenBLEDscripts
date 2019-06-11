@@ -106,3 +106,8 @@ for(m in unique(dataSPEC[,6])){
   #lines(pointsDate,(CS_outputDate[,8]),col="green")
 }
 
+#make plotit for full mooring run
+
+#load selection table
+#load durtab for selection table
+#

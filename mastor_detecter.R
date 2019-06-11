@@ -1,4 +1,5 @@
 #Evaluate and score custom BLED detector(s) in R. Sox must be installed and pathed to accordingly
+Start.time<-Sys.time()
 
 #catherine vandalism
 ###############################################
@@ -9,11 +10,11 @@
 
 ################################################
 
-#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF") install.packages("fpc") install.packages("devtools") devtools::install_github("Azure/rAzureBatch") devtools::install_github("Azure/doAzureParallel")
+#install.packages("e1071") install.packages("Rtools",repos = "http://cran.r-project.org")install.packages("randomForest")install.packages("seewave")install.packages("tuneR")install.packages("plotrix")install.packages("aod")install.packages("ggplot2", dep = TRUE)install.packages("usdm")install.packages("ROCR")install.packages("e1071") install.packages("caret")install.packages("ModelMetrics")install.packages("stringi")install.packages("signal")install.packages("beepr")install.packages("Rraven")install.packages("flightcallr", repos="http://R-Forge.R-project.org")install.packages("plotrix") install.packages("oce") install.packages("imager") install.packages("obliqueRF") install.packages("fpc") install.packages("devtools") devtools::install_github("Azure/rAzureBatch") devtools::install_github("Azure/doAzureParallel") install.packages("autoimage") install.packages("PRROC")
 
 
 
-
+library(httpuv)
 library(e1071)   
 library(foreach)
 library(doParallel)
@@ -43,6 +44,8 @@ library(RSAGA)
 library(stringr)
 #library(rAzureBatch)
 #library(doAzureParallel)
+library(autoimage)
+library(PRROC)
 
 ###############################
 #run this stuff so I can know whether to start azure parallel. Run it again later to populate cluster w variable. 
@@ -397,16 +400,26 @@ loadSpecVars<-function(whichSpec){
     downsweepCompAdjust<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="downsweepCompAdjust"),3])
     timesepGS<<-NULL #placeholder so that I can export variable for parallel 
     timesepBP<<-NULL
+    timesepBN<<-NULL
   }
   
   #GS algo
-  if(whichSpec=="GS"|whichSpec=="BP"){
+  if(whichSpec=="GS"|whichSpec=="BP"|whichSpec=="BN"){
     if(whichSpec=="GS"){
     timesepGS<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepGS"),3] )
     timesepBP<<-NULL
+    timesepBN<<-NULL
+    
     }else if(whichSpec=="BP"){
     timesepBP<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepBP"),3] )
     timesepGS<<-NULL #placeholder so that I can export variable for parallel 
+    timesepBN<<-NULL
+    
+    }else if(whichSpec=="BN"){
+    timesepBN<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timesepBN"),3] )
+    timesepGS<<-NULL #placeholder so that I can export variable for parallel 
+    timesepBP<<-NULL
+    
     }
     downsweepCompMod<<-NULL #placeholder so that I can export variable for parallel 
     downsweepCompAdjust<<-NULL #placeholder so that I can export variable for parallel 
@@ -417,12 +430,21 @@ loadSpecVars<-function(whichSpec){
     #do nothing for now 
     timesepGS<<-NULL #placeholder so that I can export variable for parallel 
     timesepBP<<-NULL
+    timesepBN<<-NULL
     downsweepCompMod<<-NULL #placeholder so that I can export variable for parallel 
     downsweepCompAdjust<<-NULL #placeholder so that I can export variable for parallel 
   }
   
   #Image analysis
   ImgThresh<<-paste(ParamsTab[which(ParamsTab[,2]=="ImgThresh"),3],"%",sep="")
+  ImgNoiseRedPower<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="ImgNoiseRedPower"),3])
+  ImgFillPower<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="ImgFillPower"),3])
+  WindowLength<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="WindowLength"),3])
+  Overlap<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="Overlap"),3])
+  ZeroPadding<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="ZeroPadding"),3])
+  SpectrogramFunc<<-as.character(ParamsTab[which(ParamsTab[,2]=="SpectrogramFunc"),3])
+  IsoblurSigma<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="IsoblurSigma"),3])
+  
   
   #adaptive Compare
   timediffself<<-as.numeric(ParamsTab[which(ParamsTab[,2]=="timediffself"),3])
@@ -436,6 +458,8 @@ loadSpecVars<-function(whichSpec){
     GTpath2<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTpath2"),3],",",simplify=TRUE))
     GTsourceFormat<<-as.character(str_split(ParamsTab[which(ParamsTab[,2]=="GTsourceFormat"),3],",",simplify=TRUE))
   }
+  
+  
   
   
   write.csv(ParamsTab,paste(outputpath,runname,"/",whichSpec,".csv",sep=""),row.names = FALSE)
@@ -464,6 +488,9 @@ loadSpecVars<-function(whichSpec){
     ravenView<<-"RW_GS"
   }else if(whichSpec=="LM"){
     ravenView<<-"LMfreq"
+  }else if(whichSpec=="BN"){
+    ravenView<<-"BNfreq"
+    
   }
   
   if(Decimate=="y"){
@@ -472,6 +499,19 @@ loadSpecVars<-function(whichSpec){
   
   decimationSteps<<-prime.factor(decimationFactor)
   
+  ####
+  if(whiten=="y"){
+    whiten2<-(paste("",Filtype,"p",LMS*100,"x_FO",FO,sep=""))
+  }else{
+    whiten2<-"No_whiten"
+  }
+  
+  if(Decimate=="y"){
+    whiten2<-paste(whiten2,"_decimate_by_",decimationFactor,sep="")
+  }
+  
+  #save to memory
+  whiten2<<-whiten2
   
   ###############################
 }
@@ -545,11 +585,15 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
   #add file name format
   sf3<-list()
   sf4<-list()
+  oneLevelDown<-list()
   for(n in 1:length(sf)){
     if(sourceFormat[n]=="month"){
       #do nothing
     }else if(path[n]=="HG_datasets"){
       lookup<-paste(drivePath,path[n],moorings[n],paste(pathspec[n],"_yesUnion",sep=""),sep="/")
+      if(length(list.files(lookup,pattern=".wav"))==0){
+        lookup<-paste(lookup,"/",moorings[n],"_files_All_decimate_by_",decimationFactor,sep="")
+      }
     }else if(path[n]=="Full_datasets"){
       lookup<-paste(drivePath,path[n],moorings[n],sep="/")
       if(length(list.files(lookup,pattern=".wav"))==0){
@@ -588,7 +632,7 @@ makeMoorInfo<-function(moorings,sf,path,pathspec,sourceFormat,curSpec){
 parAlgo<-function(dataaa){
   
   if(parallelType=="local"){
-  startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","BP_algo","timesepGS","timesepBP","s")
+  startLocalPar("Matdata","detskip","downsweepCompMod","downsweepCompAdjust","allowedZeros","grpsize","RW_algo","GS_algo","BP_algo","BN_algo","timesepGS","timesepBP","timesepBN","s")
   }
   print("start algo")
   if(s=="RW"){
@@ -609,6 +653,12 @@ parAlgo<-function(dataaa){
       BP_algo(groupdat=group)
     }
     wantedSelections<-do.call('cbind', wantedSelections)
+  }else if(s=="BN"){
+    wantedSelections<-foreach(grouppp=unique(dataaa[,2])) %dopar% {
+      group<-dataaa[which(dataaa[,2]==grouppp),c(1:3)]
+      BN_algo(groupdat=group)
+    }
+    wantedSelections<-as.integer(do.call('c', wantedSelections))    
   }else if(s=="LM"){
     wantedSelections<-rownames(dataaa)
   }
@@ -632,26 +682,37 @@ dataArrangeModel<-function(dataForModel){
   modelDatFactors<-dataForModel[,c(8,17,ncol(dataForModel)-1,ncol(dataForModel))]
   modelDatFactors<-apply(modelDatFactors,2,function(x) as.factor(x))
   
-  otherDat<-dataForModel[,c(1:7,9:16)]
+  dataForModel<-dataForModel[,c(1:7,9:16)]
   
-  modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x)))
-  removeMat<-apply(modelDat,2,function(x) !is.finite(x))
-  removeVec<-which(apply(removeMat,1,function(x) any(x)))
+  #modelDat<-apply(modelDat,2,function(x) as.numeric(as.character(x))) #do it in loop since this step was maxing out memory
+  for(f in 1:ncol(modelDat)){
+    modelDat[,f]<-as.numeric(as.character(modelDat[,f]))
+  }
+  removeVec<-modelDat
+  for(f in 1:ncol(removeVec)){
+    removeVec[,f]<-!is.finite(removeVec[,f])
+  }
+  #removeVec<-apply(modelDat,2,function(x) !is.finite(x))
+  
+  removeVec<-which(apply(removeVec,1,function(x) any(x)))
   
   if(length(removeVec)>0){
   modelDat<-modelDat[-removeVec,]
   modelDatFactors<-modelDatFactors[-removeVec,]
-  otherDat<-otherDat[-removeVec,]
+  dataForModel<-dataForModel[-removeVec,]
   }
   
-  modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
+  #modelDat<-apply(modelDat,2,function(x) na.roughfix(x))
+  for(f in 1:ncol(modelDat)){
+    modelDat[,f]<-na.roughfix(modelDat[,f])
+  }
   
   modelDat<-cbind(data.frame(modelDat),data.frame(modelDatFactors))
   
-  character_vars <- lapply(otherDat, class) == "character"
-  otherDat[, character_vars] <- lapply(otherDat[, character_vars], as.factor)
+  character_vars <- lapply(dataForModel, class) == "character"
+  dataForModel[, character_vars] <- lapply(dataForModel[, character_vars], as.factor)
   
-  return(list(modelDat,otherDat))
+  return(list(modelDat,dataForModel))
 }
 
 RW_algo<-function(resltsTabmat){
@@ -802,6 +863,70 @@ RW_algo<-function(resltsTabmat){
     wantedSelections<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
   }
   return(wantedSelections)
+}
+
+BN_algo<-function(groupdat){
+  #this algorithm will look for vertical runs in the MB, and export only the best one. 
+  groupdat<-groupdat[order(-groupdat[,1],groupdat[,3]),]#reverse the order it counts stacks detection
+  groupdat<-cbind(groupdat,matrix(99,nrow(groupdat),nrow(groupdat)-(grpsize-1)))
+  
+  skipvec<-c()
+  for(g in 1:(nrow(groupdat)-(grpsize-1))){
+    groupdat[g,3+g]<-2
+    RT<-groupdat[g,3]
+    RM<-groupdat[g,1]
+    skipvecc<-0
+    for(h in g:(nrow(groupdat)-1)){
+      if(RM>groupdat[h+1,1]&((RT-groupdat[h+1,3]-timesepBN)<0&(RT-groupdat[h+1,3]+timesepBN)>0)&(RM-groupdat[h+1,1])<(detskip+1)){
+        groupdat[h+1,3+g]<-1
+        skipvecc<-c(skipvecc,(RM-groupdat[h+1,1]))
+        RT<-groupdat[h+1,3]
+        RM<-groupdat[h+1,1]
+      }else{
+        groupdat[h+1,3+g]<-98
+      }
+    }
+    skipvec<-c(skipvec,max(skipvecc))
+  }
+  
+  #pare down table to best run only. 
+
+  Hits<-c()
+  for(g in 4:ncol(groupdat)){
+    Hits<-c(Hits,sum(groupdat[,g]==2|groupdat[,g]==1))
+  }
+  if(any(Hits>=grpsize-1)){
+  HitsMax<-which(Hits==max(Hits))
+  if(length(HitsMax)>1){
+    groupdat<-groupdat[,c(1,2,3,HitsMax+3)]
+    skipvec<-skipvec[HitsMax]
+    skipMin<-which(skipvec==min(skipvec))
+    if(length(skipMin)>1){
+      groupdat<-groupdat[,c(1,2,3,skipMin+3)]
+      lengths<-c()
+      for(g in 4:ncol(groupdat)){
+        lengths<-c(lengths,max(which(groupdat[,g]==1))-which(groupdat[,g]==2))
+      }
+      lengthMin<-which(lengths==min(lengths))
+      if(length(lengthMin)>1){
+        #just pick the first one if it gets down to here
+        groupdat<-groupdat[,c(1,2,3,4)]
+      }else{
+        groupdat<-groupdat[,c(1,2,3,which.min(lengths)+3)]
+      }
+      
+    }else{
+      groupdat<-groupdat[,c(1,2,3,which.min(skipvec)+3)]
+      
+    }
+    
+  }else{
+    groupdat<-groupdat[,c(1,2,3,which.max(Hits)+3)]
+  }
+  
+  export<-c(rownames(groupdat[which(groupdat[,4]==2|groupdat[,4]==1),]))
+  return(export)
+  }
 }
 
 GS_algo<-function(groupdat){
@@ -1134,16 +1259,6 @@ raven_batch_detec <- function(raven.path = NULL, sound.files, path = NULL, detec
   
 }
 
-plot_jpeg = function(path, add=FALSE)
-{
-  require('jpeg')
-  jpg = readJPEG(path, native=T) # read the file
-  res = dim(jpg)[2:1] # get the resolution, [x, y]
-  if (!add) # initialize an empty plot area if add==FALSE
-    plot(1,1,xlim=c(1,res[1]),ylim=c(1,res[2]),asp=1,type='n',xaxs='i',yaxs='i',xaxt='n',yaxt='n',xlab='',ylab='',bty='n')
-  rasterImage(jpg,1,1,res[1],res[2])
-}
-
 sox_alt <- function (command, exename = NULL, path2exe = NULL, argus = NULL, shQuote_type = NULL)
 {
   
@@ -1187,7 +1302,7 @@ process_model<-function(stuff2,Moddata2){
 
   if(modelType=="rf"){
   giniTab<-data.frame(stuff2[[1]][[2]])
-  for(i in 2:CV){
+  for(i in 2:as.numeric(CV)){
     giniTab<-cbind(giniTab,stuff2[[i]][[2]])
   }
     
@@ -1211,25 +1326,25 @@ process_model<-function(stuff2,Moddata2){
 
   CUTvec<-NULL
       
-  for(i in 1:CV){
+  for(i in 1:as.numeric(CV)){
     CUTvec<-c(CUTvec,stuff2[[i]][[3]][[s]])
   }
   
   CUTmean[[s]]<-mean(unlist(CUTvec))
   
   #build probability data frame 
-  probstab<-NULL
-  for(i in 1:CV){
-    probstab<-cbind(probstab,stuff2[[i]][[1]][[s]][,2])
+  probstab<-matrix(,ncol=as.numeric(CV),nrow=length(stuff2[[1]][[1]][[s]][,2]))
+  for(i in 1:as.numeric(CV)){
+    probstab[,i]<-stuff2[[i]][[1]][[s]][,2]
   }
 
   probmean<-NULL
   probstderr<-NULL
   n<-NULL
   for(x in 1:nrow(probstab)){
-    probmean[x]<-mean(as.numeric(probstab[x,2:ncol(probstab)]),na.rm=TRUE)
-    probstderr[x]<-std.error(as.numeric(probstab[x,2:ncol(probstab)]),na.rm=TRUE)
-    n[x]<-length(which(!is.na(probstab[x,2:ncol(probstab)])))
+    probmean[x]<-mean(as.numeric(probstab[x,1:ncol(probstab)]),na.rm=TRUE)
+    probstderr[x]<-std.error(as.numeric(probstab[x,1:ncol(probstab)]),na.rm=TRUE)
+    n[x]<-length(which(!is.na(probstab[x,1:ncol(probstab)])))
   }
   
   ##assuming $detection type is already in this data NOTE not 
@@ -1508,25 +1623,42 @@ after_model_write <-function(mdata){
     MoorVar1<-MoorVar1[which(MoorVar1$remove!=length(mSpec)),]
     MoorVar1$remove<-NULL
     
-    MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
-    #dont think we need to report stats for these (total # of sucessful classifications). Pretty meaningless when you pool all of them together. Just print the table
-    RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
-    RavenExport[,2]<-"Spectrogram 1"
-    RavenExport[,3]<-1
-    RavenExport[,4]<-MoorVar1[,2]
-    RavenExport[,5]<-MoorVar1[,3]
-    RavenExport[,6]<-MoorVar1[,4]
-    RavenExport[,7]<-MoorVar1[,5]
-    RavenExport[,8]<-MoorVar1$detectionType
-    RavenExport[,9]<-MoorVar1$File
-    RavenExport[,10]<-MoorVar1$FileOffsetBegin
-    for(s in 1:length(mSpec)){
-      RavenExport<-cbind(RavenExport,MoorVar1[,nospec+s])
+    if(nrow(MoorVar1)==0){
+      print("no detections above the threshold returned")
+    }else{
+      
+      FileNumm<-substr(as.character(MoorVar1$sound.files),1,2)
+      FileNumms<-unique(FileNumm)
+      
+      for(h in FileNumms){
+        
+        MoorVar2<-MoorVar1[which(substr(as.character(MoorVar1$sound.files),1,2)==h),]
+          
+        MoorVar2<-MoorVar2[order(MoorVar2$Begin.Time..s.),]
+        #dont think we need to report stats for these (total # of sucessful classifications). Pretty meaningless when you pool all of them together. Just print the table
+        RavenExport<-data.frame(seq(1,nrow(MoorVar2),by=1))
+        RavenExport[,2]<-"Spectrogram 1"
+        RavenExport[,3]<-1
+        RavenExport[,4]<-MoorVar2[,2]
+        RavenExport[,5]<-MoorVar2[,3]
+        RavenExport[,6]<-MoorVar2[,4]
+        RavenExport[,7]<-MoorVar2[,5]
+        RavenExport[,8]<-MoorVar2$detectionType
+        RavenExport[,9]<-MoorVar2$File
+        RavenExport[,10]<-MoorVar2$FileOffsetBegin
+        for(s in 1:length(mSpec)){
+          RavenExport<-cbind(RavenExport,MoorVar2[,nospec+s])
+        }
+        
+        colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec,"prob"))
+        
+        if(is.na(as.numeric(h))){
+          write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_AllSpecies_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        }else{
+          write.table(RavenExport,paste(outputpath,runname,"/",h,unique(MoorInfo[,10])[v],"_AllSpecies_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+        }
+      }
     }
-    
-    colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec,"prob"))
-    
-    write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_AllSpecies_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   }
 
   OB<-NULL
@@ -1538,19 +1670,26 @@ after_model_write <-function(mdata){
   
   for(s in 1:length(mSpec)){
     
+    loadSpecVars(mSpec[s])
+    
   #now do it for each species individually and each unique mooring ID. Compare with GTtot if available. 
       for(v in 1:length(unique(MoorInfo[,10]))){
       
         MoorVar1<-mdata[which(mdata$MooringID == unique(MoorInfo[,10])[v]),]
       
       if(whichRun=="GT"){
-        pp2<-as.vector(MoorVar1[,nospec+s])
-        ll2<-as.factor(MoorVar1$detectionType)
-        predd2<-prediction(pp2,ll2)
-        perff2<-performance(predd2,"tpr","fpr")
-        auc.perf = performance(predd2, measure = "auc",plot=F)
+        #pp2<-as.vector(MoorVar1[,nospec+s])
+        #ll2<-as.factor(MoorVar1$detectionType)
+        #predd2<-prediction(pp2,ll2)
+        #perff2<-performance(predd2,"tpr","fpr")
+        #auc.perf = performance(predd2, measure = "auc",plot=F)
         
-        AUCind<-c(auc.perf@y.values)
+        #AUCind<-c(auc.perf@y.values)
+        
+        prCurve<-pr.curve(scores.class0=MoorVar1[,nospec+s],weights.class0 = as.numeric(substr(as.character(MoorVar1$detectionType),4,4)),curve=FALSE)
+
+        AUCind<-prCurve$auc.integral
+        
       }else{
         AUCind<-AUCadj
       }
@@ -1558,29 +1697,39 @@ after_model_write <-function(mdata){
       MoorVar1<-MoorVar1[which(MoorVar1[,nospec+s]>=CUTmean[[s]]),]
       
       print(paste("2nd loop",v))
+        
+        FileNumm<-substr(as.character(MoorVar1$sound.files),1,2)
+        FileNumms<-unique(FileNumm)
+        
+        for(h in FileNumms){
+          
+          MoorVar2<-MoorVar1[which(substr(as.character(MoorVar1$sound.files),1,2)==h),]
+          
+          MoorVar2<-MoorVar2[order(MoorVar2$Begin.Time..s.),]
+          #dont think we need to report stats for these (total # of sucessful classifications). Pretty meaningless when you pool all of them together. Just print the table
+          RavenExport<-data.frame(seq(1,nrow(MoorVar2),by=1))
+          RavenExport[,2]<-"Spectrogram 1"
+          RavenExport[,3]<-1
+          RavenExport[,4]<-MoorVar2[,2]
+          RavenExport[,5]<-MoorVar2[,3]
+          RavenExport[,6]<-MoorVar2[,4]
+          RavenExport[,7]<-MoorVar2[,5]
+          RavenExport[,8]<-MoorVar2$detectionType
+          RavenExport[,9]<-MoorVar2$File
+          RavenExport[,10]<-MoorVar2$FileOffsetBegin
+          for(s in 1:length(mSpec)){
+            RavenExport<-cbind(RavenExport,MoorVar2[,nospec+s])
+          }
+          
+          colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec,"prob"))
+          
+          if(is.na(as.numeric(h))){
+            write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_",mSpec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+          }else{
+            write.table(RavenExport,paste(outputpath,runname,"/",h,unique(MoorInfo[,10])[v],"_",mSpec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+          }
+        }
 
-      if(nrow(MoorVar1)>0){
-      
-      MoorVar1<-MoorVar1[order(MoorVar1$Begin.Time..s.),]
-
-      #save data frame 
-      RavenExport<-data.frame(seq(1,nrow(MoorVar1),by=1))
-      RavenExport[,2]<-"Spectrogram 1"
-      RavenExport[,3]<-1
-      RavenExport[,4]<-MoorVar1[,2]
-      RavenExport[,5]<-MoorVar1[,3]
-      RavenExport[,6]<-MoorVar1[,4]
-      RavenExport[,7]<-MoorVar1[,5]
-      RavenExport[,8]<-MoorVar1$detectionType
-      RavenExport[,9]<-MoorVar1$File
-      RavenExport[,10]<-MoorVar1$FileOffsetBegin
-      RavenExport[,11]<-MoorVar1[,nospec+s]
-      
-      
-      colnames(RavenExport)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","detType","File","FileOffsetBegin",paste(mSpec[s],"prob"))
-      
-      write.table(RavenExport,paste(outputpath,runname,"/",unique(MoorInfo[,10])[v],"_",mSpec[s],"_Model_Applied_probs",".txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
-      
       #get together variables to write to detectorRunLog
       if(modelType=="orf"){
         name<-paste(modelType,modelMethod,sep=":")
@@ -1602,13 +1751,14 @@ after_model_write <-function(mdata){
         MoorVar1<-MoorVar1[order(MoorVar1$meantime),]
         MoorVar1$Selection<-seq(1:nrow(MoorVar1))
         
+        MoorVar1$View<-"Spectrogram 1"
+        MoorVar1$Channel<-1
+        
+        if(nrow(GT)>0){
         #Define useful comlumns in both MoorVar1 and GT
         GT$meantime<-(as.numeric(GT[,4])+as.numeric(GT[,5]))/2
         GT$View<-as.character(GT$View)
         GT$detectionType<-0
-        
-        MoorVar1$View<-"Spectrogram 1"
-        MoorVar1$Channel<-1
         
         #change GT names to match what Raven accepts
         colnames(GT) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
@@ -1715,7 +1865,7 @@ after_model_write <-function(mdata){
     
           #save stats and parameters to excel file
           detecEval<-detecEvalFinal[0,]
-          detecEval[1,]<-c(mSpec[[s]],paste(name,MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCind,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+          detecEval[1,]<-c(mSpec[[s]],paste(name,MoorInfo[which(MoorInfo[,9]==mSpec[[s]]),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCind,paste(CV,TPRthresh,sep=","),NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
           detecEvalFinal <- rbind(detecEvalFinal,detecEval)
           
           #combine all data:
@@ -1723,16 +1873,49 @@ after_model_write <-function(mdata){
           OB<-c(OB,overbox)
           MB<-c(MB,multibox)
           
+        }else{
+          
+          write.table("AM There were no detections",paste(outputpath,runname,"/",s,"_",MoorVar1$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+          
+          #Make summary table of statistics for table comparison. 
+          numTP <- 0
+          numFN <- 0
+          numFP <- nrow(MoorVar1)
+          numTPtruth<- 0
+          detTotal<-nrow(MoorVar1)
+          
+          #store this for comparison with full mooring later
+          OB<-c(OB,0)
+          MB<-c(MB,0)
+          
+          TPR <- NA
+          FPR <- 1
+          overboxperc<-NA
+          multiboxperc<-NA
+          
+          #save stats and parameters to excel file
+          detecEval<-detecEvalFinal[0,]
+          detecEval[1,]<-c(mSpec[[s]],paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+          detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+          
+          MoorVar1$detectionType<-"FP"
+        }
+          
           Combset<-rbind(Combset,MoorVar1)
       }
+      } 
+    #get together variables to write to detectorRunLog
+    if(modelType=="orf"){
+      name<-paste(modelType,modelMethod,sep=":")
+    }else if(modelType=="rf"){
+      name<-modelType
     }
-  } 
     #Make summary table of statistics for table comparison. 
-    detTotal<- sum(detecEvalFinal[,6])
-    numTPtruth<-sum(detecEvalFinal[,7])
-    numTP<- sum(detecEvalFinal[,8])
-    numFP <-sum(detecEvalFinal[,9])
-    numFN <- sum(detecEvalFinal[,10])
+    detTotal<- sum(as.numeric(detecEvalFinal[,6]),na.rm=TRUE)
+    numTPtruth<-sum(as.numeric(detecEvalFinal[,7]),na.rm=TRUE)
+    numTP<- sum(as.numeric(detecEvalFinal[,8]),na.rm=TRUE)
+    numFP <-sum(as.numeric(detecEvalFinal[,9]),na.rm=TRUE)
+    numFN <- sum(as.numeric(detecEvalFinal[,10]),na.rm=TRUE)
     overbox<-sum(OB)
     multibox<-sum(MB)
 
@@ -1744,14 +1927,13 @@ after_model_write <-function(mdata){
     
     #save stats and parameters to excel file
     detecEval<-detecEvalFinal[0,]
-    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCadj,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEval[1,]<-c(mSpec[[s]],paste(name,"all"),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,AUCadj,paste(CV,TPRthresh,sep=","),NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
     detecEvalFinal <- rbind(detecEvalFinal,detecEval)
     
     detecEval2<-read.csv(paste(outputpath,"DetectorRunLog.csv",sep=""))
     detecEvalFinal<-rbind(detecEval2,detecEvalFinal)
     
     write.csv(detecEvalFinal,paste(outputpath,"DetectorRunLog.csv",sep=""),row.names=FALSE)
-    
     
     detecEvalFinal<-NULL
    }
@@ -1812,11 +1994,12 @@ adaptive_compare<-function(Compdata){
           print(paste("adaptive compare lookup:",which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10]))))))
           print(paste("adaptive compare MoorID:",MoorInfo[which(newdat[1,nospec+length(spec)+1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),10]))
           
-          FileNumm<-substr(File,1,2)
+          IndFile<-data3Labs[[3]]$File[which(data3Labs[[1]]$File==File)[1]]
+          FileNumm<-substr(IndFile,1,2)
           FileNumm[which(is.na(as.numeric(FileNumm)))]<-"01"
           
           #print(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt))
-          row2<-unlist(spectral_features(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt,FileNumm)))
+          row2<-unlist(spectral_features(as.numeric(c(newdat[1,nospec+length(spec)+1],row[c(2,3,4,5)],(as.numeric(RTb)+as.numeric(FOB)),dt,FileNumm))))
           
           row<-c(row,row2[c(9:length(row2))],afterrow,newSpec,newdat[1,nospec+length(spec)+1])
           
@@ -1919,7 +2102,7 @@ for(m in moors){
     if(is.null(nrow(specdata))){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,numFeatures))
-      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+7)) #make 
+      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+8)) #make 
       noPar<-TRUE
       
     }else{
@@ -1937,7 +2120,7 @@ for(m in moors){
     if(is.null(nrow(specdata))){
       rowcount<<-1
       specVar<<-c(specdata,matrix(1,rowcount,numFeatures))
-      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+7)) #make
+      specVar<<-rbind(specVar,matrix(1,rowcount,numFeatures+8)) #make
       noPar<-TRUE
       
     }else{
@@ -1951,11 +2134,12 @@ for(m in moors){
     
   }
   
+  #test looping
   if(noPar==FALSE){
     print(paste("      for mooring",m))   
     
     if(parallelType=="local"){
-    startLocalPar("whiten2","ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun","fileCombinesize","fileCombinesize2ndIt")
+    startLocalPar("whiten2","SpectrogramFunc","ImgThresh","MoorInfo","specVar","specpath","rowcount","readWave","freqstat.normalize","lastFeature","std.error","specDo","specgram","imagep","outputpathfiles","jpeg","whichRun","fileCombinesize","fileCombinesize2ndIt","tempFolder","ImgNoiseRedPower","ImgFillPower","WindowLength","Overlap","ZeroPadding","IsoblurSigma")
     }
     
 #print("extracting spectral parameters")
@@ -1970,10 +2154,13 @@ specVar2<<-foreach(z=1:rowcount, .packages=c("seewave","tuneR","imager","fpc","c
   parallel::stopCluster(cluz)
   }
 
-prevdir<-getwd()
-setwd(paste(outputpathfiles,"/Image_temp/",sep=""))
-unlink('*.jpg')
-setwd(prevdir)
+if(!is.null(tempFolder)){
+  prevdir<-getwd()
+  setwd(tempFolder)
+  unlink('*.jpg')
+  setwd(prevdir)
+}
+
 
 specVar<<-do.call('rbind', specVar2)
 
@@ -1992,12 +2179,27 @@ specVar<<-do.call('rbind', specVar2)
 specTab<<-rbind(specTab,specVar)
 }
 
-
-  
+#35, 52
+  colnames(specTab)<-c("these","dont","matter","because","they","get","cut","off",
+                    "Rugosity","Crest","Temporal Entropy","Shannon Entropy","Roughness", "autoc mean", "autoc median","autoc se",
+                    "dfreq mean","dfreq se","specprop mean","specprop sd","specprop se","specprop median","specprop mode","specprop q25",
+                    "specprop q75","specprop IQR","specprop centroid","specprop skewness","specprop kurtosis","specprop sfm","specprop sh","specprop precision",
+                    "Amp env med","total entropy","NoFeature1","Modinx","Startdom","Enddom","Mindom",
+                    "Maxdom","Dfrange","Dfslope","Meanpeakf","AreaX maxP","AreaX Max", "AreaX dom","AreaX std","AreaY maxP",
+                    "AreaY max","AreaY dom","AreaY std","Area spread","AreaMax","AreaMax Dom","AreaTop3 Dom","Num Shapes",
+                    "BestRho Hough","BestTheta Hough","BestSlope Hough","BestB Hough","MedRho Hough","MedTheta Hough","MedSlope Hough","MedB Hough",
+                    "num Goodlines","xavg","yavg","SwitchesX mean","SwitchesX se","SwitchesX max","SwitchesX min","SwitchesY mean",
+                    "SwitchesY se","SwitchesY max","SwitchesY min","Meanslope","Varslope","SumCent","SumCent Abs","meanCent",
+                    "meanCent Abs","perconcave","PRR1","PRR1se","PRR2","PRR2se","PRR3","PRR3se",
+                    "PRRav","PRRavse","comparibleShapes","warning1","warning2"
+                       )
   return(specTab)
 }
 
 specDo<-function(z,featList,specpathh){
+  
+  
+  #Rprof(tmp <- tempfile(),line.profiling=TRUE)
   
   #store reused calculations to avoid indexing 
   Start<-featList[2]
@@ -2021,17 +2223,16 @@ specDo<-function(z,featList,specpathh){
 
   
   fs<-foo@samp.rate
+  
+  
+  #zero pad wav
+  #foo@left<-as.integer(rbind(rep(0,length(foo@left)),foo@left,rep(0,length(foo@left))))
+  
+  
   #foo<-ffilter(foo,from=Low,to=High,output="Wave",wl=512)
   samples<-length(foo@left)
   # demean to remove DC offset
   snd = foo@left - mean(foo@left)
-  
-  # number of points to use for the fft
-  nfft=2024
-  
-  window<-132
-  
-  overlap=128
   
   foo.spec <- spec(foo,plot=F, PSD=T,wl=128)
   #foo.spec <- foo.spec[which(foo.spec[,1]<(High/1000)&foo.spec[,1]>(Low/1000)),]#,ylim=c(specVar$Low.Freq..Hz.[z],specVar$High.Freq..Hz.[z])
@@ -2045,44 +2246,44 @@ specDo<-function(z,featList,specpathh){
   Mindom <- min(foo.dfreq, na.rm = TRUE)
   Maxdom <- max(foo.dfreq, na.rm = TRUE)
   Dfrange <- Maxdom - Mindom
-  featList[8] = rugo(foo@left / max(foo@left)) #rugosity
-  featList[9] = crest(foo,wl=128)$C #crest factor
+  featList[9] = rugo(foo@left / max(foo@left)) #rugosity
+  featList[10] = crest(foo,wl=128)$C #crest factor
   foo.env = seewave:::env(foo, plot=F) 
-  featList[10] = th(foo.env) #temporal entropy
-  featList[11] = sh(foo.spec) #shannon entropy
-  featList[12] = roughness(foo.meanspec[,2]) #spectrum roughness
-  featList[13] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
-  featList[14] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
-  featList[15] = std.error(foo.autoc[,2], na.rm=T) #autoc se
-  featList[16] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
-  featList[17] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
-  featList[18] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
-  featList[19] = foo.specprop$sd[1] #specprop sd
-  featList[20] = foo.specprop$sem[1] #specprop sem
-  featList[21] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
-  featList[22] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
-  featList[23] = foo.specprop$Q25[1] # specprop q25
-  featList[24] = foo.specprop$Q75[1] #specprop q75
-  featList[25] = foo.specprop$IQR[1] #specprop IQR
-  featList[26] = foo.specprop$cent[1] #specrop cent
-  featList[27] = foo.specprop$skewness[1] #specprop skewness
-  featList[28] = foo.specprop$kurtosis[1] #specprop kurtosis
-  featList[29] = foo.specprop$sfm[1] #specprop sfm
-  featList[30] = foo.specprop$sh[1] #specprop sh
-  featList[31] = foo.specprop$prec[1] #specprop prec
-  featList[32] = M(foo,wl=128) #amp env median
-  featList[33] = H(foo,wl=128) #total entropy
-  #featList[34]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
+  featList[11] = th(foo.env) #temporal entropy
+  featList[12] = sh(foo.spec) #shannon entropy
+  featList[13] = roughness(foo.meanspec[,2]) #spectrum roughness
+  featList[14] = freqstat.normalize(mean(foo.autoc[,2], na.rm=T),Low,High) #autoc mean 
+  featList[15] = freqstat.normalize(median(foo.autoc[,2], na.rm=T),Low,High) #autoc.median
+  featList[16] = std.error(foo.autoc[,2], na.rm=T) #autoc se
+  featList[17] = freqstat.normalize(mean(foo.dfreq[,2], na.rm=T),Low,High) #dfreq mean
+  featList[18] = std.error(foo.dfreq[,2], na.rm=T) #dfreq se
+  featList[19] = freqstat.normalize(foo.specprop$mean[1],Low,High) #specprop mean
+  featList[20] = foo.specprop$sd[1] #specprop sd
+  featList[21] = foo.specprop$sem[1] #specprop sem
+  featList[22] = freqstat.normalize(foo.specprop$median[1],Low,High) #specprop median
+  featList[23] = freqstat.normalize(foo.specprop$mode[1],Low,High) #specprop mode
+  featList[24] = foo.specprop$Q25[1] # specprop q25
+  featList[25] = foo.specprop$Q75[1] #specprop q75
+  featList[26] = foo.specprop$IQR[1] #specprop IQR
+  featList[27] = foo.specprop$cent[1] #specrop cent
+  featList[28] = foo.specprop$skewness[1] #specprop skewness
+  featList[29] = foo.specprop$kurtosis[1] #specprop kurtosis
+  featList[30] = foo.specprop$sfm[1] #specprop sfm
+  featList[31] = foo.specprop$sh[1] #specprop sh
+  featList[32] = foo.specprop$prec[1] #specprop prec
+  featList[33] = M(foo,wl=128) #amp env median
+  featList[34] = H(foo,wl=128) #total entropy
+  #featList[35]<-Q(foo.meanspec.db,plot=F,wl=128)$Q #0s introduced
   #warbler params
-  featList[35]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
-  featList[36]<-freqstat.normalize(Startdom,Low,High) #startdom
-  featList[37]<-freqstat.normalize(Enddom,Low,High) #enddom 
-  featList[38]<-freqstat.normalize(Mindom,Low,High) #mindom
-  featList[39]<-freqstat.normalize(Maxdom,Low,High) #maxdom
-  featList[40]<-Dfrange #dfrange
-  featList[41]<-((Enddom-Startdom)/(End-Start)) #dfslope
-  featList[42]  <- freqstat.normalize(lastFeature(fs,foo.meanspec),Low,High)
-  
+  featList[36]<- (sum(sapply(2:length(foo.dfreq[,2]), function(j) abs(foo.dfreq[,2][j] - foo.dfreq[,2][j - 1])))/(Dfrange)) #modinx
+  featList[37]<-freqstat.normalize(Startdom,Low,High) #startdom
+  featList[38]<-freqstat.normalize(Enddom,Low,High) #enddom 
+  featList[39]<-freqstat.normalize(Mindom,Low,High) #mindom
+  featList[40]<-freqstat.normalize(Maxdom,Low,High) #maxdom
+  featList[41]<-Dfrange #dfrange
+  featList[42]<-((Enddom-Startdom)/(End-Start)) #dfslope
+  featList[43]  <- freqstat.normalize(lastFeature(fs,foo.meanspec),Low,High)
+
   
   #FEATURES FROM IMAGE 
   
@@ -2091,27 +2292,62 @@ specDo<-function(z,featList,specpathh){
   #dir.create(paste(outputpathfiles,/Image_library/",whiten2,MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],sep=""))
   
   im_file_name<-paste(sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),1], perl=T), " "))[c(FALSE, TRUE)]),
-                      "_B",format(as.POSIXlt(featList[6],origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"E",format(as.POSIXlt(featList[6]+End-Start,origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"L",as.character(Low),"H",as.character(High),".jpg",sep="")
+                      "_B",format(as.POSIXlt(featList[6],origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"E",format(as.POSIXlt(featList[6]+End-Start,origin="1970-01-01",tz="UTC"),"%Y%m%d-%H%M%OS3"),"L",Low,"H",High,".jpg",sep="")
   if(!file.exists(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))){
   
-  # create spectrogram
-  spec.gram = specgram(x = snd,
-                  Fs = fs,
-                  window=window,
-                  overlap=overlap
-  )
+    
+  if(SpectrogramFunc=="specgram"){
+    # create spectrogram
+    spectrogram = specgram(x = snd,
+                         Fs = fs,
+                         window=WindowLength,
+                         overlap=Overlap
+    )
+    
+    P = abs(spectrogram$S)
+    P = P/max(P)
+    P = 15*log10(P)
+    
+    t = spectrogram$t
+    f = spectrogram$f
+    
+    
+  }else if(SpectrogramFunc=="spectro"){
+    spectrogram<-spectro(snd,f=fs,wl=WindowLength,zp=ZeroPadding,ovlp=Overlap,plot=F)
+    
+    P = abs(spectrogram$amp)
+    P = P/max(P)
+    P = 15*log10(P)
+    
+    t = spectrogram$time
+    
+    f = spectrogram$f
+  }
+
+  
+  #spec.gram = specgram(x = foo@left,
+  #                     n=1500,
+  #                     Fs = fs,
+  #                     overlap=1200
+  #)
+  
+  #plot(spec.gram)
   
   # discard phase information
-  P = abs(spec.gram$S)
+  #
+  
   
   # normalize
-  P = P/max(P)
   
   # convert to dB
-  P = 15*log10(P)
   
   # config time axis
-  t = spec.gram$t
+  
+
+  
+ # f = spec.gram$f
+  
+
   
   #can use curSpec here to direct to species/detectionID folders. 
   # plot spectrogram
@@ -2119,17 +2355,25 @@ specDo<-function(z,featList,specpathh){
   if(whichRun=="GT"){
   
     jpeg(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""),quality=100)
-    imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    if(SpectrogramFunc=="spectro"){
+    imagep(x = t,y = f,z = t(P),col = gray(1-(0:255/255)),axes=FALSE,decimate = F,ylim=c(Low/1000,High/1000), drawPalette = FALSE,mar=c(0,0,0,0))
+    }else if(SpectrogramFunc=="specgram"){
+    imagep(x = t,y = f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    }
     dev.off()
     
     image1<-load.image(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",im_file_name,sep=""))
     
   }else if(whichRun=="NEW"){
-    jpeg(paste(outputpathfiles,"/Image_temp/",z,".jpg",sep=""),quality=100)
-    imagep(x = t,y = spec.gram$f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    jpeg(paste(tempFolder,"/",z,".jpg",sep=""),quality=100)
+    if(SpectrogramFunc=="spectro"){
+    imagep(x = t,y = f,z = t(P),col = gray(1-(0:255/255)),axes=FALSE,decimate = F,ylim=c(Low/1000,High/1000), drawPalette = FALSE,mar=c(0,0,0,0))
+    }else if(SpectrogramFunc=="specgram"){
+    imagep(x = t,y = f,z = t(P),col = gray(0:255/255),axes=FALSE,decimate = F,ylim=c(Low,High), drawPalette = FALSE,mar=c(0,0,0,0))
+    }
     dev.off()
     
-    image1<-load.image(paste(outputpathfiles,"/Image_temp/",z,".jpg",sep=""))
+    image1<-load.image(paste(tempFolder,"/",z,".jpg",sep=""))
   }
   
   }else{
@@ -2139,12 +2383,33 @@ specDo<-function(z,featList,specpathh){
   }
   
   image1<-grayscale(image1, method = "Luma", drop = TRUE)
-  f <- ecdf(image1)
+  #f <- ecdf(image1)
+  
+  image1<-isoblur(image1,sigma=IsoblurSigma)
   
   image1<-threshold(image1,ImgThresh) 
-  image1<-clean(image1,5) %>% imager::fill(1) 
+  #test<-threshold(image1,"98%") 
+  #plot(test)
   
+  #image1<-clean(image1,5) %>% imager::fill(1) 
+  
+  image1<-clean(image1,ImgNoiseRedPower) %>% imager::fill(ImgFillPower) 
+
+  #temp: look at quality of images being drawn   
+  #jpeg(paste(outputpathfiles,"/Image_library/",whiten2,"/",MoorInfo[which(featList[1]==as.numeric(factor(paste(MoorInfo[,9],MoorInfo[,10])))),9],"/",c("No","Yes")[featList[7]+1],"/",substr(im_file_name,1,nchar(im_file_name)-4),"TEMP.jpg",sep=""),quality=100)
   #plot(image1)
+  #dev.off()
+  
+  #if a complete black or white image, do not bother to extract features
+  if(length(unique(image1))!=1){
+
+  #plot(image1)
+  
+  #Black border so edge islands are respected 
+  image1[1,1:480,1,1]<-FALSE
+  image1[1:480,1,1,1]<-FALSE
+  image1[480,1:480,1,1]<-FALSE
+  image1[1:480,480,1,1]<-FALSE
   
   #TEST SECTION
   #jpeg(paste(outputpathfiles,"/Image_temp/Spectrogram",z,".jpg",sep=""),quality=100)
@@ -2176,22 +2441,131 @@ specDo<-function(z,featList,specpathh){
   areaW<-areaW[which(areaW$labelsW!=0),]
   areaW<-areaW[order(-areaW[,2]),]
   
-  total<-sum(areaW$Freq)
-  runSum<-0
+  #total<-sum(areaW$Freq)
+  #runSum<-0
   p=1
-  for(h in 1:nrow(areaW)){
+  #for(h in 1:nrow(areaW)){
+  #  worthyones<-p
+  #  if((areaW$Freq[h]+runSum)<(total/2)){
+  #    p=p+1
+  #    runSum<-areaW$Freq[h]+runSum
+  #    
+  #  }else{
+  #    break
+  #  }
+  #
+  #}
+  if(nrow(areaW)>1){
+  for(h in 2:nrow(areaW)){
     worthyones<-p
-    if((areaW$Freq[h]+runSum)<(total/2)){
+    if((areaW$Freq[h])>(areaW$Freq[h-1]/3)&((areaW$Freq[h]/areaW$Freq[1])>0.1)){
       p=p+1
-      runSum<-areaW$Freq[h]+runSum
-      
     }else{
       break
     }
-
+  
+  }
+  }else{
+    worthyones<-1
   }
   
-  IslIndex<-as.numeric(as.character(areaW$labelsW))[1:worthyones]
+  #reduce to just worthyones for this calc
+  labelsW_WO<-labelsW
+  labelsW_WO[which(!labelsW_WO %in% areaW$labelsW[1:worthyones])]<-0
+  labelsW_WO[which(labelsW_WO!=0)]<-1
+  
+  #variables
+  comparibleShapes<-worthyones
+  
+  warning1<-0 #warning1: is a '1' if one of the quantiles can't be measured
+  warning2<-0 #warning2: is a '1' if the quantiles have mismatched # of intervals
+    
+  #1st quantile
+  runs<-rle(labelsW_WO[160,1:480])
+  
+  if(length(runs$values)>3){
+    
+  centerY<-c()
+  for(i in 1:sum(runs$values==1)){
+    centerY<-c(centerY,sum(c(runs$lengths[1:which(runs$values==1)[i]-1],runs$lengths[which(runs$values==1)][i]/2)))
+  }
+  
+  intervalsNum<-length(diff(centerY))
+  if(intervalsNum>1){
+    intervalsAV<-mean(diff(centerY))
+    intervalsSE<-std.error(diff(centerY))
+  }else{
+    intervalsAV<-diff(centerY)
+    intervalsSE<-123456789
+  }
+  
+  }else{
+    intervalsNum<-0
+    intervalsAV<-123456789
+    intervalsSE<-123456789
+    warning<-1 #should this be enough for the warning? 
+  }
+  
+  #2nd quantile
+  runs<-rle(labelsW_WO[240,1:480])
+  if(length(runs$values)>3){
+  centerY<-c()
+  for(i in 1:sum(runs$values==1)){
+    centerY<-c(centerY,sum(c(runs$lengths[1:which(runs$values==1)[i]-1],runs$lengths[which(runs$values==1)][i]/2)))
+  }
+  
+  intervalsNum<-c(intervalsNum,length(diff(centerY)))
+  if(intervalsNum[2]>1){
+    intervalsAV<-c(intervalsAV,mean(diff(centerY)))
+    intervalsSE<-c(intervalsSE,std.error(diff(centerY)))
+  }else{
+    intervalsAV<-c(intervalsAV,diff(centerY))
+    intervalsSE<-c(intervalsSE,123456789)
+  }
+  }else{
+    intervalsNum<-c(intervalsNum,0)
+    intervalsAV<-c(intervalsAV,123456789)
+    intervalsSE<-c(intervalsSE,123456789)
+    warning<-1 #should this be enough for the warning? 
+  }
+  #3rd quantile
+  runs<-rle(labelsW_WO[320,1:480])
+  if(length(runs$values)>3){
+    centerY<-c()
+    for(i in 1:sum(runs$values==1)){
+      centerY<-c(centerY,sum(c(runs$lengths[1:which(runs$values==1)[i]-1],runs$lengths[which(runs$values==1)][i]/2)))
+    }
+    
+    intervalsNum<-c(intervalsNum,length(diff(centerY)))
+    if(intervalsNum[3]>1){
+      intervalsAV<-c(intervalsAV,mean(diff(centerY)))
+      intervalsSE<-c(intervalsSE,std.error(diff(centerY)))
+    }else{
+      intervalsAV<-c(intervalsAV,diff(centerY))
+      intervalsSE<-c(intervalsSE,123456789)
+    }
+  }else{
+    intervalsNum<-c(intervalsNum,0)
+    intervalsAV<-c(intervalsAV,123456789)
+    intervalsSE<-c(intervalsSE,123456789)
+    warning<-1 #should this be enough for the warning? 
+  }
+  
+  if(length(unique(intervalsNum))>1){warning2<-1}
+  
+  PRR1<-if(intervalsAV[1]!=123456789){(High-Low)/480*intervalsAV[1]}else{123456789}
+  PRR1se<-if(intervalsSE[1]!=123456789){(High-Low)/480*intervalsSE[1]}else{123456789}
+  PRR2<-if(intervalsAV[2]!=123456789){(High-Low)/480*intervalsAV[2]}else{123456789}
+  PRR2se<-if(intervalsSE[2]!=123456789){(High-Low)/480*intervalsSE[2]}else{123456789}
+  PRR3<-if(intervalsAV[3]!=123456789){(High-Low)/480*intervalsAV[3]}else{123456789}
+  PRR3se<-if(intervalsSE[3]!=123456789){(High-Low)/480*intervalsSE[3]}else{123456789}
+  
+  PRRav<-if(!any(intervalsAV==123456789)){mean(c(PRR1,PRR2,PRR3))}else{123456789}
+  PRRavse<-if(!any(intervalsSE==123456789)){mean(c(PRR1se,PRR2se,PRR3se))}else{123456789}
+  
+    
+  #IslIndex<-as.numeric(as.character(areaW$labelsW))[1:worthyones] slower computation than below
+  IslIndex<-as.numeric(levels(areaW$labelsW[1:worthyones]))[areaW$labelsW[1:worthyones]]
   areaW<-as.vector(areaW[,2])
   
   shapeSlopes<-vector(mode="numeric", length=worthyones)
@@ -2217,10 +2591,18 @@ specDo<-function(z,featList,specpathh){
     for(a in 1:20){
     Island_df_minx<-NULL
     Island_df_maxx<-NULL
+    if(length(dim(Island_df[which(Island_df[,1]==min(Island_df[,1])),]))>0){
     Island_df_minx<-Island_df[which(Island_df[,1]==min(Island_df[,1])),][sample(1:nrow(Island_df[which(Island_df[,1]==min(Island_df[,1])),]))[1],]
+    }else{
+      Island_df_minx<-Island_df[which(Island_df[,1]==min(Island_df[,1])),]
+    }
+    if(length(dim(Island_df[which(Island_df[,1]==max(Island_df[,1])),]))>0){
     Island_df_maxx<-Island_df[which(Island_df[,1]==max(Island_df[,1])),][sample(1:nrow(Island_df[which(Island_df[,1]==max(Island_df[,1])),]))[1],]
+    }else{
+      Island_df_maxx<-Island_df[which(Island_df[,1]==max(Island_df[,1])),]
+    }
     slope[a]<-(Island_df_maxx[2]-Island_df_minx[2])/(Island_df_maxx[1]-Island_df_minx[1])
-    b[a]<-Island_df_minx[2]-(slope*Island_df_minx[1])
+    b[a]<-Island_df_minx[2]-(slope[a]*Island_df_minx[1])
     }
     slope<-mean(slope)
     b<-mean(b)
@@ -2296,26 +2678,26 @@ specDo<-function(z,featList,specpathh){
   vpEven<-c(vpEven,sum(diff(image1[456,1:480]) == 1) + sum(diff(image1[456,1:480]) == -1))
   
   #add new variables
-  featList[43]<-which.max(areaX) #areaXmaxP
-  featList[44]<-max(areaX) #areaXmax
-  featList[45]<-max(areaX)/sum(areaX) #areaXdom
-  featList[46]<-if(!is.na(std.error(areaX))){std.error(areaX)}else{0} #areaXstd
+  featList[44]<-which.max(areaX) #areaXmaxP
+  featList[45]<-max(areaX) #areaXmax
+  featList[46]<-max(areaX)/sum(areaX) #areaXdom
+  featList[47]<-if(!is.na(std.error(areaX))){std.error(areaX)}else{99999} #areaXstd
   
-  featList[47]<-which.max(areaY) #areaYmaxP
-  featList[48]<-max(areaY) #areaYmax
-  featList[49]<-max(areaY)/sum(areaY)#areaYdom
-  featList[50]<-if(!is.na(std.error(areaY))){std.error(areaY)}else{0}#areaYstd
+  featList[48]<-which.max(areaY) #areaYmaxP
+  featList[49]<-max(areaY) #areaYmax
+  featList[50]<-max(areaY)/sum(areaY)#areaYdom
+  featList[51]<-if(!is.na(std.error(areaY))){std.error(areaY)}else{99999}#areaYstd
   
-  #featList[51]<-std.error(areaW) #Areaspread
-  featList[52]<-max(areaW)#AreaTop
-  featList[53]<-max(areaW)/(sum(areaW))#AreaTopDom
-  featList[54]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
-  featList[55]<-length(areaW)#NumShapes
+  featList[52]<-if(!is.na(std.error(areaW))){std.error(areaW)}else{99999} #Areaspread
+  featList[53]<-max(areaW)#AreaTop
+  featList[54]<-max(areaW)/(sum(areaW))#AreaTopDom
+  featList[55]<-if(length(areaW)>=3){sum(-sort(-areaW)[1:3])/sum(areaW)}else{1}#AreaTop3Dom
+  featList[56]<-length(areaW)#NumShapes
 
-  featList[56]<-Bestline[2]#bestSlopeHough radian
-  featList[57]<-Bestline[3]#bestBHough radian
-  featList[58]<-Bestline[4]#bestSlopeHough
-  featList[59]<-Bestline[5]#bestBHough
+  featList[57]<-Bestline[2]#bestSlopeHough radian
+  featList[58]<-Bestline[3]#bestBHough radian
+  featList[59]<-Bestline[4]#bestSlopeHough
+  featList[60]<-Bestline[5]#bestBHough
   featList[61]<-median(Bestlines[,2])#medSlope radian
   featList[62]<-median(Bestlines[,3])#medB radian 
   featList[63]<-median(Bestlines[,4])#medSlope
@@ -2327,24 +2709,41 @@ specDo<-function(z,featList,specpathh){
   featList[67]<-mean(unlist(positionsY,recursive = TRUE),na.rm=TRUE)#yavg
   
   featList[68]<-mean(hpEven)#switchesXmean
-  featList[69]<-if(!is.na(std.error(hpEven))){std.error(hpEven)}else{0}#switchesXse
+  featList[69]<-if(!is.na(std.error(hpEven))){std.error(hpEven)}else{99999}#switchesXse
   featList[70]<-max(hpEven)#switchesXmax
   featList[71]<-min(hpEven)#switchesXmin
   
   featList[72]<-mean(vpEven)#switchesYmean
-  featList[73]<-if(!is.na(std.error(vpEven))){std.error(vpEven)}else{0}#switchesYse
+  featList[73]<-if(!is.na(std.error(vpEven))){std.error(vpEven)}else{99999}#switchesYse
   featList[74]<-max(vpEven)#switchesYmax
   featList[75]<-min(vpEven)#switchesYmin
   
   #individual shape features:
   featList[76]<-mean(shapeSlopes) #avg slope. using arctan(slope) hoping it makes numeric comparisons better since slope is nonlinear especially at large values
-  featList[77]<-if(worthyones>1){std.error(shapeSlopes)}else{0} #var slope
+  featList[77]<-if(worthyones>1){std.error(shapeSlopes)}else{99999} #var slope
   featList[78]<-sum(shapeCentDistance) #sum of all centroid distances (hopefully weighted towards larger shapes that have better potential for concavity)
   featList[79]<-sum(shapeCentDistance*signVec)
   featList[80]<-mean(shapeCentDistance) #other way of comparing centroid distances
   featList[81]<-mean(shapeCentDistance*signVec) #other way of comparing centroid distances
   featList[82]<-perConcave #% positive distances.  
   
+  #PRR measurements and warnings 
+  featList[83]<-PRR1
+  featList[84]<-PRR1se
+  featList[85]<-PRR2
+  featList[86]<-PRR2se
+  featList[87]<-PRR3
+  featList[88]<-PRR3se
+  featList[89]<-PRRav
+  featList[90]<-PRRavse
+  featList[91]<-comparibleShapes
+  featList[92]<-warning1
+  featList[93]<-warning2
+  
+  
+  }
+  #Rprof()
+  #summaryRprof(tmp)
   return(featList)
 }
 
@@ -2531,7 +2930,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         gGroup[z+1]<-f
       }
     }
-    }else if(s=="GS"|s=="BP"){
+    }else if(s=="GS"|s=="BP"|s=="BN"){
       
       #need to order chronologically. 
       resltsVar<-resltsVar[order(resltsVar$sound.files,resltsVar$start,resltsVar$top.freq),]
@@ -2572,7 +2971,7 @@ for(e in unique(resltsTabTemp$sound.files)){
     
     Matdata<<-NULL
   print("start process wanted selections")
-    if(s=="RW"){
+    if(s=="RW"|s=="BN"){
     resltsVar<-resltsVar[which(as.integer(rownames(resltsVar)) %in% as.integer(wantedSelections)),]
     }else if(s=="GS"|s=="BP"){
     wantedSelections<-t(wantedSelections)
@@ -2617,28 +3016,43 @@ for(e in unique(resltsTabTemp$sound.files)){
       resltsTabFinal <- read.csv(text="Selection,View,Channel,Begin Time (s),End Time (s),Low Freq (Hz),High Freq (Hz), MooringID, MooringName, MooringCode, sound.files", colClasses = colClasses)
       colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","MooringCode","sound.files")
       
-      if(s=="RW"|s=="LM"){
+      if(s=="RW"){
       p=1
       for(j in unique(resltsVar$group)){
-        grpminfreq <- min(resltsVar[resltsVar$group==j,6])
-        grpmaxfreq <- max(resltsVar[resltsVar$group==j,7])
-        grpstarttime <- min(resltsVar[resltsVar$group==j,4])
-        grpendtime <- max(resltsVar[resltsVar$group==j,5])
+        grp<-resltsVar[resltsVar$group==j,]
+        grpminfreq <- min(grp[,6])
+        grpmaxfreq <- max(grp[,7])
+        grpstarttime <- min(grp[,4])
+        grpendtime <- max(grp[,5])
         
         resltsTabFinal[p,1]<-p
         resltsTabFinal[p,4]<-grpstarttime
         resltsTabFinal[p,5]<-grpendtime
         resltsTabFinal[p,6]<-grpminfreq
         resltsTabFinal[p,7]<-grpmaxfreq
-        resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
-        resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
-        resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", resltsVar$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
-        resltsTabFinal[p,11]<-as.character(resltsVar$sound.files[1])
+        resltsTabFinal[p,8]<-as.character(grp$MooringID[1])
+        resltsTabFinal[p,9]<-as.character(grp$MooringName[1])
+        resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", grp$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
+        resltsTabFinal[p,11]<-as.character(grp$sound.files[1])
         
         p<-p+1
-      }
+        }
+      }else if(s=="LM"){
         
-      }else if(s=="GS"|s=="BP"){
+        resltsTabFinal<-data.frame(cbind(1:nrow(resltsVar),"Spectrogram 1",1,resltsVar[,4],resltsVar[,5],resltsVar[,6],resltsVar[,7],as.character(resltsVar[,9]),as.character(resltsVar[,10]),sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", resltsVar[,10], perl=T), " "))[c(FALSE, TRUE)]),as.character(resltsVar[,1])),stringsAsFactors = FALSE)
+       
+        colnames(resltsTabFinal)<-c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)","MooringID","MooringName","MooringCode","sound.files")
+         
+        resltsTabFinal[,1]<-as.numeric(resltsTabFinal[,1])
+        resltsTabFinal[,4]<-as.numeric(resltsTabFinal[,4])
+        resltsTabFinal[,5]<-as.numeric(resltsTabFinal[,5])
+        resltsTabFinal[,6]<-as.numeric(resltsTabFinal[,6])
+        resltsTabFinal[,7]<-as.numeric(resltsTabFinal[,7])
+        
+        
+        
+        
+      }else if(s=="GS"|s=="BP"|s=="BN"){
         p=1
         for(j in unique(resltsVar$group)){
           grp<-resltsVar[resltsVar$group==j,]
@@ -2656,10 +3070,10 @@ for(e in unique(resltsTabTemp$sound.files)){
           resltsTabFinal[p,5]<-grpendtime
           resltsTabFinal[p,6]<-grpminfreq
           resltsTabFinal[p,7]<-grpmaxfreq
-          resltsTabFinal[p,8]<-as.character(resltsVar$MooringID[1])
-          resltsTabFinal[p,9]<-as.character(resltsVar$MooringName[1])
-          resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", resltsVar$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
-          resltsTabFinal[p,11]<-as.character(resltsVar$sound.files[1])
+          resltsTabFinal[p,8]<-as.character(grp$MooringID[1])
+          resltsTabFinal[p,9]<-as.character(grp$MooringName[1])
+          resltsTabFinal[p,10]<-sub("[:alpha:]$", "",unlist(strsplit(sub("(_)(?=[^_]+$)", " ", grp$MooringName[1], perl=T), " "))[c(FALSE, TRUE)])
+          resltsTabFinal[p,11]<-as.character(grp$sound.files[1])
           
           p<-p+1
         }
@@ -2671,13 +3085,12 @@ for(e in unique(resltsTabTemp$sound.files)){
         #remove fragments (100hz or under) also on the low end
         resltsTabFinal<-resltsTabFinal[which(!(((resltsTabFinal[,7]-resltsTabFinal[,6])<=100)&(resltsTabFinal[,7]<150)&(resltsTabFinal[,5]-resltsTabFinal[,4]<=0.5))),] #&resltsTabFinal[,6]>=225)
         
-        }
-        
         #change end time of call to start of next call if they overlap. 
         resltsTabFinal<-resltsTabFinal[order(resltsTabFinal[,4]),]
         for(b in 1:(nrow(resltsTabFinal)-1)){
           if(resltsTabFinal[b,5]>resltsTabFinal[b+1,4])
             resltsTabFinal[b,5]<-resltsTabFinal[b+1,4]
+        }
         }
         
       }
@@ -2718,9 +3131,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         resltsTabFinal$Species<-s #needed to add this here to assess unique data 
 
         curSpec<-MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal$Species[1],resltsTabFinal[1,8])),11]
-        print(curSpec)
-        print(paste(resltsTabFinal[1,12],resltsTabFinal[1,8]))
-        print(paste(MoorInfo[,9],MoorInfo[,10]))
+
         if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal[1,12],resltsTabFinal[1,8])),7]=="HG_datasets"){
           pathh<-paste(startcombpath,curSpec,sep="")
         }else if(MoorInfo[which(paste(MoorInfo[,9],MoorInfo[,10])==paste(resltsTabFinal[1,12],resltsTabFinal[1,8])),7]=="Full_datasets"){
@@ -2740,7 +3151,33 @@ for(e in unique(resltsTabTemp$sound.files)){
         resltsTabFinal$FileOffsetEnd<-0
         
         print("calculate file ID and begin time and end time relative to file for sound.file")
-        durTabSF<-durTab[which(durTab$CombSF==e),]
+        
+        #as of right now can't remember why the conditional is more complicated than just seeing if there is a number at the start of the sound file. 
+        
+        #numbered<-FALSE
+        #bigger<-FALSE
+        #if(length(grep(substr(e,1,nchar(e)-4),MoorInfo[,10]))>0){
+        #  if((MoorInfo[grep(substr(e,1,nchar(e)-4),MoorInfo[,10]),6]/fileCombinesize/fileCombinesize2ndIt)>1){
+        #    bigger<-TRUE
+        #  }
+        #  numbered<-TRUE
+        #}
+        if(is.na(as.numeric(substr(as.character(e),1,2)))){
+          if(length(grep(substr(e,1,nchar(e)-4),MoorInfo[,10]))>0){
+            if((MoorInfo[grep(substr(e,1,nchar(e)-4),MoorInfo[,10]),6]/fileCombinesize)>1){
+              compare_e<-paste("01",e,sep="")
+            }else{
+              compare_e<-e
+            }
+          }else{
+            compare_e<-e
+          }
+          
+        }else{
+          compare_e<-e
+        }
+        
+        durTabSF<-durTab[which(durTab$CombSF==compare_e),]
           for(c in 1:nrow(resltsTabFinal)){
             index<-findInterval(resltsTabFinal[c,4], c(0,durTabSF$CumDur))
             resltsTabFinal$File[c]<-as.character(durTabSF[index,2])
@@ -2756,7 +3193,7 @@ for(e in unique(resltsTabTemp$sound.files)){
         
         RT<-substrRight(as.character(resltsTabFinal$File),17)
         RT<-substr(RT,1,13)
-        if(grepl("-",as.character(resltsTabFinal$File[1]))){
+        if(grepl("-",substrRight(as.character(resltsTabFinal$File),17)[1])){
         RT<-strptime(RT,format='%y%m%d-%H%M%S',tz="UTC") #some files have different naming convention 
         }else{
         RT<-strptime(RT,format='%y%m%d_%H%M%S',tz="UTC")
@@ -2851,18 +3288,36 @@ combineDecRaven<-function(){
       
       #maybe put whiten check right here? 
       if(MoorInfo[m,8]=="open"){
-        sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
-        sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
+        if(length(dir(sfpath,pattern=".wav"))>0){
+          sound_files <- dir(sfpath,pattern=".wav")[which(dir(sfpath,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath,pattern=".wav")==MoorInfo[m,5])]
+          sound_filesfullpath<-paste(sfpath,sound_files,sep = "/")
+        }else{
+          sfpath1<-paste(sfpath,"/",MoorInfo[m,1],"_files_All_decimate_by_",decimationFactor,sep="")
+          sound_files <- dir(sfpath1,pattern=".wav")[which(dir(sfpath1,pattern=".wav")==MoorInfo[m,4]):which(dir(sfpath1,pattern=".wav")==MoorInfo[m,5])]
+          sound_filesfullpath<-paste(sfpath1,sound_files,sep = "/")
+          decNeeded<-"n"
+          if(!grepl("All",MoorInfo[m,10])){
+            sfpath<-paste(sfpath,"/",MoorInfo[m,10],"_decimate_by_",decimationFactor,sep="")
+            dir.create(sfpath)
+            file.copy(paste(sfpath1,dir(sfpath1),sep="/")[MoorInfo[m,2]:MoorInfo[m,3]],sfpath)
+          }else{
+            sfpath<-sfpath1
+          }
+
+        }
+
       }else if(MoorInfo[m,8]=="month"){ #assuming month wil only be used when acthing on full moorings. If a different use case conditionals may not work. 
         sound_files<-c()
         sound_filesfullpath<-c()
         allMonths<-dir(paste(dataPath,"/",MoorInfo[m,1],sep=""))
+        #organize months in consecutive order: (doh)
+        allMonths<-allMonths[order(as.numeric(substr(allMonths,6,7)))]
         for(i in allMonths){
           sound_files<-c(sound_files,dir(paste(dataPath,"/",MoorInfo[m,1],"/",i,sep=""),pattern=".wav"))
           sound_filesfullpath<-c(sound_filesfullpath,paste(paste(dataPath,"/",MoorInfo[m,1],sep=""),i,dir(paste(dataPath,"/",MoorInfo[m,1],"/",i,sep=""),pattern=".wav"),sep="/"))
         }
         sound_files <- sound_files[order(sound_files)] #need to look at how mooring is structured but should work fine for sox with a list of full path files. 
-        sound_filesfullpath<-sound_filesfullpath[order(sound_filesfullpath)]
+        #sound_filesfullpath<-sound_filesfullpath[order(sound_filesfullpath)]
       }
       
       if(decNeeded=="y"){
@@ -2911,9 +3366,11 @@ combineDecRaven<-function(){
           filePathNoTemp<-pathh
           pad<-""
         }
+        dir.create(pathh)
         filePath<-paste(pathh,whiten2,sep="/")
         filePathNoTemp<-paste(filePathNoTemp,whiten2,sep="/")#look in final folder to see if SFiles is populated. 
         dir.create(filePath)
+        dir.create(filePathNoTemp)
         combSound<-paste(filePath,"/",pad,MoorInfo[m,10],".wav",sep="")
         if(file.exists(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))){
           durTab <-read.csv(paste(filePathNoTemp,"/",MoorInfo[m,10],"_SFiles_and_durations.csv",sep=""))  
@@ -3037,7 +3494,7 @@ if(dir.exists("C:/Users/ACS-3")){
 }else if(dir.exists("C:/Users/danby456")){
   user<-"danby456"
 }else if(dir.exists("C:/Users/Daniel.Woodrich")){
-  gitPath<-"//nmfs/akc-nmml/CAEP/Acoustics/Projects/Dans Detectors/RavenBLEDscripts/"
+  gitPath<-"T:/Detector/RavenBLEDscripts/"
 }
 
 user<-"Daniel.Woodrich"
@@ -3152,7 +3609,7 @@ for(s in spec){
   
 }
   
-if(spec>1){
+if(length(spec)>1){
 write.csv(resltsTabF,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGT.csv",sep=""),row.names = FALSE)
 write.csv(MoorInfoMspec,paste(paste(outputpathfiles,"Unprocessed_GT_data/",sep=""),runname,"_UnprocessedGTMoorInfo.csv",sep=""),row.names = F,col.names = FALSE)
 }
@@ -3199,7 +3656,7 @@ if(runProcessGT=="y"){
 
   
 #Combine and configure spread detectors. 
-  
+
 DetecTab<-NULL
 for(s in spec){
   
@@ -3245,6 +3702,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   MoorVar<-MoorVar[order(MoorVar$meantime),]
   MoorVar$Selection<-seq(1:nrow(MoorVar))
   
+  if(nrow(GT[[v]])>0){
   #Define useful comlumns in both MoorVar and GT
   GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
   GT[[v]]$View<-as.character(GT[[v]]$View)
@@ -3252,7 +3710,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   
   #sum rows of GT to do stats with later
   GTtot<-sum(GTtot,nrow(GT[[v]]))
-  
+
   #change GT names to match what Raven accepts
   colnames(GT[[v]]) <- c("Selection","View","Channel","Begin Time (s)","End Time (s)","Low Freq (Hz)","High Freq (Hz)", "meantime", "detectionType")
   colClasses = c("numeric","character", "numeric","numeric","numeric", "numeric","numeric","numeric","numeric")
@@ -3288,6 +3746,7 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   
   #Identify and add FPs. if selection in MoorVar row does not match that in Output compare, add it to Output compare under designation FP.  
   OutputCompare <- rbind(OutputCompare,MoorVar[-which(MoorVar$Selection %in% OutputCompare$Selection),c(1:7,19,20)])
+  
   OutputCompare[which(OutputCompare$detectionType!="TP"),9]<-"FP"
   
   #Add rows where GT meantime was in between 
@@ -3338,6 +3797,8 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   OutputCompare$Selection<-seq(1:nrow(OutputCompare))
   write.table(OutputCompare,paste(outputpath,runname,"/",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
   
+  MoorVar$detectionType<-TPFPs
+
   #Make summary table of statistics for table comparison. 
   numTP <- nrow(OutputCompare[which(OutputCompare[,8]=="TP"),])
   numFN <- nrow(OutputCompare[which(OutputCompare[,8]=="FN"),])
@@ -3362,18 +3823,45 @@ for(v in 1:nrow(MoorInfo[which(MoorInfo[,9]==s),])){
   detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
   detecEvalFinal <- rbind(detecEvalFinal,detecEval)
   
-  MoorVar$detectionType<-TPFPs
-  
-  
+  }else{
+    
+    write.table("There were no detections",paste(outputpath,runname,"/",s,"_",MoorVar$MooringID[1],"_TPFPFN_Tab_Ravenformat.txt",sep=""),quote=FALSE,sep = "\t",row.names=FALSE)
+    
+    #Make summary table of statistics for table comparison. 
+    numTP <- 0
+    numFN <- 0
+    numFP <- nrow(MoorVar)
+    numTPtruth<- 0
+    detTotal<-nrow(MoorVar)
+    
+    #store this for comparison with full mooring later
+    TPtot<-c(TPtot,0)
+    MoorCor<-c(MoorCor,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]))
+    GTtot2<-c(GTtot2,0)
+    OB<-c(OB,0)
+    MB<-c(MB,0)
+    
+    TPR <- NA
+    FPR <- 1
+    overboxperc<-NA
+    multiboxperc<-NA
+    
+    #save stats and parameters to excel file
+    detecEval<-detecEvalFinal[0,]
+    detecEval[1,]<-c(s,paste(MoorInfo[which(MoorInfo[,9]==s),][v,9],MoorInfo[which(MoorInfo[,9]==s),][v,10]),paste(detnum,paste(detlist2,collapse="+"),sep=";"),"spread",runname,detTotal,numTPtruth,numTP,numFP,numFN,TPR,FPR,multiboxperc,overboxperc,NA,NA,NA,NA,paste(allowedZeros,collapse=","),paste(grpsize,collapse=","),"depreciated",paste(detskip,collapse=","),paste(groupInt,collapse=","),NA,timediffself,paste(Mindur,Maxdur,sep=","),as.character(paste(detnum,sum(detlist),sep=";")),FO,LMS," ")
+    detecEvalFinal <- rbind(detecEvalFinal,detecEval)
+    
+    MoorVar$detectionType<-"FP"
+  }
   #combine all data:
   
   GTset<-rbind(GTset,MoorVar)
 }
 
 #Make summary table of whole run statistics for table comparison. 
-numTP <- sum(as.numeric(detecEvalFinal[,8]))
-numFN <- sum(as.numeric(detecEvalFinal[,10]))
-numFP <- sum(as.numeric(detecEvalFinal[,9]))
+numTP <- sum(as.numeric(detecEvalFinal[,8]),na.rm=TRUE)
+numFN <- sum(as.numeric(detecEvalFinal[,10]),na.rm=TRUE)
+numFP <- sum(as.numeric(detecEvalFinal[,9]),na.rm=TRUE)
 detTotal<-numTP+numFP
 numTPtruth<-sum(GTtot2)
 overbox<-sum(OB)
@@ -3437,7 +3925,7 @@ GTset<-GTset[-grep(",",GTset$Species),]
 #"vectorize" GTset frame. 
 
 GTset$combID<-as.factor(paste(GTset$Species,GTset$MooringID))
-dataMat<- data.matrix(cbind(GTset[,c(23,4:7,11)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
+dataMat<- data.matrix(cbind(GTset[,c(23,4:7)],as.numeric(GTset$RTFb+GTset$FileOffsetBegin),as.numeric(GTset$detectionType)))
 FileNum<-substr(as.character(GTset$sound.files),1,2)
 FileNum[which(is.na(as.numeric(FileNum)))]<-"01"
 dataMat<-cbind(dataMat,as.numeric(FileNum))
@@ -3453,16 +3941,19 @@ if(addToMaster=='y'){
   }
 }
 
-
+tempFolder<-NULL
 dataMat<-spectral_features(dataMat)
+specVar2<-NULL
+specVar<-NULL
+specTab<-NULL
+specdata<-NULL
 
-dataMat<-dataMat[,c(1:7)]
 if(addToMaster=="y"){
   MoorInfo<-MoorInfoMaster
 }
 
 GTset$combID<-NULL
-GTset<-cbind(GTset,dataMat[,c(8:ncol(dataMat))])
+GTset<-cbind(GTset,dataMat[,c(9:ncol(dataMat))])
 
 GTset<-apply(GTset,2,function(x) unlist(x))
 
@@ -3536,7 +4027,6 @@ if(modelType=="rf"){
   modelOutput<-runObliqueRandomForest(dataForModel,method=modelMethod)
 f}
 
-
 #end model function. export dataset, cutmean
 
 #return dataset from random forest 
@@ -3591,18 +4081,22 @@ for(b in c(1,2,3,4,5,10,11)){
 #change to factor
 data3[,15]<-as.factor(data3[,15])
 
-#adaptively combine detections based on probability
-data3Labs<-factorLevels(data3)
-
-data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
-
-data3Mat<- data.matrix(data3)
-
-loadSpecVars(spec[s])
-
 if(runAdaptive_compare=="y"){
+  
+  tempfiletime<-paste(gsub("\\.","",as.character(Sys.getenv()[70])),gsub("\\D","",Sys.time()),sep="")
+  dir.create(paste(outputpathfiles,"Image_temp/",tempfiletime,sep=""))
+  tempFolder<-paste(outputpathfiles,"Image_temp/",tempfiletime,sep="")
+  #this stuff is currently not memory effecient enough to work on larger datasets 
+  #adaptively combine detections based on probability
+  data3Labs<-factorLevels(data3)
+  
+  data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
+  
+  data3Mat<- data.matrix(data3)
+  
+  loadSpecVars(spec[s])
+  
 data3Mat<-adaptive_compare(data3Mat) 
-}
 #simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
 CS_output<-context_sim(data3Mat)
 
@@ -3611,6 +4105,11 @@ data3Mat<-data3Mat[order(data3Mat[,1]),]
 data3<-data.frame(data3Mat)
 data3$Unq_Id<-NULL
 data3<-applyLevels(data3,data3Labs)
+
+unlink(tempFolder, recursive = TRUE)
+
+}
+
 
 #graphs
 AUCadj<-NULL
@@ -3624,24 +4123,48 @@ dataSPEC$detectionType<-as.numeric(as.factor(dataSPEC$detectionType))-1
 
 
 
-pp2<-as.vector(dataSPEC[,nospec+s])
-ll2<-dataSPEC$detectionType
-predd2<-prediction(pp2,ll2)
-perff2<-performance(predd2,"tpr","fpr")
+#pp2<-as.vector(dataSPEC[,nospec+s])
+#ll2<-dataSPEC$detectionType
+#predd2<-prediction(pp2,ll2)
+#perff2<-performance(predd2,"tpr","fpr")
+
+
+prCurve<-pr.curve(scores.class0=dataSPEC[,nospec+s],weights.class0 = dataSPEC$detectionType,curve=TRUE)
+par(mgp=c(2.2,1,0))
+par(cex.main=2,cex.lab=2,cex.axis=1.5)
+plot(prCurve,xaxs="i", yaxs="i", main = paste("Threshold avg",spec[s]),legend=FALSE,col="black")
+CUTtab<-dataSPEC[which(dataSPEC[,nospec+s]>CUTmean),]
+legend("bottomleft", 
+       legend = c(paste("Cutoff = ",round(CUTmean[[1]],2))), 
+       col = c("black"), 
+       pch = c(18), 
+       bty = "n", 
+       pt.cex = 3, 
+       cex = 1.5, 
+       text.col = "black", 
+       horiz = F , 
+       inset = c(0.1))
+
+
+points(as.numeric(TPRthresh[s]),(table(CUTtab$detectionType)[2]/(table(CUTtab$detectionType)[2]+table(CUTtab$detectionType)[1])),pch=18,cex=3)
+
+reset.par()
+
+AUCadj<-c(AUCadj,prCurve$auc.integral)
 
 #with permutations on probs
-plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-     lwd = 2, main = paste("Threshold avg",spec[s]),colorize=T)
-abline(a=0, b= 1)
-auc.perf = performance(predd2, measure = "auc",plot=F)
-print(auc.perf@y.values)
+#plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
+#     lwd = 2, main = paste("Threshold avg",spec[s]),colorize=T)
+#abline(a=0, b= 1)
+#auc.perf = performance(predd2, measure = "auc",plot=F)
+#print(auc.perf@y.values)
 
-AUCadj<-c(AUCadj,auc.perf@y.values)
+#AUCadj<-c(AUCadj,auc.perf@y.values)
 
 #plot of probabilities after context sim:
 for(m in unique(dataSPEC[,6])){
 data3Matmoors<-dataSPEC[which(dataSPEC[,6]==m),]
-CS_outputDate<-CS_output[which(CS_output[,1] %in% as.numeric(data3Matmoors[,1])),]
+#CS_outputDate<-CS_output[which(CS_output[,1] %in% as.numeric(data3Matmoors[,1])),]
 pointsDate<-data3Matmoors$Begin.Time..s.
 #pointsDate<-as.POSIXlt((as.numeric(data3Matmoors$RTFb)+data3Matmoors$FileOffsetBegin), origin="1970-01-01",tz="UTC")
 plot(x=pointsDate,y=data3Matmoors[,nospec+1], col=as.factor(data3Matmoors$detectionType),main=paste(spec[s],m))
@@ -3650,9 +4173,9 @@ abline(h=0.5,lty=3)
 #lines(lowess(data3Matmoors[,pos+5]))
 #lines(lowess(data3Matmoors[,pos+4]))
 #lines(lowess(data3Matmoors[,pos+2]))
-lines(pointsDate,(CS_outputDate[,5]),col="blue") #backwards through data 
-lines(pointsDate,(CS_outputDate[,7]),col="orange") #forwards through data
-lines(pointsDate,(CS_outputDate[,8]),col="green")
+#lines(pointsDate,(CS_outputDate[,5]),col="blue") #backwards through data 
+#lines(pointsDate,(CS_outputDate[,7]),col="orange") #forwards through data
+#lines(pointsDate,(CS_outputDate[,8]),col="green")
 }
 
 }
@@ -3713,9 +4236,12 @@ for(s in spec){
     loadSpecVars(s)
     
     DetecTab<-rbind(DetecTab,process_data())
-    #resltsTab<-NULL
   }
   
+  resltsTab<-NULL
+  resltsTabFinal<-NULL
+  resltsTabTemp<-NULL
+  resltsVar<-NULL
   DetecTab$detectionType<-0
   
   #print table that has buffer to allow for easily playing shorter GS
@@ -3737,17 +4263,28 @@ dataNEW<-cbind(dataNEW,as.numeric(FileNum))
 
 print("extracting features from FFT of each putative call")
 
+#when running on multiple computers want them to use different temp folders to prevent issues with naming and file access. 
+tempfiletime<-paste(gsub("\\.","",as.character(Sys.getenv()[70])),gsub("\\D","",Sys.time()),sep="")
+dir.create(paste(outputpathfiles,"Image_temp/",tempfiletime,sep=""))
+tempFolder<-paste(outputpathfiles,"Image_temp/",tempfiletime,sep="")
+           
 dataNEW<-spectral_features(dataNEW)
-dataNEW<-dataNEW[,c(1:7)]
-  
+specVar2<-NULL
+specVar<-NULL
+specTab<-NULL
+specdata<-NULL
+
 dataNEW<-data.frame(dataNEW)
 DetecTab$combID<-NULL
-DetecTab<-cbind(DetecTab,dataNEW[,c(8:ncol(dataNEW))])
+DetecTab<-cbind(DetecTab,dataNEW[,c(9:ncol(dataNEW))])
 
 #DetecTab<-apply(DetecTab,2,function(x) unlist(x))
 
 DetecTab<-DetecTab[,c(1,4:ncol(DetecTab))]
 DetecTab<-data.frame(DetecTab)
+
+#free up memory (???)
+dataNEW<-NULL
 
 modData<-dataArrangeModel(DetecTab) #combine with above section after experiment
 
@@ -3793,6 +4330,11 @@ modelOutput<-runRandomForest(modData[[1]],GTData[[1]])
 
 data3<-cbind(modData[[2]],modelOutput[[1]])
 CUTmean<-modelOutput[[2]]
+
+#clean up memory
+rm(modData)
+rm(modelOutput)
+rm(Moddata)
 
 nospec<-ncol(data3)-(length(mSpec)*3)
 
@@ -3841,6 +4383,7 @@ if(compareFinal_w_GT=="y"){
       MoorVar<-MoorVar[order(MoorVar$meantime),]
       MoorVar$Selection<-seq(1:nrow(MoorVar))
       
+      if(nrow(GT[[v]])>0){
       #Define useful comlumns in both MoorVar and GT
       GT[[v]]$meantime<-(as.numeric(GT[[v]][,4])+as.numeric(GT[[v]][,5]))/2
       GT[[v]]$View<-as.character(GT[[v]]$View)
@@ -3872,17 +4415,29 @@ if(compareFinal_w_GT=="y"){
         }
       }
       
-      pp2<-as.vector(MoorVar[,nospec+which(s==mSpec)])
-      ll2<-MoorVar$detectionType
-      predd2<-prediction(pp2,ll2)
-      perff2<-performance(predd2,"tpr","fpr")
+      #pp2<-as.vector(MoorVar[,nospec+which(s==mSpec)])
+      #ll2<-MoorVar$detectionType
+      #predd2<-prediction(pp2,ll2)
+      #perff2<-performance(predd2,"tpr","fpr")
       
-      plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
-           lwd = 2, main = paste("Threshold avg",spec[s]),colorize=T)
-      abline(a=0, b= 1)
+      #plot(perff2, avg = "threshold",  xaxs="i", yaxs="i", spread.scale=2,
+      #     lwd = 2, main = paste("Threshold avg",spec[s]),colorize=T)
+      #abline(a=0, b= 1)
+    #  
+    #  auc.perf = performance(predd2, measure = "auc",plot=T)
+    #  AUCadj<-auc.perf@y.values
       
-      auc.perf = performance(predd2, measure = "auc",plot=T)
-      AUCadj<-auc.perf@y.values
+      prCurve<-pr.curve(scores.class0=MoorVar[,nospec+which(s==mSpec)],weights.class0 = MoorVar$detectionType,curve=TRUE)
+      plot(prCurve,xaxs="i", yaxs="i", main = paste("Threshold avg",spec[which(s==mSpec)]))
+      
+      AUCadj<-prCurve$auc.integral
+      
+      }else{
+        MoorVar$detectionType<-0
+        AUCadj<-NA
+      }
+      
+
     }
   }
 }else{
@@ -3892,28 +4447,32 @@ if(compareFinal_w_GT=="y"){
       
   
 
-#adaptively combine detections based on probability
-data3Labs<-factorLevels(data3)
-
-data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
-
-data3Mat<- data.matrix(data3)
-
-
-#loadSpecVars(spec[s])
-loadSpecVars(spec) #obviously not set up for multiple moorings 
 if(runAdaptive_compare=="y"){
+  
+  #adaptively combine detections based on probability
+  data3Labs<-factorLevels(data3)
+  
+  data3$Unq_Id<-as.numeric(as.factor(paste(data3$Species,data3$MooringID)))
+  
+  data3Mat<- data.matrix(data3)
+  
+  
+  #loadSpecVars(spec[s])
+  loadSpecVars(spec) #obviously not set up for multiple moorings 
+  
 data3Mat<-adaptive_compare(data3Mat) 
-}
-#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
-
-#CS_output<-context_sim(data3Mat)
 
 #remove missing rows:
 data3Mat<-data3Mat[order(data3Mat[,1]),]
 data3<-data.frame(data3Mat)
 data3$Unq_Id<-NULL
 data3<-applyLevels(data3,data3Labs)
+
+}
+#simulate context over time using probability scores.Make new tab with selection ID and all supporting variables- don't pin on data3mat. Can use in place of prob if wanted. 
+
+#CS_output<-context_sim(data3Mat)
+
 
 #put columns excluded from model back in ?
 
@@ -3922,6 +4481,10 @@ data3<-applyLevels(data3,data3Labs)
 #data3<-dataPostModel[[1]]
 
 after_model_write(data3) #need to change to vector 
+End.time<-Sys.time()
+print(End.time-Start.time)
+#delete temporary, computer specific folder 
+unlink(tempFolder, recursive = TRUE)
 
 if(compareFinal_w_GT=="bagel"){
   

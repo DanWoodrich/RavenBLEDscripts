@@ -33,3 +33,10 @@ GT,GTpath,"HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datasets,HG_datase
 GT,GTpath2,"RW,RW,RW,RW,RW,RW,RW,RW,RW,RW,RW,RW","Source HG folder. ""NULL"" if for full dataset  "
 GT,GTsourceFormat,"open,open,open,open,open,open,open,open,open,open,open,open","vector ""open"" or ""month"" (ie open,month,open) organization option for file organization"
 Image Analysis,ImgThresh,65,threshold that will be excluded during image thresholding
+Image Analysis,ImgNoiseRedPower,5,power level of noise reduction for creating binary image
+Image Analysis,ImgFillPower,1,power level of shape fill for creating binary image
+Image Analysis,WindowLength,132,spectrogram parameters
+Image Analysis,Overlap,128,spectrogram parameters
+Image Analysis,ZeroPadding,0,spectrogram parameters
+Image Analysis,IsoblurSigma,3,spectrogram parameters
+Image Analysis,SpectrogramFunc,specgram,"specgram (what I was using for RW and GSs) or spectro (which you can zero pad with, possibly less reliable for GS and RW)"
